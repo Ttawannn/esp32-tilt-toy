@@ -3,7 +3,7 @@
  * Copyright 2022 Matthias Müller - Ten Minute Physics
  * MIT license: ./licenses/ten-minute-physics.txt
  * Changes: bounded storage, circular vessels, tilt gravity, fixed stepping,
- * linked-cell particle separation, and Canvas2D rendering in preview.js.
+ * linked-cell particle separation, and square-pixel rendering (pixelWater).
  */
 const SOLID=2, AIR=1, FLUID=0, STEP=.025;
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -160,4 +160,35 @@ export class FlipFluid {
       this.accumulator-=STEP;
     }
   }
+}
+
+// Square pixels for drawing water: each screen cell is either water or not, so blocks never overlap.
+// cells: 0 empty, 1 water, 2 surface (open toward -gravity), 3 outside the vessel.
+// Pixel (i, j) covers simulation x = originX + i*cellX ... like the C++ FlipFluid::rasterize.
+export function pixelWater(f,cols,rows,originX,originY,cellX,cellY,gx,gy,cells=new Uint8Array(cols*rows)) {
+  cells.fill(0);
+  const min=f.h+f.radius,maxX=(f.nx-1)*f.h-f.radius,maxY=(f.ny-1)*f.h-f.radius,rim=f.vesselRadius-.8*f.h,threshold=f.restDensity*.4,n=f.ny,d=f.density;
+  // Sample density inside the particle domain so water reaches the walls particles cannot touch.
+  const density=(x,y)=>{
+    if(f.round){const dx=x-f.cx,dy=y-f.cy,r=Math.hypot(dx,dy);if(r>rim){x=f.cx+dx/r*rim;y=f.cy+dy/r*rim;}}
+    else{x=clamp(x,min,maxX);y=clamp(y,min,maxY);}
+    const sx=clamp(x/f.h-.5,0,f.nx-1.001),sy=clamp(y/f.h-.5,0,f.ny-1.001),i=Math.floor(sx),j=Math.floor(sy),tx=sx-i,ty=sy-j,c=i*n+j;
+    return (1-tx)*(1-ty)*d[c]+tx*(1-ty)*d[c+n]+(1-tx)*ty*d[c+1]+tx*ty*d[c+n+1];
+  };
+  for(let j=0;j<rows;j++)for(let i=0;i<cols;i++){
+    const x=originX+(i+.5)*cellX,y=originY+(j+.5)*cellY;
+    cells[j*cols+i]=f.round&&Math.hypot(x-f.cx,y-f.cy)>f.vesselRadius?3:density(x,y)>threshold?1:0;
+  }
+  for(let p=0;p<f.count;p++){
+    const i=Math.floor((f.x[p]-originX)/cellX),j=Math.floor((f.y[p]-originY)/cellY);
+    if(i>=0&&i<cols&&j>=0&&j<rows&&cells[j*cols+i]===0)cells[j*cols+i]=1;
+  }
+  // Surface: a water pixel with an empty pixel above it (the up neighbour and the diagonals beside it).
+  const length=Math.hypot(gx,gy),ux=length>1e-3?-gx/length:0,uy=length>1e-3?-gy/length:-1;
+  const up=[[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]].filter(([dx,dy])=>(dx*ux+dy*uy)/Math.hypot(dx,dy)>.38);
+  for(let j=0;j<rows;j++)for(let i=0;i<cols;i++){
+    if(cells[j*cols+i]!==1)continue;
+    for(const[dx,dy]of up){const a=i+dx,b=j+dy;if(a>=0&&a<cols&&b>=0&&b<rows&&cells[b*cols+a]===0){cells[j*cols+i]=2;break;}}
+  }
+  return cells;
 }

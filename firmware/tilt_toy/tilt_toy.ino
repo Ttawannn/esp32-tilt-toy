@@ -200,12 +200,15 @@ void renderGame(float dt) {
     const float left = DISPLAY_PROFILE == 3 ? 4 : 2, top = left;
     const float viewW = w-left*2, viewH = h-top*2;
     const float scaleX = viewW/((fluid.nx-2)*fluid.h), scaleY = viewH/((fluid.ny-2)*fluid.h);
-    const int particleSize = fmaxf(1,fluid.radius*fminf(scaleX,scaleY)*.92f);
-    for (int p=0;p<fluid.count;p++) {
-      int x=left+(fluid.x[p]-fluid.h)*scaleX, y=top+(fluid.y[p]-fluid.h)*scaleY;
-      const bool spray = fluid.density[fluid.cell(fluid.x[p],fluid.y[p])] < fluid.restDensity*.65f;
-      const uint16_t color = spray ? rgb(137,227,255) : rgb(24,105,245);
-      scene->fillCircle(x,y,particleSize,color);
+    // Square pixels on a fixed grid: blocks never overlap, and the surface row is drawn paler.
+    const int cell = max(3,(int)lroundf(fminf(viewW,viewH)/34));
+    const int cols = min((int)FlipFluid::MaxPixelSide,(int)(viewW/cell)), rows = min((int)FlipFluid::MaxPixelSide,(int)(viewH/cell));
+    const float ox = left+(viewW-cols*cell)*.5f, oy = top+(viewH-rows*cell)*.5f;
+    fluid.rasterize(cols,rows,fluid.h+(ox-left)/scaleX,fluid.h+(oy-top)/scaleY,cell/scaleX,cell/scaleY,gx,gy);
+    const uint16_t water = rgb(31,162,224), surface = rgb(158,230,251);
+    for (int j=0;j<rows;j++) for (int i=0;i<cols;i++) {
+      const uint8_t value = fluid.pixels[j*cols+i];
+      if (value == 1 || value == 2) scene->fillRect(ox+i*cell,oy+j*cell,cell-1,cell-1,value == 2 ? surface : water);
     }
   } else if (activeMode == 1) {
     float oldX = ballX, oldY = ballY;

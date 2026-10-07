@@ -32,6 +32,10 @@ class FlipFluid {
   float weightU[MaxCells]{}, weightV[MaxCells]{}, density[MaxCells]{};
   uint8_t kind[MaxCells]{};
   int16_t head[MaxCells]{}, next[MaxParticles]{};
+  // Square-pixel view for drawing, mirrored by pixelWater() in web/fluid.js.
+  // 0 empty, 1 water, 2 surface (open toward -gravity), 3 outside the vessel.
+  static constexpr int MaxPixelSide = 64;
+  uint8_t pixels[MaxPixelSide * MaxPixelSide]{};
 
   static float clamp(float value, float low, float high) { return fmaxf(low, fminf(high, value)); }
   static int small(int a, int b) { return a < b ? a : b; }
@@ -189,5 +193,44 @@ class FlipFluid {
       for (int p = 0; p < count; p++) { x[p] += vx[p]*Step; y[p] += vy[p]*Step; }
       keepInside(); separate(); toGrid(); updateDensity(); project(); toParticles(flip); keepInside(); accumulator -= Step;
     }
+  }
+  // Density inside the particle domain, so water reaches the walls particles cannot touch.
+  float densityAt(float px, float py) const {
+    if (round) {
+      const float dx = px-cx, dy = py-cy, d = sqrtf(dx*dx+dy*dy), rim = vesselRadius - .8f*h;
+      if (d > rim) { px = cx + dx/d*rim; py = cy + dy/d*rim; }
+    } else {
+      px = clamp(px, h+radius, (nx-1)*h-radius); py = clamp(py, h+radius, (ny-1)*h-radius);
+    }
+    const float sx = clamp(px/h-.5f, 0, nx-1.001f), sy = clamp(py/h-.5f, 0, ny-1.001f);
+    const int i = (int)sx, j = (int)sy, c = i*ny+j;
+    const float tx = sx-i, ty = sy-j;
+    return (1-tx)*(1-ty)*density[c] + tx*(1-ty)*density[c+ny] + (1-tx)*ty*density[c+1] + tx*ty*density[c+ny+1];
+  }
+  // Pixel (i, j) covers simulation x = originX + i*cellX, y = originY + j*cellY. Returns false if the grid is too large.
+  bool rasterize(int cols, int rows, float originX, float originY, float cellX, float cellY, float gx, float gy) {
+    if (cols < 1 || rows < 1 || cols > MaxPixelSide || rows > MaxPixelSide) return false;
+    const float threshold = restDensity*.4f;
+    for (int j = 0; j < rows; j++) for (int i = 0; i < cols; i++) {
+      const float px = originX+(i+.5f)*cellX, py = originY+(j+.5f)*cellY;
+      pixels[j*cols+i] = round && hypotf(px-cx, py-cy) > vesselRadius ? 3 : densityAt(px, py) > threshold ? 1 : 0;
+    }
+    for (int p = 0; p < count; p++) {
+      const int i = (int)floorf((x[p]-originX)/cellX), j = (int)floorf((y[p]-originY)/cellY);
+      if (i >= 0 && i < cols && j >= 0 && j < rows && pixels[j*cols+i] == 0) pixels[j*cols+i] = 1;
+    }
+    // Surface: a water pixel with an empty pixel above it (the up neighbour and the diagonals beside it).
+    const float length = sqrtf(gx*gx+gy*gy), ux = length > 1e-3f ? -gx/length : 0, uy = length > 1e-3f ? -gy/length : -1;
+    static const int8_t around[8][2] = {{-1,-1},{0,-1},{1,-1},{-1,0},{1,0},{-1,1},{0,1},{1,1}};
+    int up[8][2], ups = 0;
+    for (auto &o : around) if ((o[0]*ux+o[1]*uy)/sqrtf((float)(o[0]*o[0]+o[1]*o[1])) > .38f) { up[ups][0] = o[0]; up[ups++][1] = o[1]; }
+    for (int j = 0; j < rows; j++) for (int i = 0; i < cols; i++) {
+      if (pixels[j*cols+i] != 1) continue;
+      for (int k = 0; k < ups; k++) {
+        const int a = i+up[k][0], b = j+up[k][1];
+        if (a >= 0 && a < cols && b >= 0 && b < rows && pixels[b*cols+a] == 0) { pixels[j*cols+i] = 2; break; }
+      }
+    }
+    return true;
   }
 };
