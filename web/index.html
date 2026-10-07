@@ -17,8 +17,9 @@
         <div class="section-bar"><h2 id="preview-title">ลองเล่นก่อนประกอบ</h2><span class="tag">WEB PREVIEW</span></div>
         <div class="device-stage"><div class="stage-grid"></div><span class="stage-label" id="preview-panel-label">240 × 240 / GC9A01</span><div class="device" id="device"><div class="keyring"></div><div class="device-shell"><canvas id="toy-canvas" width="240" height="240" aria-label="ภาพจำลองโหมดของเล่น"></canvas></div><div class="device-tab"></div></div><div class="stage-readout"><span>ROLL <b id="roll-readout">+0°</b></span><span id="mode-readout">LIQUID</span><span>PITCH <b id="pitch-readout">+0°</b></span></div></div>
         <div class="preview-controls"><label for="tilt">เอียงเครื่อง <output id="tilt-value">0°</output></label><input id="tilt" type="range" min="-60" max="60" value="0"><div class="control-bottom"><label for="pitch">ก้ม / เงย <input id="pitch" type="range" min="-45" max="45" value="0"></label><button id="shake" class="shake-button">↝ เขย่า</button></div></div>
+        <div class="fluid-controls" id="fluid-controls"><label for="fill">ระดับน้ำ <output id="fill-value">50%</output></label><input id="fill" type="range" min="10" max="90" value="50"><div class="fluid-bottom"><span>ลากบนจอเพื่อกวนน้ำ</span><label><input id="fluid-grid" type="checkbox"> แสดงกริด</label></div></div>
         <div class="mode-grid" id="modes" aria-label="โหมดทดลองเล่น"></div>
-        <p class="preview-note" id="mode-description">ภาพจำลองบนเว็บ · เครื่องจริงรับการเคลื่อนไหวจาก MPU6050</p>
+        <p class="preview-note" id="mode-description">ภาพจำลองบนเว็บ · เครื่องจริงรับการเคลื่อนไหวจาก MPU6050</p><p class="fluid-credit"><a href="https://matthias-research.github.io/pages/tenMinutePhysics/18-flip.html" target="_blank" rel="noreferrer">FLIP จาก Ten Minute Physics ↗</a> · <a href="./licenses/ten-minute-physics.txt">MIT license</a></p>
       </section>
       <section class="installer" aria-labelledby="installer-title">
         <div class="section-bar"><h2 id="installer-title">ประกอบความสนุกของคุณ</h2><span class="tag muted">USB INSTALLER</span></div>

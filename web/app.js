@@ -5,10 +5,11 @@ let saved={}; try { saved=JSON.parse(localStorage.getItem('tilt-toy-selection')|
 let choice=displayChoices.some(d=>d.id===saved.choice)?saved.choice:'tft-240x240';
 let driver=saved.driver==='ST7789'?'ST7789':'GC9A01';
 let currentMode=modes.some(m=>m.id===saved.mode)?saved.mode:'water';
+let fill=Number.isFinite(saved.fill)?Math.min(90,Math.max(10,Math.round(saved.fill))):50;
 let profile=findProfile(choice,driver), generation=0, installerReady=false, releaseReady=false;
 const supported=window.isSecureContext && 'serial' in navigator;
-const preview=new ToyPreview($('toy-canvas'));
-function remember(){try{localStorage.setItem('tilt-toy-selection',JSON.stringify({choice,driver,mode:currentMode}));}catch{}}
+const preview=new ToyPreview($('toy-canvas'));preview.fill=fill;
+function remember(){try{localStorage.setItem('tilt-toy-selection',JSON.stringify({choice,driver,mode:currentMode,fill}));}catch{}}
 function syncFlash(){ $('flash-button').disabled=!(supported&&installerReady&&releaseReady); }
 function status(state,message){$('release-status').dataset.state=state;$('release-message').textContent=message;}
 async function verifyRelease(p,revision){
@@ -39,13 +40,16 @@ function chooseDisplay(){
   $('wiring-rows').replaceChildren(...wiringFor(profile).map(([from,to])=>{const row=document.createElement('tr');for(const value of[from,to]){const cell=document.createElement('td');cell.textContent=value;row.append(cell);}return row;}));
   $('panel-source').href=profile.source;verifyRelease(profile,++generation);
 }
-function chooseMode(id){currentMode=id;remember();preview.setMode(id);document.querySelectorAll('[data-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.mode===id)));const m=modes.find(m=>m.id===id);$('mode-readout').textContent=m.english.toUpperCase();$('mode-description').textContent=`${m.detail} · ภาพจำลองบนเว็บ`;}
+function chooseMode(id){currentMode=id;remember();preview.setMode(id);document.querySelectorAll('[data-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.mode===id)));const m=modes.find(m=>m.id===id);$('mode-readout').textContent=m.english.toUpperCase();$('mode-description').textContent=`${m.detail} · ภาพจำลองบนเว็บ`;$('fluid-controls').hidden=id!=='water';}
 for(const d of displayChoices){const b=document.createElement('button');b.className='display-card';b.dataset.display=d.id;b.setAttribute('aria-pressed','false');b.innerHTML=`<span class="mini-screen ${d.shape}" aria-hidden="true"></span><span><strong>${d.title}</strong><small>${d.subtitle}</small></span>`;b.addEventListener('click',()=>{choice=d.id;chooseDisplay();});$('displays').append(b);}
 for(const m of modes){const b=document.createElement('button');b.className='mode-button';b.dataset.mode=m.id;b.setAttribute('aria-pressed','false');b.innerHTML=`<span class="glyph" aria-hidden="true">${m.glyph}</span><span>${m.name}</span><small>${m.english}</small>`;b.addEventListener('click',()=>chooseMode(m.id));$('modes').append(b);}
 $('driver').addEventListener('change',()=>{driver=$('driver').value;chooseDisplay();});
 $('tilt').addEventListener('input',()=>{const value=Number($('tilt').value);preview.roll=value;$('tilt-value').textContent=value+'°';$('roll-readout').textContent=(value>=0?'+':'')+value+'°';$('device').style.transform=`rotate(${value*.12}deg)`;});
 $('pitch').addEventListener('input',()=>{const value=Number($('pitch').value);preview.pitch=value;$('pitch-readout').textContent=(value>=0?'+':'')+value+'°';});
 $('shake').addEventListener('click',()=>preview.shake());
+$('fill').value=fill;$('fill-value').textContent=fill+'%';
+$('fill').addEventListener('input',()=>{fill=Number($('fill').value);$('fill-value').textContent=fill+'%';preview.setFill(fill);remember();});
+$('fluid-grid').addEventListener('change',()=>{preview.showGrid=$('fluid-grid').checked;});
 if(!supported){$('browser-message').textContent=window.isSecureContext?'แฟลชผ่าน Chrome / Edge บนคอมพิวเตอร์ · มือถือใช้ตั้งค่าโหมดหลังแฟลชได้':'ต้องเปิดเว็บผ่าน HTTPS หรือ localhost เพื่อใช้ Web Serial';}
 else{$('browser-message').textContent='Chrome / Edge บนคอมพิวเตอร์ · ตัวแฟลชตรวจชิปและแสดงความคืบหน้าจริง';}
 chooseMode(currentMode);chooseDisplay();

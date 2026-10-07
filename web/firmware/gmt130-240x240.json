@@ -5,14 +5,14 @@
   "chipFamily": "ESP32-C6",
   "flashSize": "4MB",
   "controller": "ST7789",
-  "size": 1178896,
-  "sha256": "35fe6ff0a34c7f487e149fd1c5e8a7350a71c08382cf47bbad3460e5e8a29380",
+  "size": 1220736,
+  "sha256": "fea344cee0f51fbd53f0bff6913a09a389130ed620a3e351bdd32659c4ad2185",
   "hardwareTested": false,
   "build": {
     "core": "esp32:esp32@3.3.11",
     "fqbn": "esp32:esp32:esp32c6:CDCOnBoot=cdc,FlashMode=dio,FlashSize=4M,PartitionScheme=huge_app",
     "displayProfile": 1,
-    "sourceSha256": "6c360f91d1429fa8a4da1a69b49da4e539a07e972825181f7a7331244a1ee5e9"
+    "sourceSha256": "75043615d9e6e085e5134b53cea5bb25a8df9e427d48baaa779e38625a4768b8"
   },
   "new_install_prompt_erase": true,
   "new_install_improv_wait_time": 0,

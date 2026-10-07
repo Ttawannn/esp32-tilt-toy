@@ -31,7 +31,8 @@ for(const profile of profiles)test(`release ${profile.id}: bytes, checksum, chip
   assert.equal(appSize,0x300000);assert.ok(binary.length-0x10000<=appSize);
   const source = (await readFile(new URL('../firmware/tilt_toy/tilt_toy.ino',import.meta.url),'utf8')).replace(/\r\n/g,'\n');
   const config = (await readFile(new URL('../firmware/tilt_toy/config.h',import.meta.url),'utf8')).replace(/\r\n/g,'\n');
-  assert.equal(createHash('sha256').update(source+'\n'+config).digest('hex'),release.build.sourceSha256);
+  const fluid = (await readFile(new URL('../firmware/tilt_toy/flip_fluid.h',import.meta.url),'utf8')).replace(/\r\n/g,'\n');
+  assert.equal(createHash('sha256').update(source+'\n'+config+'\n'+fluid).digest('hex'),release.build.sourceSha256);
   assert.equal(config.match(/TOY_VERSION\s+"([^"]+)"/)[1],release.version);
   const bad=structuredClone(release);bad.builds[0].chipFamily='ESP32-C3';assert.throws(()=>validateRelease(bad,profile));
   assert.throws(()=>validateRelease(release,profiles.find(p=>p.id!==profile.id)));

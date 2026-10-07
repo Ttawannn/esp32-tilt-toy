@@ -5,14 +5,14 @@
   "chipFamily": "ESP32-C6",
   "flashSize": "4MB",
   "controller": "ST7735S",
-  "size": 1179264,
-  "sha256": "6e5359b1595647b3a126ca92889b4ddf01407ef7f8f7b8e0e8d5359b5695cee9",
+  "size": 1221120,
+  "sha256": "00ac5e7ed6d0d5873547255c87ffe778822d1ece3d841c029de455bfa371a8c7",
   "hardwareTested": false,
   "build": {
     "core": "esp32:esp32@3.3.11",
     "fqbn": "esp32:esp32:esp32c6:CDCOnBoot=cdc,FlashMode=dio,FlashSize=4M,PartitionScheme=huge_app",
     "displayProfile": 0,
-    "sourceSha256": "6c360f91d1429fa8a4da1a69b49da4e539a07e972825181f7a7331244a1ee5e9"
+    "sourceSha256": "75043615d9e6e085e5134b53cea5bb25a8df9e427d48baaa779e38625a4768b8"
   },
   "new_install_prompt_erase": true,
   "new_install_improv_wait_time": 0,
