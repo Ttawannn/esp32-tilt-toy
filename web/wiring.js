@@ -1,5 +1,6 @@
 import { findSensor, wiringConnections, wireSignals } from './profiles.js';
 import { defaultBoard } from './boards.js';
+import { boardLayout, displayLayout, sensorLayout, wirePath } from './wiring-layout.js';
 
 const namespace = 'http://www.w3.org/2000/svg';
 const deviceNames = { display: 'จอ' };
@@ -17,46 +18,52 @@ function componentCard(x, y, width, height, title, subtitle) {
   group.append(svgElement('rect', { x, y, width, height, rx: 16, class: 'component-card' }), svgElement('text', { x: x + 18, y: y + 28, class: 'component-title' }, title), svgElement('text', { x: x + 18, y: y + 47, class: 'component-subtitle' }, subtitle));
   return group;
 }
-function boardArt(board) {
+function boardArt(board, layout) {
   const group = svgElement('g', { 'aria-hidden': 'true' });
   const classic = board.target === 'esp32';
-  group.innerHTML = `<rect x="57" y="157" width="110" height="325" rx="10" fill="${classic ? '#3c5360' : board.target === 'esp32c3' ? '#396480' : '#367565'}" stroke="#285d50" stroke-width="2"/>
-    <path d="M68 169h16v15h16v-15h16v15h16v-15h23M70 326v47h18v52M153 327v58h-18v34" fill="none" stroke="#a8cfa9" stroke-width="3"/>
-    <rect x="78" y="217" width="69" height="83" rx="5" fill="#d4d8d2" stroke="#93a198"/>
-    <text x="112" y="246" text-anchor="middle" fill="#4c6259" font-size="10" font-weight="600">ESP32</text><text x="112" y="263" text-anchor="middle" fill="#4c6259" font-size="${classic ? 9 : 13}">${classic ? 'WROOM-32' : board.target === 'esp32c3' ? 'C3' : 'C6'}</text>
-    <rect x="83" y="324" width="21" height="30" rx="2" fill="#253e35"/><rect x="124" y="331" width="19" height="10" rx="2" fill="#e2d6ac"/>
-    <rect x="80" y="391" width="23" height="24" rx="3" fill="#d2efa4" stroke="#bef365" stroke-width="2"/><circle cx="91.5" cy="403" r="7" fill="#567b3d"/>
-    <rect x="124" y="391" width="23" height="24" rx="3" fill="#b9c3bb"/><circle cx="135.5" cy="403" r="7" fill="#263d34"/>
-    <text x="91" y="434" text-anchor="middle" font-size="8" fill="#d8e9d9">BOOT</text><text x="135" y="434" text-anchor="middle" font-size="8" fill="#d8e9d9">RST</text>
-    <rect x="87" y="460" width="50" height="27" rx="6" fill="#c5ceca" stroke="#8d9c93"/><rect x="94" y="469" width="36" height="8" rx="4" fill="#374b42"/>
-    <text x="112" y="510" text-anchor="middle" class="component-subtitle">USB · ไฟและแฟลช</text>`;
-  for (let index = 0; index < (classic ? 15 : 12); index++) for (const x of [65, 158]) group.append(svgElement('circle', { cx: x, cy: 199 + index * (classic ? 17 : 22), r: 3, fill: '#e1c77d' }));
-  return group;
-}
-function displayArt(profile) {
-  const group = svgElement('g', { 'aria-hidden': 'true' });
-  const portrait = profile.width < profile.height, wide = profile.width > profile.height;
-  const x = portrait ? 717 : 686, y = wide ? 150 : 120, width = portrait ? 65 : 118, height = portrait ? 148 : wide ? 74 : 128;
-  group.append(svgElement('rect', { x: x - 7, y: y - 7, width: width + 14, height: height + 18, rx: profile.shape === 'round' ? 20 : 6, fill: profile.mono ? '#3b6680' : '#3b6d64', stroke: '#284f48', 'stroke-width': 2 }));
-  if (profile.shape === 'round') {
-    group.append(svgElement('circle', { cx: 745, cy: 181, r: 56, fill: '#1d2c29', stroke: '#92a99a', 'stroke-width': 3 }), svgElement('path', { d: 'M697 206 Q721 182 745 205 T793 203 A56 56 0 0 1 697 206', fill: '#b5df90' }));
-  } else {
-    group.append(svgElement('rect', { x, y, width, height, rx: 3, fill: '#1d2c29', stroke: '#a5b5a7', 'stroke-width': 2 }));
-    if (profile.mono) {
-      group.append(svgElement('text', { x: x + width / 2, y: y + 34, 'text-anchor': 'middle', fill: '#b7e2e8', 'font-family': 'monospace', 'font-size': 18 }, '≈ ≈ ≈'), svgElement('text', { x: x + width / 2, y: y + 55, 'text-anchor': 'middle', fill: '#b7e2e8', 'font-family': 'monospace', 'font-size': 10 }, '128 × 64'));
-    } else group.append(svgElement('path', { d: `M${x + 3} ${y + height * .64} Q${x + width * .3} ${y + height * .45} ${x + width * .5} ${y + height * .65} T${x + width - 3} ${y + height * .6} V${y + height - 3} H${x + 3} Z`, fill: '#b5df90' }));
+  const { x, y, width, height } = layout.bounds;
+  group.append(svgElement('rect', { x, y, width, height, rx: classic ? 12 : 5, fill: '#222a2b', stroke: '#111b1d', 'stroke-width': 3 }));
+  const chipY = classic ? y + 73 : y + 122;
+  group.innerHTML += `<path d="M185 ${y + 16}v20h14v-20h14v20h14v-20h17" fill="none" stroke="#8b937c" stroke-width="3"/>
+    <rect x="184" y="${chipY}" width="62" height="${classic ? 116 : 56}" rx="3" fill="${classic ? '#c9ccca' : '#363b3b'}" stroke="#7c8984"/>
+    <text x="215" y="${chipY + 28}" text-anchor="middle" fill="${classic ? '#56605c' : '#d1d9d2'}" font-size="${classic ? 8 : 10}">${classic ? 'ESP-WROOM-32' : board.chipFamily}</text>
+    <text x="215" y="${chipY + 43}" text-anchor="middle" fill="#889b87" font-size="7">${classic ? 'WiFi · BT' : 'SuperMini'}</text>`;
+  for (let i = 0; i < 5; i++) group.append(svgElement('rect', { x: 188 + (i % 2) * 31, y: chipY + (classic ? 143 : 71) + Math.floor(i / 2) * 13, width: 12, height: 6, fill: i % 2 ? '#c8bb83' : '#7e8984', rx: 1 }));
+  const buttonY = classic ? y + height - 65 : y + 71;
+  for (const [bx, label] of [[185, 'BOOT'], [228, 'RST']]) {
+    group.append(svgElement('rect', { x: bx, y: buttonY, width: 18, height: 18, rx: 2, fill: '#adb8b3' }), svgElement('circle', { cx: bx + 9, cy: buttonY + 9, r: 6, fill: label === 'BOOT' ? '#93b971' : '#343d37' }), svgElement('text', { x: bx + 9, y: buttonY + 29, 'text-anchor': 'middle', fill: '#c6d5c9', 'font-size': 7 }, label));
   }
-  group.append(svgElement('text', { x: 745, y: 292, 'text-anchor': 'middle', class: 'component-subtitle' }, `${profile.width} × ${profile.height}`));
+  const usbY = classic ? y + height - 21 : y - 7;
+  group.append(svgElement('rect', { x: 189, y: usbY, width: 52, height: 35, rx: 5, fill: '#bcc5c0', stroke: '#7c8984', 'stroke-width': 2 }), svgElement('rect', { x: 196, y: classic ? usbY + 23 : usbY + 2, width: 38, height: 7, rx: 3, fill: '#293633' }));
+  if (classic) for (const cx of [151, 279]) for (const cy of [y + 12, y + height - 12]) group.append(svgElement('circle', { cx, cy, r: 6, fill: '#f7faf2', stroke: '#bdc6ba', 'stroke-width': 2 }));
   return group;
 }
-function sensorArt(sensor) {
+function displayArt(profile, layout) {
   const group = svgElement('g', { 'aria-hidden': 'true' });
-  group.innerHTML = `<rect x="702" y="434" width="101" height="102" rx="6" fill="#497d9f" stroke="#376382" stroke-width="2"/>
-    <circle cx="713" cy="445" r="4" fill="#e3d9b1"/><circle cx="792" cy="445" r="4" fill="#e3d9b1"/>
-    <rect x="735" y="460" width="34" height="34" fill="#273a46"/><path d="M729 464h-9m9 8h-9m9 8h-9m9 8h-9m55-24h9m-9 8h9m-9 8h9m-9 8h9" stroke="#d4d9cc" stroke-width="2"/>
-    <rect x="715" y="506" width="14" height="7" fill="#e8d7a2"/><rect x="775" y="507" width="13" height="7" fill="#e8d7a2"/>
-    <text x="752" y="528" text-anchor="middle" font-size="10" fill="#e4eff3">${sensor.name}</text><path d="M749 565v-18m0 18h18m-18-18-3 4m3-4 3 4m15 14-4-3m4 3-4 3" fill="none" stroke="#638798" stroke-width="1.5"/>
-    <text x="772" y="568" class="component-subtitle">X</text><text x="747" y="543" class="component-subtitle">Y</text>`;
+  const { x, y, width, height } = layout.bounds;
+  if (profile.shape === 'round') {
+    group.append(svgElement('rect', { x: 691, y: 309, width: 156, height: 61, rx: 4, fill: '#276187', stroke: '#173f57', 'stroke-width': 2 }), svgElement('circle', { cx: 770, cy: 229, r: 112, fill: '#1c212b', stroke: '#376c8b', 'stroke-width': 5 }));
+  } else {
+    group.append(svgElement('rect', { x, y, width, height, rx: 4, fill: profile.mono ? '#272c30' : '#276187', stroke: '#173f57', 'stroke-width': 2 }), svgElement('rect', { x: x + 8, y: y + 43, width: width - 16, height: height - 66, rx: 3, fill: '#1c212b', stroke: '#8e9a9c', 'stroke-width': 2 }));
+    for (const cx of [x + 15, x + width - 15]) for (const cy of [y + 16, y + height - 16]) group.append(svgElement('circle', { cx, cy, r: 8, fill: '#f7faf2', stroke: '#b5c2bb', 'stroke-width': 3 }));
+  }
+  group.append(svgElement('text', { x: x + width / 2, y: profile.shape === 'round' ? 269 : y + height - 10, 'text-anchor': 'middle', fill: '#b8d1dd', 'font-size': 10 }, `${profile.driver} · ${profile.width} × ${profile.height}`));
+  return group;
+}
+function sensorArt(sensor, layout) {
+  const group = svgElement('g', { 'aria-hidden': 'true' });
+  const { x, y, width, height } = layout.bounds;
+  group.innerHTML = `<rect x="${x}" y="${y}" width="${width}" height="${height}" rx="4" fill="${sensor.id === 'bmi160' ? '#6b347e' : '#276187'}" stroke="#274d63" stroke-width="2"/>
+    <circle cx="${x + width - 23}" cy="${y + 22}" r="13" fill="#f7faf2" stroke="#e1c77d" stroke-width="3"/>
+    <circle cx="${x + width - 23}" cy="${y + height - 22}" r="13" fill="#f7faf2" stroke="#e1c77d" stroke-width="3"/>
+    <rect x="${x + 72}" y="${y + 76}" width="35" height="35" fill="#222c32" stroke="#8f9b9a"/>
+    <text x="${x + 90}" y="${y + 96}" text-anchor="middle" font-size="6" fill="#c5d2d1">${sensor.name}</text>
+    <path d="M${x + 66} ${y + 80}h-9m9 8h-9m9 8h-9m9 8h-9m56-24h9m-9 8h9m-9 8h9m-9 8h9" stroke="#d4d9cc" stroke-width="2"/>
+    <rect x="${x + 65}" y="${y + 28}" width="22" height="12" rx="1" fill="#253238"/>
+    <rect x="${x + 91}" y="${y + 29}" width="10" height="8" fill="#e8d7a2"/>
+    <rect x="${x + 64}" y="${y + 53}" width="12" height="6" fill="#e8d7a2"/>
+    <path d="M${x + 94} ${y + height - 20}v-25m0 25h20" fill="none" stroke="#c3dee5" stroke-width="1.5"/>
+    <text x="${x + 99}" y="${y + height - 39}" font-size="8" fill="#c3dee5">Y</text><text x="${x + 108}" y="${y + height - 23}" font-size="8" fill="#c3dee5">X</text>`;
   return group;
 }
 export class WiringGraph {
@@ -101,7 +108,6 @@ export class WiringGraph {
     this.sensor = findSensor(sensorId);
     this.connections = wiringConnections(profile, this.sensor.id, board);
     const { pins } = board;
-    const boardPositions = { '3V3': 140, GND: 168, [`GPIO${pins.SCK}`]: 196, [`GPIO${pins.MOSI}`]: 224, [`GPIO${pins.DC}`]: 252, [`GPIO${pins.RST}`]: 280, [`GPIO${pins.CS}`]: 308, [`GPIO${pins.SDA}`]: 374, [`GPIO${pins.SCL}`]: 402 };
     this.drag = null;
     this.ports = new Map();
     this.wires = new Map();
@@ -119,30 +125,19 @@ export class WiringGraph {
     const pattern = svgElement('pattern', { id: 'wiring-dots', width: 20, height: 20, patternUnits: 'userSpaceOnUse' });
     pattern.append(svgElement('circle', { cx: 1, cy: 1, r: 1, fill: '#dce3d6' }));
     defs.append(pattern);
-    this.svg.append(defs, svgElement('rect', { width: 860, height: 620, fill: 'url(#wiring-dots)' }));
-    this.wireLayer = svgElement('g');
-    this.svg.append(this.wireLayer);
-    const boardCard = componentCard(30, 66, 230, 484, board.name, `${board.target === 'esp32' ? 'DevKit V1' : 'SuperMini'} · Flash 4 MB`);
-    boardCard.append(boardArt(board));
-    const display = componentCard(570, 48, 255, 292, profile.short, `${profile.driver} · ${profile.bus}`);
-    display.append(displayArt(profile));
-    const sensor = componentCard(570, 368, 255, 220, 'Motion sensor', `${this.sensor.module} · I²C`);
-    sensor.append(sensorArt(this.sensor));
-    const buttonNote = componentCard(300, 464, 230, 122, 'ใช้ปุ่ม BOOT บนบอร์ด', `GPIO${pins.BUTTON} · ไม่ต้องต่อสายเพิ่ม`);
-    buttonNote.append(svgElement('text', { x: 318, y: 539, class: 'component-subtitle' }, 'กดสั้น → เปลี่ยนโหมด'), svgElement('text', { x: 318, y: 565, class: 'component-subtitle' }, 'ค้าง 2 วิ → เปิด/ปิด Wi-Fi'));
-    this.svg.append(boardCard, display, sensor, buttonNote);
-    const usedBoardPins = new Set(this.connections.map(c => c.boardPin));
-    for (const [pin, y] of Object.entries(boardPositions)) if (usedBoardPins.has(pin)) this.addPin(`board:${pin}`, pin, 260, y, 'right', `${board.name} ${pin}`);
-    const displayPins = profile.mono ? ['VCC', 'GND', 'SDA', 'SCL'] : ['VCC', 'GND', 'CLK', 'DIN', 'DC', 'RST', ...(profile.hasCs ? ['CS'] : [])];
-    const labels = profile.id === 'gmt130-240x240' ? { CLK: 'SCK', DIN: 'SDA (MOSI)', RST: 'RES' } : { CLK: 'CLK / SCK', DIN: 'DIN / MOSI', RST: 'RST / RES' };
-    displayPins.forEach((pin, index) => this.addPin(`display:${pin}`, labels[pin] || pin, 570, 119 + index * 28, 'left', `${profile.short} ${labels[pin] || pin}`));
-    if (!profile.mono) {
-      const y = 119 + displayPins.length * 28;
-      display.append(svgElement('circle', { cx: 570, cy: y, r: 5, class: 'backlight-port' }), svgElement('text', { x: 585, y: y + 4, class: 'backlight-label' }, 'BL / BLK *'));
+    this.svg.append(defs, svgElement('rect', { width: 1000, height: 790, fill: 'url(#wiring-dots)' }));
+    const boardGeometry = boardLayout(board), displayGeometry = displayLayout(profile), sensorGeometry = sensorLayout(this.sensor);
+    const boardCard = componentCard(30, 75, 340, 625, board.name, `${board.target === 'esp32' ? 'DevKit V1' : 'SuperMini'} · Flash 4 MB`);
+    const display = componentCard(545, 55, 415, 355, profile.short, `${profile.driver} · ${profile.bus}`);
+    const sensor = componentCard(545, 440, 415, 285, this.sensor.name, `${this.sensor.module} · I²C`);
+    this.svg.append(boardCard, display, sensor, boardArt(board, boardGeometry), displayArt(profile, displayGeometry), sensorArt(this.sensor, sensorGeometry));
+    boardCard.append(svgElement('text', { x: 48, y: 651, class: 'component-subtitle' }, `BOOT · GPIO${pins.BUTTON} · ไม่ต้องต่อสายเพิ่ม`), svgElement('text', { x: 48, y: 674, class: 'component-subtitle' }, 'กดสั้นเปลี่ยนโหมด · ค้าง 2 วิเปิด Wi-Fi'));
+    this.wireLayer = svgElement('g', { class: 'wire-layer' });
+    this.pinLayer = svgElement('g');
+    this.svg.append(this.wireLayer, this.pinLayer);
+    for (const [geometry, name] of [[boardGeometry, board.name], [displayGeometry, profile.short], [sensorGeometry, this.sensor.name]]) {
+      for (const port of geometry.pins) this.addPin(port, `${name} ${port.id === 'board:GND-L' ? 'GND (ซ้าย)' : port.label}`);
     }
-    const sensorLabels = { CS: this.sensor.id === 'bmi160' ? 'CS / CSB' : 'CS', SDO: 'SDO / SA0' };
-    this.sensorPins = ['VCC', 'GND', 'SDA', 'SCL', ...this.sensor.straps.map(([pin]) => pin)];
-    this.sensorPins.forEach((pin, index) => this.addPin(`sensor:${pin}`, sensorLabels[pin] || pin, 570, 433 + index * 26, 'left', `${this.sensor.name} ${sensorLabels[pin] || pin}`));
     this.ghost = svgElement('path', { class: 'wire-ghost', hidden: '' });
     this.svg.append(this.ghost);
     this.list.replaceChildren();
@@ -152,25 +147,27 @@ export class WiringGraph {
     }
     this.reset();
   }
-  addPin(id, label, x, y, side, accessibleLabel) {
+  addPin(port, accessibleLabel) {
+    const { id, label, x, y, dx, dy } = port;
     const group = svgElement('g', { class: 'graph-pin', 'data-pin': id, tabindex: 0, role: 'button', 'aria-label': accessibleLabel });
     const signal = this.connections.find(c => c.from === id || c.to === id)?.signal;
-    group.style.setProperty('--wire-color', wireSignals[signal].color);
-    group.append(svgElement('title', {}, accessibleLabel), svgElement('rect', { x: side === 'right' ? x - 72 : x - 17, y: y - 14, width: side === 'right' ? 90 : 119, height: 28, rx: 6, class: 'pin-hit' }), svgElement('circle', { cx: x, cy: y, r: 5, class: 'pin-dot' }), svgElement('text', { x: side === 'right' ? x - 14 : x + 15, y: y + 4, 'text-anchor': side === 'right' ? 'end' : 'start', class: 'pin-label' }, label));
+    group.style.setProperty('--wire-color', wireSignals[signal]?.color || '#88998c');
+    group.append(svgElement('title', {}, accessibleLabel), svgElement('rect', { x: x - 10, y: y - 10, width: 20, height: 20, rx: 5, class: 'pin-hit' }), svgElement('circle', { cx: x, cy: y, r: 6, class: 'pin-ring' }), svgElement('circle', { cx: x, cy: y, r: 3, class: 'pin-dot' }));
+    const text = svgElement('text', { x: dx ? x - dx * 11 : x, y: dy ? y - dy * 14 : y + 3, 'text-anchor': dx < 0 ? 'start' : dx > 0 ? 'end' : 'middle', class: 'pin-label', 'pointer-events': 'none' }, label);
+    if (id.startsWith('board:') && dy) {
+      text.setAttribute('y', y + 23);
+      text.textContent = label.replace('GPIO', '');
+    }
+    group.append(text);
     group.addEventListener('keydown', event => {
       if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); this.activatePin(id); }
     });
-    this.ports.set(id, { x, y, element: group, label: accessibleLabel, pinLabel: label });
-    this.svg.append(group);
+    this.ports.set(id, { ...port, element: group, label: accessibleLabel, pinLabel: label });
+    this.pinLayer.append(group);
   }
   wirePath(first, second) {
-    const a = this.ports.get(first), b = this.ports.get(second);
-    if (second.startsWith('sensor:')) {
-      const lane = 522 + this.sensorPins.indexOf(second.split(':')[1]) * 6;
-      return `M${a.x},${a.y} H${lane - 12} Q${lane},${a.y} ${lane},${a.y + 12} V${b.y - 12} Q${lane},${b.y} ${lane + 12},${b.y} H${b.x}`;
-    }
-    const bend = Math.max(40, Math.abs(b.x - a.x) * .52);
-    return `M${a.x},${a.y} C${a.x + bend},${a.y} ${b.x - bend},${b.y} ${b.x},${b.y}`;
+    const lane = this.connections.findIndex(c => c.from === first && c.to === second);
+    return wirePath(this.ports.get(first), this.ports.get(second), Math.max(0, lane));
   }
   addWire(connection) {
     const group = svgElement('g', { class: 'graph-wire', tabindex: 0, role: 'button', 'aria-label': this.connectionLabel(connection), 'data-wire': connection.id });
@@ -201,7 +198,7 @@ export class WiringGraph {
     this.list.append(button);
   }
   connectionLabel(connection) {
-    return `${this.ports.get(connection.to).label} ↔ ${this.board.name} ${connection.boardPin}`;
+    return `${this.ports.get(connection.to).label} ↔ ${this.board.name} ${connection.boardPin === 'GND-L' ? 'GND (ซ้าย)' : connection.boardPin}`;
   }
   message(text, error = false) {
     this.feedback.textContent = text;
@@ -256,6 +253,9 @@ export class WiringGraph {
   refreshPins() {
     const selected = this.connections.find(c => c.id === this.selected);
     for (const [id, port] of this.ports) {
+      const signal = this.connections.find(c => c.from === id || c.to === id)?.signal;
+      port.element.style.setProperty('--wire-color', wireSignals[signal]?.color || '#88998c');
+      port.element.classList.toggle('is-unused', !signal);
       port.element.classList.toggle('is-selected', selected?.from === id || selected?.to === id || this.pending === id);
       port.element.classList.toggle('is-target', !!this.pending && id !== this.pending && !!matchingConnection(this.connections, this.pending, id));
     }
@@ -280,7 +280,7 @@ export class WiringGraph {
     practiceButton.setAttribute('aria-pressed', String(this.practice));
     this.root.querySelector('#wiring-reset').hidden = !this.practice;
     this.root.querySelector('#wiring-count').textContent = this.practice ? `${this.completed.size} / ${this.connections.length}` : `${this.connections.length} สาย`;
-    this.root.querySelector('#wiring-help').textContent = this.practice ? 'ลากจากจุด pin ไปยังขาที่ไฮไลต์ · แตะทีละขาหรือใช้ Enter / Space ได้' : 'กดที่สายหรือรายการเพื่อดูคู่ pin · เลื่อนผังซ้าย–ขวาได้บนมือถือ';
+    this.root.querySelector('#wiring-help').textContent = this.practice ? 'ลากจากรู pin ไปยังขาที่ไฮไลต์ · แตะทีละขาหรือใช้ Enter / Space ได้' : 'สายต่อจากรู pin บนอุปกรณ์ตามเฟิร์มแวร์ · กดที่สายหรือรายการเพื่อดูคู่ pin · เลื่อนผังซ้าย–ขวาได้บนมือถือ';
   }
   point(event) {
     const matrix = this.svg.getScreenCTM();
