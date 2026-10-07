@@ -1,18 +1,18 @@
 {
-  "name": "ESP32 Tilt Toy · ESP32-C6 SuperMini · Pocket TFT · Landscape",
+  "name": "ESP32 Tilt Toy · ESP32-C3 SuperMini · Pocket TFT · Landscape",
   "version": "0.1.2",
-  "board": "esp32-c6-supermini",
+  "board": "esp32-c3-supermini",
   "profile": "tft-80x160-landscape",
-  "chipFamily": "ESP32-C6",
+  "chipFamily": "ESP32-C3",
   "flashSize": "4MB",
   "controller": "ST7735S",
-  "size": 1216592,
-  "sha256": "a6d4c4218af0b11492cee66f90399b8b5659eaf698ab94c96788a21de0f0f1af",
+  "size": 1189280,
+  "sha256": "8ffd473e757b63731b50c2a75018f2a87a1567518a79d6eb92219d1cca89f27a",
   "hardwareTested": false,
   "build": {
     "core": "esp32:esp32@3.3.11",
-    "fqbn": "esp32:esp32:esp32c6:CDCOnBoot=cdc,FlashMode=dio,FlashSize=4M,PartitionScheme=huge_app",
-    "boardProfile": 2,
+    "fqbn": "esp32:esp32:esp32c3:CDCOnBoot=cdc,FlashMode=dio,FlashSize=4M,PartitionScheme=huge_app",
+    "boardProfile": 1,
     "bootloaderOffset": 0,
     "displayProfile": 5,
     "initialRotation": 1,
@@ -22,7 +22,7 @@
   "new_install_improv_wait_time": 0,
   "builds": [
     {
-      "chipFamily": "ESP32-C6",
+      "chipFamily": "ESP32-C3",
       "parts": [
         {
           "path": "./tft-80x160-landscape.bin",

@@ -1,19 +1,19 @@
 {
-  "name": "ESP32 Tilt Toy · ESP32-C6 SuperMini · Mono OLED",
+  "name": "ESP32 Tilt Toy · ESP32 30-pin · Mono OLED",
   "version": "0.1.2",
-  "board": "esp32-c6-supermini",
+  "board": "esp32-30pin",
   "profile": "oled-128x64",
-  "chipFamily": "ESP32-C6",
+  "chipFamily": "ESP32",
   "flashSize": "4MB",
   "controller": "SSD1306",
-  "size": 1213872,
-  "sha256": "8150f24fadb5f93e2aa8143e6edbe2b1a93985616dac15afe8b8c73ce7a51390",
+  "size": 1095584,
+  "sha256": "784cbf35b54e5a9c3fcff2643641d0f66b72e58d28e40bda11b80bb0b266914c",
   "hardwareTested": false,
   "build": {
     "core": "esp32:esp32@3.3.11",
-    "fqbn": "esp32:esp32:esp32c6:CDCOnBoot=cdc,FlashMode=dio,FlashSize=4M,PartitionScheme=huge_app",
-    "boardProfile": 2,
-    "bootloaderOffset": 0,
+    "fqbn": "esp32:esp32:esp32:FlashMode=dio,FlashSize=4M,PartitionScheme=huge_app",
+    "boardProfile": 0,
+    "bootloaderOffset": 4096,
     "displayProfile": 4,
     "initialRotation": 0,
     "sourceSha256": "fe38c4027331946ad2547516eb32bd1582dddbdce549e04a8fac681ab0a4c9af"
@@ -22,7 +22,7 @@
   "new_install_improv_wait_time": 0,
   "builds": [
     {
-      "chipFamily": "ESP32-C6",
+      "chipFamily": "ESP32",
       "parts": [
         {
           "path": "./oled-128x64.bin",

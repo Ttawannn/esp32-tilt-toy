@@ -2,17 +2,18 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { runInNewContext } from 'node:vm';
+import { boards } from '../web/boards.js';
 
 test('phone controls display each detected sensor and offer calibration only while the sensor responds', async () => {
   const sketch = await readFile(new URL('../firmware/tilt_toy/tilt_toy.ino', import.meta.url), 'utf8');
   const script = sketch.match(/R"HTML\([\s\S]*?<script>([\s\S]*?)<\/script>/)[1];
-  for (const [sensor, sensorAddress, gyro] of [['BMI160', 0x69, true], ['MPU6050', 0x68, true]]) {
+  for (const board of boards) for (const [sensor, sensorAddress, gyro] of [['BMI160', 0x69, true], ['MPU6050', 0x68, true]]) {
     const elements = new Map();
     const get = id => {
       if (!elements.has(id)) elements.set(id, { value: '', textContent: '', hidden: false, dataset: {}, options: [] });
       return elements.get(id);
     };
-    let state = { profile: 'oled-128x64', version: '0.1.1', mode: 'water', fill: 50, sensitivity: 1, rotation: 0, invert: false, spiMode: 0, imu: true, sensor, sensorAddress, gyro, roll: 12, pitch: -5, fps: 20, score: 0, simMs: 5, particles: 100, freeHeap: 180000 };
+    let state = { board: board.id, boardName: board.name, chipFamily: board.chipFamily, profile: 'oled-128x64', version: '0.1.2', mode: 'water', fill: 50, sensitivity: 1, rotation: 0, invert: false, spiMode: 0, imu: true, sensor, sensorAddress, gyro, roll: 12, pitch: -5, fps: 20, score: 0, simMs: 5, particles: 100, freeHeap: 180000 };
     let poll;
     const requests = [];
     runInNewContext(script, {
@@ -25,6 +26,7 @@ test('phone controls display each detected sensor and offer calibration only whi
       }
     });
     await new Promise(resolve => setImmediate(resolve));
+    assert.ok(get('hardware').textContent.startsWith(board.name+' · '));
     assert.ok(get('hardware').textContent.includes(`${sensor} · 0x${sensorAddress.toString(16).toUpperCase()}`));
     assert.equal(get('calibrate').hidden, !gyro);
     assert.equal(get('vRoll').textContent, '+12°');

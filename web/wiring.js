@@ -1,8 +1,8 @@
 import { findSensor, wiringConnections, wireSignals } from './profiles.js';
+import { defaultBoard } from './boards.js';
 
 const namespace = 'http://www.w3.org/2000/svg';
 const deviceNames = { display: 'จอ' };
-const boardPositions = { '3V3': 140, GND: 168, GPIO6: 196, GPIO7: 224, GPIO19: 252, GPIO20: 280, GPIO18: 308, GPIO0: 374, GPIO1: 402 };
 function svgElement(tag, attributes = {}, text) {
   const element = document.createElementNS(namespace, tag);
   for (const [key, value] of Object.entries(attributes)) element.setAttribute(key, value);
@@ -17,19 +17,20 @@ function componentCard(x, y, width, height, title, subtitle) {
   group.append(svgElement('rect', { x, y, width, height, rx: 16, class: 'component-card' }), svgElement('text', { x: x + 18, y: y + 28, class: 'component-title' }, title), svgElement('text', { x: x + 18, y: y + 47, class: 'component-subtitle' }, subtitle));
   return group;
 }
-function boardArt() {
+function boardArt(board) {
   const group = svgElement('g', { 'aria-hidden': 'true' });
-  group.innerHTML = `<rect x="57" y="157" width="110" height="325" rx="10" fill="#367565" stroke="#285d50" stroke-width="2"/>
+  const classic = board.target === 'esp32';
+  group.innerHTML = `<rect x="57" y="157" width="110" height="325" rx="10" fill="${classic ? '#3c5360' : board.target === 'esp32c3' ? '#396480' : '#367565'}" stroke="#285d50" stroke-width="2"/>
     <path d="M68 169h16v15h16v-15h16v15h16v-15h23M70 326v47h18v52M153 327v58h-18v34" fill="none" stroke="#a8cfa9" stroke-width="3"/>
     <rect x="78" y="217" width="69" height="83" rx="5" fill="#d4d8d2" stroke="#93a198"/>
-    <text x="112" y="246" text-anchor="middle" fill="#4c6259" font-size="10" font-weight="600">ESP32</text><text x="112" y="263" text-anchor="middle" fill="#4c6259" font-size="13">C6</text>
+    <text x="112" y="246" text-anchor="middle" fill="#4c6259" font-size="10" font-weight="600">ESP32</text><text x="112" y="263" text-anchor="middle" fill="#4c6259" font-size="${classic ? 9 : 13}">${classic ? 'WROOM-32' : board.target === 'esp32c3' ? 'C3' : 'C6'}</text>
     <rect x="83" y="324" width="21" height="30" rx="2" fill="#253e35"/><rect x="124" y="331" width="19" height="10" rx="2" fill="#e2d6ac"/>
     <rect x="80" y="391" width="23" height="24" rx="3" fill="#d2efa4" stroke="#bef365" stroke-width="2"/><circle cx="91.5" cy="403" r="7" fill="#567b3d"/>
     <rect x="124" y="391" width="23" height="24" rx="3" fill="#b9c3bb"/><circle cx="135.5" cy="403" r="7" fill="#263d34"/>
     <text x="91" y="434" text-anchor="middle" font-size="8" fill="#d8e9d9">BOOT</text><text x="135" y="434" text-anchor="middle" font-size="8" fill="#d8e9d9">RST</text>
     <rect x="87" y="460" width="50" height="27" rx="6" fill="#c5ceca" stroke="#8d9c93"/><rect x="94" y="469" width="36" height="8" rx="4" fill="#374b42"/>
     <text x="112" y="510" text-anchor="middle" class="component-subtitle">USB · ไฟและแฟลช</text>`;
-  for (let y = 199; y < 455; y += 22) for (const x of [65, 158]) group.append(svgElement('circle', { cx: x, cy: y, r: 3, fill: '#e1c77d' }));
+  for (let index = 0; index < (classic ? 15 : 12); index++) for (const x of [65, 158]) group.append(svgElement('circle', { cx: x, cy: 199 + index * (classic ? 17 : 22), r: 3, fill: '#e1c77d' }));
   return group;
 }
 function displayArt(profile) {
@@ -94,21 +95,26 @@ export class WiringGraph {
       legend.append(item);
     }
   }
-  setProfile(profile, sensorId = 'mpu6050') {
+  setProfile(profile, sensorId = 'mpu6050', board = defaultBoard) {
     this.profile = profile;
+    this.board = board;
     this.sensor = findSensor(sensorId);
-    this.connections = wiringConnections(profile, this.sensor.id);
+    this.connections = wiringConnections(profile, this.sensor.id, board);
+    const { pins } = board;
+    const boardPositions = { '3V3': 140, GND: 168, [`GPIO${pins.SCK}`]: 196, [`GPIO${pins.MOSI}`]: 224, [`GPIO${pins.DC}`]: 252, [`GPIO${pins.RST}`]: 280, [`GPIO${pins.CS}`]: 308, [`GPIO${pins.SDA}`]: 374, [`GPIO${pins.SCL}`]: 402 };
     this.drag = null;
     this.ports = new Map();
     this.wires = new Map();
     this.rows = new Map();
-    this.root.querySelector('#wiring-driver').textContent = `${profile.driver} · ${profile.bus}`;
-    this.root.querySelector('#wiring-bus-note').textContent = profile.mono ? `OLED และ ${this.sensor.name} แชร์ I²C: SDA → GPIO0, SCL → GPIO1 โดยมี address ต่างกัน` : `ขา SDA / DIN ของจอ SPI คือ MOSI → GPIO7 ส่วน ${this.sensor.name} SDA → GPIO0${profile.cs < 0 ? ' · GMT130 รุ่น 7 ขาไม่มี CS' : ''}`;
+    this.root.querySelector('#wiring-driver').textContent = `${board.chipFamily} · ${profile.driver} · ${profile.bus}`;
+    this.root.querySelector('#wiring-bus-note').textContent = profile.mono ? `OLED และ ${this.sensor.name} แชร์ I²C: SDA → GPIO${pins.SDA}, SCL → GPIO${pins.SCL} โดยมี address ต่างกัน` : `ขา SDA / DIN ของจอ SPI คือ MOSI → GPIO${pins.MOSI} ส่วน ${this.sensor.name} SDA → GPIO${pins.SDA}${!profile.hasCs ? ' · GMT130 รุ่น 7 ขาไม่มี CS' : ''}`;
+    this.root.querySelector('#wiring-button-note').textContent = `ใช้ปุ่ม BOOT บน ${board.name} (GPIO${pins.BUTTON}) · ไม่ต้องต่อปุ่มเพิ่ม · กดสั้นเปลี่ยนโหมด ค้าง 2 วินาทีเปิด/ปิด Wi-Fi · ปล่อย BOOT ขณะเปิดเครื่องหรือรีเซ็ตเพื่อบูตเล่นตามปกติ`;
     this.root.querySelector('#wiring-sensor-note').textContent = this.sensor.note;
     this.root.querySelector('[data-wire-filter="sensor"]').textContent = this.sensor.name;
     this.root.querySelector('#wiring-backlight-note').hidden = !!profile.mono;
     this.root.querySelector('#wiring-backlight-note').textContent = 'BL / BLK: ต่อไฟหรือวงจรขับตามสเปกโมดูลจอ ตรวจว่าเป็นขา enable หรือไฟ LED ก่อนต่อ · ไม่ต่อ LED เปล่าเข้าขา GPIO';
     this.svg.replaceChildren();
+    this.svg.setAttribute('aria-label', `ผังต่อสาย ${board.name} กับจอและเซนเซอร์ พร้อมตำแหน่งปุ่ม BOOT บนบอร์ด`);
     const defs = svgElement('defs');
     const pattern = svgElement('pattern', { id: 'wiring-dots', width: 20, height: 20, patternUnits: 'userSpaceOnUse' });
     pattern.append(svgElement('circle', { cx: 1, cy: 1, r: 1, fill: '#dce3d6' }));
@@ -116,18 +122,18 @@ export class WiringGraph {
     this.svg.append(defs, svgElement('rect', { width: 860, height: 620, fill: 'url(#wiring-dots)' }));
     this.wireLayer = svgElement('g');
     this.svg.append(this.wireLayer);
-    const board = componentCard(30, 66, 230, 484, 'ESP32-C6', 'SuperMini · Flash 4 MB');
-    board.append(boardArt());
+    const boardCard = componentCard(30, 66, 230, 484, board.name, `${board.target === 'esp32' ? 'DevKit V1' : 'SuperMini'} · Flash 4 MB`);
+    boardCard.append(boardArt(board));
     const display = componentCard(570, 48, 255, 292, profile.short, `${profile.driver} · ${profile.bus}`);
     display.append(displayArt(profile));
     const sensor = componentCard(570, 368, 255, 220, 'Motion sensor', `${this.sensor.module} · I²C`);
     sensor.append(sensorArt(this.sensor));
-    const buttonNote = componentCard(300, 464, 230, 122, 'ใช้ปุ่ม BOOT บนบอร์ด', 'มีอยู่แล้ว · ไม่ต้องต่อสายเพิ่ม');
+    const buttonNote = componentCard(300, 464, 230, 122, 'ใช้ปุ่ม BOOT บนบอร์ด', `GPIO${pins.BUTTON} · ไม่ต้องต่อสายเพิ่ม`);
     buttonNote.append(svgElement('text', { x: 318, y: 539, class: 'component-subtitle' }, 'กดสั้น → เปลี่ยนโหมด'), svgElement('text', { x: 318, y: 565, class: 'component-subtitle' }, 'ค้าง 2 วิ → เปิด/ปิด Wi-Fi'));
-    this.svg.append(board, display, sensor, buttonNote);
+    this.svg.append(boardCard, display, sensor, buttonNote);
     const usedBoardPins = new Set(this.connections.map(c => c.boardPin));
-    for (const [pin, y] of Object.entries(boardPositions)) if (usedBoardPins.has(pin)) this.addPin(`board:${pin}`, pin, 260, y, 'right', `ESP32-C6 ${pin}`);
-    const displayPins = profile.mono ? ['VCC', 'GND', 'SDA', 'SCL'] : ['VCC', 'GND', 'CLK', 'DIN', 'DC', 'RST', ...(profile.cs >= 0 ? ['CS'] : [])];
+    for (const [pin, y] of Object.entries(boardPositions)) if (usedBoardPins.has(pin)) this.addPin(`board:${pin}`, pin, 260, y, 'right', `${board.name} ${pin}`);
+    const displayPins = profile.mono ? ['VCC', 'GND', 'SDA', 'SCL'] : ['VCC', 'GND', 'CLK', 'DIN', 'DC', 'RST', ...(profile.hasCs ? ['CS'] : [])];
     const labels = profile.id === 'gmt130-240x240' ? { CLK: 'SCK', DIN: 'SDA (MOSI)', RST: 'RES' } : { CLK: 'CLK / SCK', DIN: 'DIN / MOSI', RST: 'RST / RES' };
     displayPins.forEach((pin, index) => this.addPin(`display:${pin}`, labels[pin] || pin, 570, 119 + index * 28, 'left', `${profile.short} ${labels[pin] || pin}`));
     if (!profile.mono) {
@@ -195,7 +201,7 @@ export class WiringGraph {
     this.list.append(button);
   }
   connectionLabel(connection) {
-    return `${this.ports.get(connection.to).label} ↔ ESP32-C6 ${connection.boardPin}`;
+    return `${this.ports.get(connection.to).label} ↔ ${this.board.name} ${connection.boardPin}`;
   }
   message(text, error = false) {
     this.feedback.textContent = text;

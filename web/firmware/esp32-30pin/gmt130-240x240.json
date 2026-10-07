@@ -1,19 +1,19 @@
 {
-  "name": "ESP32 Tilt Toy · ESP32-C6 SuperMini · GMT130",
+  "name": "ESP32 Tilt Toy · ESP32 30-pin · GMT130",
   "version": "0.1.2",
-  "board": "esp32-c6-supermini",
+  "board": "esp32-30pin",
   "profile": "gmt130-240x240",
-  "chipFamily": "ESP32-C6",
+  "chipFamily": "ESP32",
   "flashSize": "4MB",
   "controller": "ST7789",
-  "size": 1216192,
-  "sha256": "69a2bdfaffe28b9405dc106f9753c35b8ce8d3a7f1431deb8cf20dfb5e76f359",
+  "size": 1097184,
+  "sha256": "6780e32f76929e332836307414c5fa1ae777773002899666eab7893beff4f35a",
   "hardwareTested": false,
   "build": {
     "core": "esp32:esp32@3.3.11",
-    "fqbn": "esp32:esp32:esp32c6:CDCOnBoot=cdc,FlashMode=dio,FlashSize=4M,PartitionScheme=huge_app",
-    "boardProfile": 2,
-    "bootloaderOffset": 0,
+    "fqbn": "esp32:esp32:esp32:FlashMode=dio,FlashSize=4M,PartitionScheme=huge_app",
+    "boardProfile": 0,
+    "bootloaderOffset": 4096,
     "displayProfile": 1,
     "initialRotation": 0,
     "sourceSha256": "fe38c4027331946ad2547516eb32bd1582dddbdce549e04a8fac681ab0a4c9af"
@@ -22,7 +22,7 @@
   "new_install_improv_wait_time": 0,
   "builds": [
     {
-      "chipFamily": "ESP32-C6",
+      "chipFamily": "ESP32",
       "parts": [
         {
           "path": "./gmt130-240x240.bin",

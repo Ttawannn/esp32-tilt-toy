@@ -12,7 +12,7 @@ await rm(out, { recursive: true, force: true });
 await mkdir(resolve(out, 'assets'), { recursive: true });
 await cp(resolve(root, 'web'), out, { recursive: true });
 await build({ stdin: { contents: 'import "esp-web-tools/dist/web/install-button.js";', resolveDir: root, sourcefile: 'installer.js' }, bundle: true, minify: true, format: 'esm', target: 'es2022', outfile: resolve(out, 'assets/installer.js'), legalComments: 'linked' });
-for (const file of await readdir(resolve(out, 'firmware'))) {
+for (const file of await readdir(resolve(out, 'firmware'), { recursive: true })) {
   if (file.endsWith('.json')) JSON.parse(await readFile(resolve(out, 'firmware', file), 'utf8'));
 }
 console.log('Built dist/ with bundled ESP Web Tools.');
