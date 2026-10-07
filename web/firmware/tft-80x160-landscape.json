@@ -1,18 +1,18 @@
 {
-  "name": "ESP32 Tilt Toy · Square TFT",
+  "name": "ESP32 Tilt Toy · Pocket TFT · Landscape",
   "version": "0.1.1",
-  "profile": "tft-240x240-st7789",
+  "profile": "tft-80x160-landscape",
   "chipFamily": "ESP32-C6",
   "flashSize": "4MB",
-  "controller": "ST7789",
-  "size": 1216032,
-  "sha256": "f8643f4bb46786cfdd15ec27304f9b75f805ac22f98707387786c83cf870e36f",
+  "controller": "ST7735S",
+  "size": 1216448,
+  "sha256": "dcb9c54ec9dbb9573aeb0f5680168db1cbe4845a498cdada5d9eee36b33eea78",
   "hardwareTested": false,
   "build": {
     "core": "esp32:esp32@3.3.11",
     "fqbn": "esp32:esp32:esp32c6:CDCOnBoot=cdc,FlashMode=dio,FlashSize=4M,PartitionScheme=huge_app",
-    "displayProfile": 2,
-    "initialRotation": 0,
+    "displayProfile": 5,
+    "initialRotation": 1,
     "sourceSha256": "cb48019a7e681f7c9ca4c9cc6db6d90a4b01ae2c20d7c16a477973eb82527587"
   },
   "new_install_prompt_erase": true,
@@ -22,7 +22,7 @@
       "chipFamily": "ESP32-C6",
       "parts": [
         {
-          "path": "./tft-240x240-st7789.bin",
+          "path": "./tft-80x160-landscape.bin",
           "offset": 0
         }
       ]

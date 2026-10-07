@@ -1,12 +1,13 @@
 import { spawn } from 'node:child_process';
-import { access, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { access, mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
 import { homedir } from 'node:os';
 import { createHash } from 'node:crypto';
 import { profiles, VERSION } from '../web/profiles.js';
 
 const root = resolve(import.meta.dirname, '..');
-const work = join(root, 'work', 'firmware');
+// Concurrent builds must not rewrite each other's staged display profile or objects.
+const work = process.env.FIRMWARE_WORK_DIR ? resolve(process.env.FIRMWARE_WORK_DIR) : join(root, 'work', 'firmware', `run-${process.pid}`);
 const releases = join(root, 'web', 'firmware');
 await mkdir(work, { recursive: true });
 await mkdir(releases, { recursive: true });
@@ -24,8 +25,10 @@ await mkdir(staging, { recursive: true });
 const sketchSource = (await readFile(join(root, 'firmware', 'tilt_toy', 'tilt_toy.ino'), 'utf8')).replace(/\r\n/g, '\n');
 const configSource = (await readFile(join(root, 'firmware', 'tilt_toy', 'config.h'), 'utf8')).replace(/\r\n/g, '\n');
 const fluidSource = (await readFile(join(root, 'firmware', 'tilt_toy', 'flip_fluid.h'), 'utf8')).replace(/\r\n/g, '\n');
+const motionSource = (await readFile(join(root, 'firmware', 'tilt_toy', 'motion_sensor.h'), 'utf8')).replace(/\r\n/g, '\n');
 await writeFile(join(staging, 'tilt_toy.ino'), sketchSource);
 await writeFile(join(staging, 'flip_fluid.h'), fluidSource);
+await writeFile(join(staging, 'motion_sensor.h'), motionSource);
 
 function run(command, args, logPath) {
   return new Promise((yes,no) => {
@@ -48,10 +51,14 @@ for(const p of selected) {
   // Only the staged sketch header changes. Share the core/library cache between profiles.
   await writeFile(join(staging, 'config.h'), `#define DISPLAY_PROFILE ${p.firmwareId}\n` + configSource);
   await run(cli,['compile','--jobs',process.env.FIRMWARE_JOBS || '8','--fqbn',fqbn,'--build-path',join(work,'build'),'--output-dir',output,staging],join(work,`${p.id}.log`));
-  const merged=join(releases,`${p.id}.bin`);
+  const merged=join(output,`${p.id}.merged.bin`);
   await run(esptool,['--chip','esp32c6','merge-bin','-o',merged,'--flash-mode','keep','--flash-freq','keep','--flash-size','keep','0x0',join(output,'tilt_toy.ino.bootloader.bin'),'0x8000',join(output,'tilt_toy.ino.partitions.bin'),'0xe000',join(core,'tools','partitions','boot_app0.bin'),'0x10000',join(output,'tilt_toy.ino.bin')],join(work,`${p.id}-merge.log`));
   const binary=await readFile(merged);
-  const manifest={name:`ESP32 Tilt Toy · ${p.short}`,version:VERSION,profile:p.id,chipFamily:'ESP32-C6',flashSize:'4MB',controller:p.driver,size:binary.length,sha256:createHash('sha256').update(binary).digest('hex'),hardwareTested:false,build:{core:'esp32:esp32@3.3.11',fqbn,displayProfile:p.firmwareId,sourceSha256:createHash('sha256').update(sketchSource+'\n'+configSource+'\n'+fluidSource).digest('hex')},new_install_prompt_erase:true,new_install_improv_wait_time:0,builds:[{chipFamily:'ESP32-C6',parts:[{path:`./${p.id}.bin`,offset:0}]}]};
-  await writeFile(join(releases,`${p.id}.json`),JSON.stringify(manifest,null,2)+'\n');
+  const manifest={name:`ESP32 Tilt Toy · ${p.short}`,version:VERSION,profile:p.id,chipFamily:'ESP32-C6',flashSize:'4MB',controller:p.driver,size:binary.length,sha256:createHash('sha256').update(binary).digest('hex'),hardwareTested:false,build:{core:'esp32:esp32@3.3.11',fqbn,displayProfile:p.firmwareId,initialRotation:p.defaultRotation||0,sourceSha256:createHash('sha256').update(sketchSource+'\n'+configSource+'\n'+fluidSource+'\n'+motionSource).digest('hex')},new_install_prompt_erase:true,new_install_improv_wait_time:0,builds:[{chipFamily:'ESP32-C6',parts:[{path:`./${p.id}.bin`,offset:0}]}]};
+  // Merge and hash private files before publishing; another build cannot change these bytes.
+  await rename(merged,join(releases,`${p.id}.bin`));
+  const stagedManifest=join(output,`${p.id}.json`);
+  await writeFile(stagedManifest,JSON.stringify(manifest,null,2)+'\n');
+  await rename(stagedManifest,join(releases,`${p.id}.json`));
   console.log(`Release ${p.id}: ${binary.length} bytes · ${manifest.sha256.slice(0,12)}`);
 }

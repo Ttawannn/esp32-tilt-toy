@@ -1,16 +1,18 @@
 # ฮาร์ดแวร์และโปรไฟล์จอ
 
-บอร์ดเป้าหมาย: ESP32-C6 SuperMini; sensor: GY-521/MPU6050; ใช้จอหนึ่งตัวต่อเครื่อง
+บอร์ดเป้าหมาย: ESP32-C6 SuperMini; sensor: BMI160 หรือ GY-521/MPU6050; ใช้จอและเซนเซอร์อย่างละหนึ่งตัวต่อเครื่อง
 
 ผังด้านล่างเป็น GPIO ตัวเลขจริง ไม่ใช่เลขขาบน header คำว่า SuperMini ครอบคลุมบอร์ดหลายผู้ผลิต ต้องตรวจ silkscreen และแพ็กเกจชิปของบอร์ดที่ซื้อก่อนต่อ
+
+หน้าเว็บมีผังแบบกราฟพร้อมภาพอุปกรณ์และรายการคู่ pin ที่เปลี่ยนตามโปรไฟล์จอ เลือกสายเพื่อไฮไลต์ต้นทาง/ปลายทาง หรือใช้ “ลองลากต่อสาย” เพื่อฝึกต่อด้วยการลาก แตะทีละขา หรือ Enter/Space ระบบรับเฉพาะคู่ขาตามเฟิร์มแวร์ และนับสายที่ต่อครบแล้ว โหมดฝึกไม่ได้เปลี่ยน GPIO ในเฟิร์มแวร์ ภาพจัดตำแหน่งขาเพื่อให้อ่านง่าย ให้เทียบชื่อขากับโมดูลจริงก่อนประกอบ ส่วน BL/BLK แสดงคำแนะนำแยกเพราะต้องตรวจสเปกโมดูลก่อนกำหนดการต่อ
 
 ## GPIO เริ่มต้นสำหรับ ESP32-C6
 
 | สัญญาณ | GPIO | การต่อ |
 | --- | --- | --- |
-| I²C SDA | 0 | GY-521 SDA และ OLED SDA เมื่อใช้ OLED |
-| I²C SCL | 1 | GY-521 SCL และ OLED SCL เมื่อใช้ OLED |
-| ปุ่มผู้ใช้ | 2 | ปุ่มต่อ GND; ใช้ input pull-up |
+| I²C SDA | 0 | BMI160 / MPU6050 SDA และ OLED SDA เมื่อใช้ OLED |
+| I²C SCL | 1 | BMI160 / MPU6050 SCL และ OLED SCL เมื่อใช้ OLED |
+| ปุ่ม BOOT บนบอร์ด | 9 | มีอยู่แล้ว ไม่ต้องต่อปุ่มแยก; ใช้ input pull-up และกดแล้วเป็น LOW |
 | MPU interrupt (ตัวเลือก) | 3 | GY-521 INT; ต้องตั้ง sensor/wake เพิ่มก่อนใช้ |
 | TFT SCK / CLK | 6 | SPI clock |
 | TFT MOSI / DIN / SDA | 7 | SPI data ขาเข้า TFT |
@@ -20,7 +22,9 @@
 | TFT BL / BLK | ไฟตามสเปกโมดูล | รุ่นแรกใช้ไฟคงที่; GPIO21 สำหรับวงจรควบคุมเป็นงานต่อยอด |
 | ไฟเลี้ยงและกราวด์ | 3V3 / GND | ใช้โมดูลที่รองรับไฟ 3.3V และกราวด์ร่วมกัน |
 
-ผังนี้เว้น strapping GPIO4/5/8/9/15 และ USB GPIO12/13 ส่วน GPIO24–30 เกี่ยวกับ flash ไม่ใช้ต่ออุปกรณ์ GPIO10/11 ไม่ถูกนำออกในชิปที่มี SiP flash และ GPIO14 มีข้อจำกัดในแพ็กเกจอื่น จึงเว้นทั้งสามไว้ ตรวจ GPIO16/17 และขาที่ใช้บนบอร์ดก่อนเปลี่ยน mapping [ข้อจำกัด GPIO ของ Espressif](https://docs.espressif.com/projects/esp-idf/en/stable/esp32c6/api-reference/peripherals/gpio.html)
+ผังสายอุปกรณ์ภายนอกเว้น strapping GPIO4/5/8/9/15 และ USB GPIO12/13 ส่วน GPIO24–30 เกี่ยวกับ flash ไม่ใช้ต่ออุปกรณ์ GPIO10/11 ไม่ถูกนำออกในชิปที่มี SiP flash และ GPIO14 มีข้อจำกัดในแพ็กเกจอื่น จึงเว้นทั้งสามไว้ ตรวจ GPIO16/17 และขาที่ใช้บนบอร์ดก่อนเปลี่ยน mapping [ข้อจำกัด GPIO ของ Espressif](https://docs.espressif.com/projects/esp-idf/en/stable/esp32c6/api-reference/peripherals/gpio.html)
+
+เฟิร์มแวร์อ่านปุ่ม BOOT ที่ GPIO9 หลังเครื่องเริ่มทำงาน: กดสั้นเปลี่ยนโหมด กดค้าง 2 วินาทีเปิด/ปิด Wi-Fi ไม่ต้องต่อปุ่มหรือสายที่ GPIO2 เพิ่ม ปุ่ม RST ใช้รีสตาร์ตเครื่อง ให้ปล่อย BOOT ขณะเปิดเครื่องหรือกด RST เพื่อเข้าโปรแกรมตามปกติ เพราะ GPIO9 ที่เป็น LOW ขณะรีเซ็ตจะเลือกโหมดแฟลช ตรวจว่าปุ่ม BOOT ของ SuperMini รุ่นที่ใช้ต่อ GPIO9 จริงก่อนแฟลช [การเลือก boot mode ของ ESP32-C6](https://docs.espressif.com/projects/esptool/en/latest/esp32c6/advanced-topics/boot-mode-selection.html)
 
 USB ของ C6 ใช้ GPIO12/13 ซึ่งต่างจาก C3 เว้นขาเหล่านี้เพื่อเก็บเส้นทางแฟลชผ่าน USB native ของบอร์ด [USB hardware guideline](https://docs.espressif.com/projects/esp-hardware-design-guidelines/en/latest/esp32c6/schematic-checklist.html)
 
@@ -30,7 +34,7 @@ USB ของ C6 ใช้ GPIO12/13 ซึ่งต่างจาก C3 เว
 
 | โปรไฟล์ | Init ที่แนะนำสำหรับ Adafruit drivers | ข้อที่ต้องตรวจจริง |
 | --- | --- | --- |
-| ST7735 80×160 | `initR(INITR_MINI160x80)`; rotation 0 | ชนิด panel/FPC, offset, RGB order, inversion |
+| ST7735 80×160 / 160×80 | `initR(INITR_MINI160x80)`; rotation 0 สำหรับแนวตั้ง / 1 สำหรับแนวนอน | ชนิด panel/FPC, offset, RGB order, inversion |
 | GMT130 ST7789 240×240 | driver CS = `-1`; `init(240, 240, SPI_MODE3)` | รุ่นแรกเริ่ม Mode3; เลือก Mode0 ในหน้าเครื่องได้ ต้องตรวจโมดูลจริง |
 | ST7789 240×240 มี CS | driver CS = 18; `init(240, 240, SPI_MODE0)` | controller, CS wiring, offset, inversion |
 | GC9A01 240×240 วงกลม | `begin(...)`; rotation 0 | โมดูลตรงชิป, RGB order, inversion, mask พื้นที่วงกลม |
@@ -58,11 +62,27 @@ GC9A01 ของ Waveshare เป็น SPI 240×240 มี `VCC, GND, DIN, CLK,
 
 ### OLED 128×64
 
-เลือก SSD1306 I²C 4 ขาที่รองรับ 3.3V จอและ MPU6050 ใช้ SDA0/SCL1 ร่วมกันได้ แต่ตรวจ address ทั้งสองจาก I²C scan ก่อนเริ่ม จอที่มี address `0x3C` หรือ `0x3D` ต้องใช้ค่าที่พบจริง ไม่ผูก address กับความละเอียดอย่างเดียว บางโมดูลต้องมี hardware reset เพิ่ม [ตัวอย่าง SSD1306 128×64](https://learn.adafruit.com/monochrome-oled-breakouts/wiring-128x64-oleds)
+เลือก SSD1306 I²C 4 ขาที่รองรับ 3.3V จอและ BMI160 / MPU6050 ใช้ SDA0/SCL1 ร่วมกันได้ แต่ตรวจ address ทั้งสองจาก I²C scan ก่อนเริ่ม จอที่มี address `0x3C` หรือ `0x3D` ต้องใช้ค่าที่พบจริง ไม่ผูก address กับความละเอียดอย่างเดียว บางโมดูลต้องมี hardware reset เพิ่ม [ตัวอย่าง SSD1306 128×64](https://learn.adafruit.com/monochrome-oled-breakouts/wiring-128x64-oleds)
 
 SH1106 128×64 ต้องใช้โปรไฟล์/ไลบรารีเพิ่ม ไม่ยืนยันเข้ากันได้เพียงเพราะขนาด 0.96 นิ้วเท่ากัน
 
-## GY-521 / MPU6050
+## โมดูลเซนเซอร์ I²C
+
+ทุก firmware ตรวจ Chip ID ของ BMI160 / MPU6050 ที่ `0x68` และ `0x69` เมื่อเปิดเครื่อง ไม่ต้องเลือก firmware แยกตามโมดูล ทั้งสองใช้ SDA → GPIO0, SCL → GPIO1, VCC → 3V3 และ GND ร่วมกัน ตรวจชื่อขาที่พิมพ์บนโมดูลจริง ผังเว็บวางขาเพื่อให้อ่านง่ายและมีตัวเลือก **โมดูลเซนเซอร์**
+
+### BMI160
+
+| ขาโมดูล | การต่อ |
+| --- | --- |
+| VCC / VIN, GND | 3V3, GND; ใช้โมดูลที่รองรับ 3.3V |
+| SDA / SDI, SCL / SCK | GPIO0, GPIO1 |
+| CS / CSB | 3V3 เพื่อเลือก I²C |
+| SDO / SA0 | GND สำหรับ `0x68`; 3V3 สำหรับ `0x69` |
+| INT1 / INT2 | ไม่ต้องต่อ; อ่านแบบ polling |
+
+ตั้ง accelerometer ±8 g และ gyro ±500°/s ที่ 100 Hz รอ soft reset และช่วงเริ่มทำงานก่อนอ่านข้อมูล ตรวจ power mode และค่าที่เขียนกลับก่อนรายงานว่าใช้งานได้ [BMI160 datasheet จาก Bosch](https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmi160-ds000.pdf)
+
+### GY-521 / MPU6050
 
 | GY-521 | การต่อ |
 | --- | --- |
@@ -75,6 +95,8 @@ SH1106 128×64 ต้องใช้โปรไฟล์/ไลบรารี�
 
 ใช้แรงเร่งและ gyro อ่านมุมและการขยับ คาลิเบรตเมื่อวางนิ่ง โดยกำหนดทิศแกนของโมดูลให้สัมพันธ์กับจอ ไฟ LED/regulator/pull-up บน GY-521 clone อาจต่างกัน ตรวจไม่ให้ I²C pull-up ไป 5V บน GPIO ของ ESP32 [MPU6050 driver จาก Adafruit](https://github.com/adafruit/Adafruit_MPU6050)
 
+หน้าเครื่องและ `/api/status` แสดง `sensor` (ชื่อ), `sensorAddress` (เลขฐานสิบ) และ `gyro` (true เมื่อพบเซนเซอร์ เพราะทุกรุ่นที่รองรับมี gyro) โดยคง `imu` เป็นสถานะพร้อมอ่านข้อมูล หาก I²C ล้มเหลว 5 ครั้งติดกันให้ตรวจสายแล้วรีสตาร์ตเครื่อง
+
 ## ไฟเลี้ยงและ backlight
 
 เริ่ม prototype ด้วย USB ก่อนวัดแบตเตอรี่ ถ้า BLK/BL ของจอเป็นขา logic enable ให้ควบคุมจาก GPIO21 ได้ตามสเปก หากเป็นไฟ LED backlight โดยตรง ให้ใช้วงจรขับ/ทรานซิสเตอร์ที่เหมาะกับกระแส ห้ามถือว่า GPIO รับภาระ LED ของทุกโมดูลได้ ไฟ LED บน SuperMini และ GY-521 รวมถึง regulator มีผลต่อ standby current จึงต้องวัดทั้งเครื่อง
@@ -84,7 +106,7 @@ SH1106 128×64 ต้องใช้โปรไฟล์/ไลบรารี�
 ## ตรวจรับฮาร์ดแวร์แต่ละโปรไฟล์
 
 1. ตรวจชื่อชิป ขนาด flash และ GPIO บน silkscreen ของ C6 รุ่นจริง
-2. ต่อไฟเลี้ยงและ sensor ก่อน I²C scan พบ MPU6050 และ OLED (ถ้าเลือก OLED)
+2. ต่อไฟเลี้ยงและ sensor ก่อน I²C scan พบ BMI160 / MPU6050 และ OLED (ถ้าเลือก OLED)
 3. รันภาพขอบจอทุกด้าน ข้อความมุมทั้งสี่ และแถบ RGB สำหรับ TFT
 4. เปลี่ยน rotation แล้วทดสอบการเอียงแกน X/Y ไม่สลับทิศ
 5. ทดสอบ BOOT/RESET และ USB flash ขณะอุปกรณ์ต่อครบ

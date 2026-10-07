@@ -7,6 +7,18 @@ test('round and square TFT 240×240 have distinct drivers',()=>{
   assert.equal(findProfile('tft-240x240','GC9A01').id,'tft-240x240-gc9a01');
   assert.equal(findProfile('tft-240x240','ST7789').id,'tft-240x240-st7789');
 });
+test('Mini TFT orientation selects dimensions and the matching firmware preset',()=>{
+  const portrait=findProfile('tft-80x160','GC9A01','portrait');
+  const landscape=findProfile('tft-80x160','GC9A01','landscape');
+  assert.equal(portrait.id,'tft-80x160');
+  assert.equal(landscape.id,'tft-80x160-landscape');
+  assert.deepEqual([portrait.width,portrait.height,portrait.defaultRotation],[80,160,0]);
+  assert.deepEqual([landscape.width,landscape.height,landscape.defaultRotation],[160,80,1]);
+  assert.notEqual(portrait.firmwareId,landscape.firmwareId);
+  assert.equal(portrait.driver,landscape.driver);
+  assert.deepEqual(wiringFor(portrait),wiringFor(landscape));
+  assert.equal(findProfile('tft-240x240','GC9A01','landscape').id,'tft-240x240-gc9a01');
+});
 test('GMT130 no-CS and shared I²C wiring match firmware',()=>{
   assert.equal(wiringFor(findProfile('gmt130-240x240')).some(([pin])=>pin==='CS'),false);
   assert.deepEqual(wiringFor(findProfile('oled-128x64')).slice(0,2),[['OLED SDA','GPIO0'],['OLED SCL','GPIO1']]);
@@ -16,7 +28,7 @@ for(const profile of profiles)test(`release ${profile.id}: bytes, checksum, chip
   const base=new URL('../web/firmware/',import.meta.url);
   const release=validateRelease(JSON.parse(await readFile(new URL(`${profile.id}.json`,base),'utf8')),profile);
   const binary=await readFile(new URL(release.builds[0].parts[0].path,base));
-  assert.ok(binary.includes(Buffer.from(profile.id)), 'image must contain its runtime profile ID');
+  assert.ok(binary.includes(Buffer.from(profile.id+'\0')), 'image must contain its complete runtime profile ID');
   assert.equal(binary.length,release.size);
   assert.equal(createHash('sha256').update(binary).digest('hex'),release.sha256);
   assert.equal(binary[0],0xe9);assert.equal(binary.readUInt16LE(12),13);
@@ -32,11 +44,14 @@ for(const profile of profiles)test(`release ${profile.id}: bytes, checksum, chip
   const source = (await readFile(new URL('../firmware/tilt_toy/tilt_toy.ino',import.meta.url),'utf8')).replace(/\r\n/g,'\n');
   const config = (await readFile(new URL('../firmware/tilt_toy/config.h',import.meta.url),'utf8')).replace(/\r\n/g,'\n');
   const fluid = (await readFile(new URL('../firmware/tilt_toy/flip_fluid.h',import.meta.url),'utf8')).replace(/\r\n/g,'\n');
-  assert.equal(createHash('sha256').update(source+'\n'+config+'\n'+fluid).digest('hex'),release.build.sourceSha256);
+  const motion = (await readFile(new URL('../firmware/tilt_toy/motion_sensor.h',import.meta.url),'utf8')).replace(/\r\n/g,'\n');
+  assert.equal(createHash('sha256').update(source+'\n'+config+'\n'+fluid+'\n'+motion).digest('hex'),release.build.sourceSha256);
+  for(const sensor of ['BMI160','MPU6050'])assert.ok(binary.includes(Buffer.from(sensor)),`image must support ${sensor}`);
   assert.equal(config.match(/TOY_VERSION\s+"([^"]+)"/)[1],release.version);
   const bad=structuredClone(release);bad.builds[0].chipFamily='ESP32-C3';assert.throws(()=>validateRelease(bad,profile));
   assert.throws(()=>validateRelease(release,profiles.find(p=>p.id!==profile.id)));
   const wrongOffset=structuredClone(release);wrongOffset.builds[0].parts[0].offset=0x1000;assert.throws(()=>validateRelease(wrongOffset,profile));
   const wrongPath=structuredClone(release);wrongPath.builds[0].parts[0].path='../untrusted.bin';assert.throws(()=>validateRelease(wrongPath,profile));
   const wrongVersion=structuredClone(release);wrongVersion.version='9.9.9';assert.throws(()=>validateRelease(wrongVersion,profile));
+  const wrongRotation=structuredClone(release);wrongRotation.build.initialRotation=release.build.initialRotation===0?1:0;assert.throws(()=>validateRelease(wrongRotation,profile));
 });

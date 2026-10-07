@@ -1,18 +1,19 @@
 {
   "name": "ESP32 Tilt Toy · Round TFT",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "profile": "tft-240x240-gc9a01",
   "chipFamily": "ESP32-C6",
   "flashSize": "4MB",
   "controller": "GC9A01",
-  "size": 1219392,
-  "sha256": "f307a03283f739361297007f2f66ce3b2c04d1d15304206d89b7edcded071307",
+  "size": 1214688,
+  "sha256": "5cde6cc21b786cd0e568a589f03a439217dc8379a7321c89ba7ebed29478535d",
   "hardwareTested": false,
   "build": {
     "core": "esp32:esp32@3.3.11",
     "fqbn": "esp32:esp32:esp32c6:CDCOnBoot=cdc,FlashMode=dio,FlashSize=4M,PartitionScheme=huge_app",
     "displayProfile": 3,
-    "sourceSha256": "75043615d9e6e085e5134b53cea5bb25a8df9e427d48baaa779e38625a4768b8"
+    "initialRotation": 0,
+    "sourceSha256": "cb48019a7e681f7c9ca4c9cc6db6d90a4b01ae2c20d7c16a477973eb82527587"
   },
   "new_install_prompt_erase": true,
   "new_install_improv_wait_time": 0,

@@ -1,6 +1,6 @@
 {
   "name": "esp32-tilt-toy",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "type": "module",
   "scripts": {
@@ -9,6 +9,10 @@
     "test": "node --test tests/*.test.mjs",
     "firmware": "node scripts/build-firmware.mjs"
   },
-  "dependencies": { "esp-web-tools": "10.4.0" },
-  "devDependencies": { "esbuild": "0.25.12" }
+  "dependencies": {
+    "esp-web-tools": "10.4.0"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.12"
+  }
 }

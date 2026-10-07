@@ -16,7 +16,7 @@ GitHub Pages ใช้กับ public repository ได้ใน GitHub Free �
 4. รัน workflow **Deploy web installer to GitHub Pages** หรือ push เข้า `main`
 5. เมื่อ deploy สำเร็จ เปิด URL ที่ workflow คืนให้ รูปแบบทั่วไปคือ `https://<owner>.github.io/esp32-tilt-toy/`
 
-Workflow ใน `.github/workflows/pages.yml` ใช้ `npm ci`, `npm test`, `npm run build` แล้วเผยแพร่เฉพาะ `dist/` รวม binary ทั้ง 5 โปรไฟล์ ไม่ต้อง compile Arduino ระหว่าง deploy เว็บ เนื่องจากมี release artifacts ที่ตรวจแล้วใน Git
+Workflow ใน `.github/workflows/pages.yml` ใช้ `npm ci`, `npm test`, `npm run build` แล้วเผยแพร่เฉพาะ `dist/` รวม binary ทั้ง 6 โปรไฟล์ (รวม Mini TFT แนวตั้งและแนวนอน) ไม่ต้อง compile Arduino ระหว่าง deploy เว็บ เนื่องจากมี release artifacts ที่ตรวจแล้วใน Git
 
 ไฟล์เว็บและ manifest ใช้ relative URLs รองรับ path ของ project site เช่น `/esp32-tilt-toy/` โดยไม่ต้องแก้ชื่อบัญชีใน source เมื่อแก้ firmware ให้ build releases, ตรวจ tests และ commit binaries/manifests ให้ตรงกับ source ก่อน push
 
@@ -24,7 +24,7 @@ Workflow ใน `.github/workflows/pages.yml` ใช้ `npm ci`, `npm test`, `n
 
 ## ตรวจหลังเผยแพร่
 
-- เลือกจอครบ 5 โปรไฟล์แล้ว checksum ผ่านและ download `.bin` ได้
+- เลือกจอครบ 6 โปรไฟล์ รวม Mini TFT ทั้งสองแนว แล้ว checksum ผ่านและ download `.bin` ได้
 - เปิดจาก Chrome/Edge และกดเชื่อมต่อจนเห็นหน้าต่างเลือกพอร์ต
 - ตรวจหน้า mobile และข้อความ browser ที่ไม่รองรับ Web Serial
 - ทดลองแฟลชกับ C6 และจอจริงตาม `PLAN.md` ระยะ D ก่อนยืนยัน hardware compatibility
