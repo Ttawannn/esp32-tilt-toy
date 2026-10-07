@@ -70,4 +70,4 @@ Script ใช้ FQBN `esp32:esp32:esp32c6`, USB CDC, DIO, Flash4M และ `hu
 - `docs/` — แผนและ hardware acceptance checklist
 - `.github/workflows/ci.yml` — ตรวจเว็บและ build firmware ครบทุกโปรไฟล์
 
-เว็บ build เป็น static files ใน `dist/` โดย bundle ESP Web Tools ไว้ในเว็บเอง มี `.openai/hosting.json` สำหรับ deployment ผ่าน Sites และนำ `dist/` ไป host บน HTTPS อื่นได้
+เว็บ build เป็น static files ใน `dist/` โดย bundle ESP Web Tools ไว้ในเว็บเอง รองรับ deployment ผ่าน GitHub Pages ด้วย [คู่มือและ workflow](docs/GITHUB-PAGES.md) รวมถึง Sites ผ่าน `.openai/hosting.json` และ HTTPS host อื่น
