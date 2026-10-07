@@ -1,12 +1,14 @@
 import { defaultBoard } from './boards.js';
 export const VERSION = '0.1.2';
+// Module headers left to right as printed: 'SILK' or 'SILK:pin', where pin is the wiring id and an empty pin is not wired.
+const st7735Header = ['GND', 'VCC', 'SCL:CLK', 'SDA:DIN', 'RES:RST', 'DC', 'CS', 'BLK:'];
 export const profiles = [
-  { id: 'tft-80x160', name: 'TFT 80 × 160', short: 'Pocket TFT · Portrait', driver: 'ST7735S', width: 80, height: 160, shape: 'rectangle', bus: 'SPI', firmwareId: 0, defaultRotation: 0, hasCs: true, defaultSpiMode: 0, note: 'แนวตั้ง 80×160 • เปลี่ยนแนวเพิ่มเติมจากมือถือได้', source: 'https://www.waveshare.com/wiki/0.96inch_LCD_Module' },
-  { id: 'tft-80x160-landscape', name: 'TFT 160 × 80', short: 'Pocket TFT · Landscape', driver: 'ST7735S', width: 160, height: 80, shape: 'rectangle', bus: 'SPI', firmwareId: 5, defaultRotation: 1, hasCs: true, defaultSpiMode: 0, note: 'แนวนอน 160×80 • ใช้จอ 80×160 และสายต่อชุดเดิม', source: 'https://www.waveshare.com/wiki/0.96inch_LCD_Module' },
-  { id: 'gmt130-240x240', name: 'GMT130 240 × 240', short: 'GMT130', driver: 'ST7789', width: 240, height: 240, shape: 'square', bus: 'SPI', firmwareId: 1, hasCs: false, defaultSpiMode: 3, note: 'GMT130-V1.0 • รุ่น 7 ขา ไม่มี CS • SPI Mode 3', source: 'https://goldenmorninglcd.com/tft-display-module/1.3-inch-240x240-st7789-gmt130-v1.0/' },
-  { id: 'tft-240x240-st7789', name: 'TFT 240 × 240', short: 'Square TFT', driver: 'ST7789', width: 240, height: 240, shape: 'square', bus: 'SPI', firmwareId: 2, hasCs: true, defaultSpiMode: 0, note: 'จอเหลี่ยม ST7789 • รุ่นที่มีขา CS', source: 'https://adafruit.github.io/Adafruit-ST7735-Library/html/class_adafruit___s_t7789.html' },
-  { id: 'tft-240x240-gc9a01', name: 'TFT 240 × 240', short: 'Round TFT', driver: 'GC9A01', width: 240, height: 240, shape: 'round', bus: 'SPI', firmwareId: 3, hasCs: true, defaultSpiMode: 0, note: 'จอกลม GC9A01 • พื้นที่แสดงผลทรงวงกลม', source: 'https://www.waveshare.com/wiki/1.28inch_LCD_Module' },
-  { id: 'oled-128x64', name: 'OLED 128 × 64', short: 'Mono OLED', driver: 'SSD1306', width: 128, height: 64, shape: 'rectangle', bus: 'I²C', firmwareId: 4, hasCs: false, mono: true, note: 'OLED 0.96 นิ้ว • สีเดียว • address 0x3C / 0x3D', source: 'https://learn.adafruit.com/monochrome-oled-breakouts?view=all' }
+  { id: 'tft-80x160', name: 'TFT 80 × 160', short: 'Pocket TFT · Portrait', driver: 'ST7735S', width: 80, height: 160, shape: 'rectangle', bus: 'SPI', firmwareId: 0, defaultRotation: 0, hasCs: true, defaultSpiMode: 0, note: 'แนวตั้ง 80×160 • เปลี่ยนแนวเพิ่มเติมจากมือถือได้', art: 'st7735', header: st7735Header, source: 'https://www.waveshare.com/wiki/0.96inch_LCD_Module' },
+  { id: 'tft-80x160-landscape', name: 'TFT 160 × 80', short: 'Pocket TFT · Landscape', driver: 'ST7735S', width: 160, height: 80, shape: 'rectangle', bus: 'SPI', firmwareId: 5, defaultRotation: 1, hasCs: true, defaultSpiMode: 0, note: 'แนวนอน 160×80 • ใช้จอ 80×160 และสายต่อชุดเดิม', art: 'st7735', header: st7735Header, source: 'https://www.waveshare.com/wiki/0.96inch_LCD_Module' },
+  { id: 'gmt130-240x240', name: 'GMT130 240 × 240', short: 'GMT130', driver: 'ST7789', width: 240, height: 240, shape: 'square', bus: 'SPI', firmwareId: 1, hasCs: false, defaultSpiMode: 3, note: 'GMT130-V1.0 • รุ่น 7 ขา ไม่มี CS • SPI Mode 3', art: 'gmt130', header: ['GND', 'VCC', 'SCK:CLK', 'SDA:DIN', 'RES:RST', 'DC', 'BLK:'], source: 'https://goldenmorninglcd.com/tft-display-module/1.3-inch-240x240-st7789-gmt130-v1.0/' },
+  { id: 'tft-240x240-st7789', name: 'TFT 240 × 240', short: 'Square TFT', driver: 'ST7789', width: 240, height: 240, shape: 'square', bus: 'SPI', firmwareId: 2, hasCs: true, defaultSpiMode: 0, note: 'จอเหลี่ยม ST7789 • รุ่นที่มีขา CS', art: 'st7789', header: ['GND', 'VCC', 'SCL:CLK', 'SDA:DIN', 'RES:RST', 'DC', 'CS', 'BLK:'], source: 'https://adafruit.github.io/Adafruit-ST7735-Library/html/class_adafruit___s_t7789.html' },
+  { id: 'tft-240x240-gc9a01', name: 'TFT 240 × 240', short: 'Round TFT', driver: 'GC9A01', width: 240, height: 240, shape: 'round', bus: 'SPI', firmwareId: 3, hasCs: true, defaultSpiMode: 0, note: 'จอกลม GC9A01 • พื้นที่แสดงผลทรงวงกลม', art: 'gc9a01', header: ['RST', 'CS', 'DC', 'SDA:DIN', 'SCL:CLK', 'GND', 'VCC'], source: 'https://www.waveshare.com/wiki/1.28inch_LCD_Module' },
+  { id: 'oled-128x64', name: 'OLED 128 × 64', short: 'Mono OLED', driver: 'SSD1306', width: 128, height: 64, shape: 'rectangle', bus: 'I²C', firmwareId: 4, hasCs: false, mono: true, note: 'OLED 0.96 นิ้ว • สีเดียว • address 0x3C / 0x3D', art: 'oled', header: ['GND', 'VCC', 'SCL', 'SDA'], source: 'https://learn.adafruit.com/monochrome-oled-breakouts?view=all' }
 ];
 export const displayChoices = [
   { id: 'tft-80x160', title: 'TFT 80 × 160', subtitle: '0.96” · ST7735S', shape: 'portrait' },
@@ -34,9 +36,12 @@ export const wireSignals = {
   control: { color: '#9274ac', label: 'Control' }
 };
 export const sensors = [
-  { id: 'mpu6050', name: 'MPU6050', module: 'GY-521 / MPU6050', gyro: true, address: '0x68 / 0x69', note: 'AD0 → GND เลือก 0x68; ต่อ 3V3 เลือก 0x69 · มี accelerometer และ gyro', straps: [['AD0', 'GND', 'ground']] },
-  { id: 'bmi160', name: 'BMI160', module: 'BMI160', gyro: true, address: '0x68 / 0x69', note: 'CS / CSB → 3V3 เพื่อใช้ I²C · SDO / SA0 → GND เลือก 0x68; ต่อ 3V3 เลือก 0x69 · มี accelerometer และ gyro', straps: [['CS', '3V3', 'power'], ['SDO', 'GND', 'ground']] }
+  { id: 'mpu6050', name: 'MPU6050', module: 'GY-521 / MPU6050', gyro: true, address: '0x68 / 0x69', note: 'AD0 → GND เลือก 0x68; ต่อ 3V3 เลือก 0x69 · มี accelerometer และ gyro', straps: [['AD0', 'GND', 'ground']], header: ['VCC', 'GND', 'SCL', 'SDA', 'XDA:', 'XCL:', 'AD0', 'INT:'] },
+  { id: 'bmi160', name: 'BMI160', module: 'BMI160', gyro: true, address: '0x68 / 0x69', note: 'CS / CSB → 3V3 เพื่อใช้ I²C · SDO / SA0 → GND เลือก 0x68; ต่อ 3V3 เลือก 0x69 · มี accelerometer และ gyro', straps: [['CS', '3V3', 'power'], ['SDO', 'GND', 'ground']], header: ['VIN:VCC', '3V3:', 'GND', 'SCL', 'SDA', 'CS', 'SAO:SDO'] }
 ];
+export function headerSlots(header) {
+  return header.map(slot => { const [label, pin = label] = slot.split(':'); return { label, pin: pin || null }; });
+}
 export function findSensor(id = 'mpu6050') { return sensors.find(sensor => sensor.id === id) || sensors[0]; }
 export function wiringConnections(profile, sensorId = 'mpu6050', board = defaultBoard) {
   const sensor = findSensor(sensorId);
