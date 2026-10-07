@@ -37,7 +37,7 @@ export const wireSignals = {
 };
 export const sensors = [
   { id: 'mpu6050', name: 'MPU6050', module: 'GY-521 / MPU6050', gyro: true, address: '0x68 / 0x69', note: 'AD0 → GND เลือก 0x68; ต่อ 3V3 เลือก 0x69 · มี accelerometer และ gyro', straps: [['AD0', 'GND', 'ground']], header: ['VCC', 'GND', 'SCL', 'SDA', 'XDA:', 'XCL:', 'AD0', 'INT:'] },
-  { id: 'bmi160', name: 'BMI160', module: 'BMI160', gyro: true, address: '0x68 / 0x69', note: 'CS / CSB → 3V3 เพื่อใช้ I²C · SDO / SA0 → GND เลือก 0x68; ต่อ 3V3 เลือก 0x69 · มี accelerometer และ gyro', straps: [['CS', '3V3', 'power'], ['SDO', 'GND', 'ground']], header: ['VIN:VCC', '3V3:', 'GND', 'SCL', 'SDA', 'CS', 'SAO:SDO'] }
+  { id: 'bmi160', name: 'BMI160', module: 'BMI160', gyro: true, address: '0x68 / 0x69', note: 'CS / CSB → 3V3 เพื่อใช้ I²C · SDO / SA0 → GND เลือก 0x68; ต่อ 3V3 เลือก 0x69 · มี accelerometer และ gyro', straps: [['CS', '3V3', 'power'], ['SDO', 'GND', 'ground']], header: ['VIN:VCC', '3.3V:', 'GND', 'SCL', 'SDA', 'CS', 'SA0:SDO'], extraHeader: ['OCS', 'INT2', 'INT1', 'SCX', 'SDX'] }
 ];
 export function headerSlots(header) {
   return header.map(slot => { const [label, pin = label] = slot.split(':'); return { label, pin: pin || null }; });

@@ -74,6 +74,9 @@ test('header order follows the module photos and wires follow the GPIO map', () 
   assert.deepEqual(labels('gmt130-240x240'), ['GND', 'VCC', 'SCK', 'SDA', 'RES', 'DC', 'BLK']);
   assert.deepEqual(labels('tft-240x240-gc9a01'), ['RST', 'CS', 'DC', 'SDA', 'SCL', 'GND', 'VCC']);
   assert.deepEqual(labels('oled-128x64'), ['GND', 'VCC', 'SCL', 'SDA']);
+  const sensorLabels = id => headerSlots(sensors.find(sensor => sensor.id === id).header).map(slot => slot.label);
+  assert.deepEqual(sensorLabels('mpu6050'), ['VCC', 'GND', 'SCL', 'SDA', 'XDA', 'XCL', 'AD0', 'INT']);
+  assert.deepEqual(sensorLabels('bmi160'), ['VIN', '3.3V', 'GND', 'SCL', 'SDA', 'CS', 'SA0']);
   const c6 = boards.find(b => b.id === 'esp32-c6-supermini'), classic = boards.find(b => b.id === 'esp32-30pin');
   assert.deepEqual(headerSlot(c6, 'GPIO6'), { side: 'left', index: 8, label: '6' });
   assert.deepEqual(headerSlot(c6, '3V3'), { side: 'right', index: 2, label: '3V3' });

@@ -75,13 +75,16 @@ const moduleSpecs = {
   st7789: { width: 27.5, height: 39, header: 2.3, pcb: '#1d5aa6', mounts: [[2.6, 2.6], [24.9, 2.6], [2.6, 36.4], [24.9, 36.4]] },
   gc9a01: { width: 36, height: 45.5, header: 43.3, bottom: true, pcb: '#1d5aa6', mounts: [[5.2, 39.4], [30.8, 39.4]] },
   oled: { width: 27.3, height: 27.8, header: 1.9, pcb: '#18191b', mounts: [[2, 2], [25.3, 2], [2, 25.8], [25.3, 25.8]] },
-  mpu6050: { width: 21, height: 16, header: 1.7, pcb: '#2b63ad', mounts: [[2.2, 13.6], [18.8, 13.6]] },
-  bmi160: { width: 19, height: 13.5, header: 1.7, pcb: '#5f3c96', mounts: [[2.2, 11.2], [16.8, 11.2]] }
+  // Sensor breakouts have a vertical header on the left edge (column x, first pin y); BMI160 adds an unwired right column.
+  mpu6050: { width: 16.4, height: 21.2, column: 1.3, first: 1.7, pcb: '#2b5fae', mounts: [[14, 2.3], [14.6, 19.4]] },
+  bmi160: { width: 16.6, height: 17.8, column: 1.25, extraColumn: 15.35, first: 1.3, pcb: '#6a2fa0', mounts: [[13.6, 15.6]] }
 };
 function moduleGeometry(kind, count, scale, cx, anchor) {
   const spec = moduleSpecs[kind], pitch = 2.54 * scale;
-  const top = spec.bottom ? anchor - spec.height * scale : anchor - spec.header * scale;
-  return { spec, scale, pitch, left: cx - spec.width * scale / 2, top, hy: top + spec.header * scale, bottom: !!spec.bottom, pinX: index => cx + (index - (count - 1) / 2) * pitch };
+  const left = cx - spec.width * scale / 2;
+  if (spec.column !== undefined) return { spec, scale, pitch, left, top: anchor, side: 'left', pin: index => [left + spec.column * scale, anchor + (spec.first + index * 2.54) * scale] };
+  const top = spec.bottom ? anchor - spec.height * scale : anchor - spec.header * scale, hy = top + spec.header * scale;
+  return { spec, scale, pitch, left, top, hy, bottom: !!spec.bottom, pin: index => [cx + (index - (count - 1) / 2) * pitch, hy] };
 }
 function screenContent(x, y, width, height, mono) {
   if (mono) return `<text x="${x + width / 2}" y="${y + height * .62}" text-anchor="middle" font-size="${height * .42}" fill="#b7e2e8" font-family="monospace">≈ ≈ ≈</text>`;
@@ -92,23 +95,39 @@ function moduleArt(kind, slots, geometry, caption) {
   let art = kind === 'gc9a01'
     ? `<circle cx="18" cy="18" r="18" fill="${spec.pcb}"/><rect x="3" y="24" width="30" height="21.5" rx="1.6" fill="${spec.pcb}"/>`
     : `<rect width="${W}" height="${H}" rx=".8" fill="${spec.pcb}"/>`;
-  for (const [x, y] of spec.mounts) art += `<circle cx="${x}" cy="${y}" r="${kind === 'oled' ? 1.2 : 1.45}" fill="#f6f8f3" stroke="#d9dee4" stroke-width=".35"/>`;
+  for (const [x, y] of spec.mounts) art += `<circle cx="${x}" cy="${y}" r="${kind === 'oled' ? 1.2 : spec.column !== undefined ? 1.75 : 1.45}" fill="#f6f8f3" stroke="#d9dee4" stroke-width=".35"/>`;
   if (kind === 'st7735') art += `<rect x="-.6" y="8.4" width="3.2" height="9.6" rx=".4" fill="#2f3a33"/><rect x="2.4" y="7.3" width="26.2" height="12.4" rx=".3" fill="#0f1418" stroke="#5b7896" stroke-width=".2"/><rect x="4.1" y="8.1" width="21.7" height="10.8" fill="#141b20"/>${screenContent(4.1, 8.1, 21.7, 10.8)}<text x="${cx}" y="22.9" text-anchor="middle" font-size="1.55" class="silk">0.96"80x160(RGB)IPS</text>`;
   if (kind === 'gmt130' || kind === 'st7789') art += `<rect x="1" y="5.6" width="25.5" height="27.2" rx=".3" fill="#0f1418" stroke="#5b7896" stroke-width=".2"/><rect x="2.05" y="6.6" width="23.4" height="23.4" fill="#141b20"/>${screenContent(2.05, 6.6, 23.4, 23.4)}<rect x="2" y="30.4" width="23.5" height="3.6" fill="#25282b"/><text x="${cx}" y="36.4" text-anchor="middle" font-size="1.4" class="silk">${kind === 'gmt130' ? 'GMT130-V1.0' : '1.3" ST7789'}</text><text x="${cx}" y="38.2" text-anchor="middle" font-size="1.4" class="silk">IPS 240*240</text>`;
   if (kind === 'gc9a01') art += `<circle cx="18" cy="18" r="16.6" fill="#0f1418" stroke="#5b7896" stroke-width=".2"/><clipPath id="round-screen"><circle cx="18" cy="18" r="15.8"/></clipPath><g clip-path="url(#round-screen)"><circle cx="18" cy="18" r="15.8" fill="#141b20"/>${screenContent(2.2, 2.2, 31.6, 31.6)}</g><rect x="11" y="33.2" width="14" height="2.2" rx=".4" fill="#25282b"/>`;
   if (kind === 'oled') art += `<rect x=".5" y="5" width="26.3" height="18" rx=".3" fill="#0b0d10" stroke="#3a3f46" stroke-width=".2"/><rect x="2.3" y="6.5" width="22.7" height="11.4" fill="#05070a"/>${screenContent(2.3, 6.5, 22.7, 11.4, true)}<rect x="9" y="22.6" width="9.3" height="5.2" fill="#e6b740"/>`;
-  if (kind === 'mpu6050') art += `<rect x="8.5" y="6.6" width="4" height="4" fill="#1e2124"/><rect x="4.2" y="7.4" width="1.4" height=".8" fill="#d8d2b8"/><rect x="15.4" y="7.4" width="1.4" height=".8" fill="#d8d2b8"/><rect x="4.2" y="9.6" width="1.4" height=".8" fill="#d8d2b8"/><circle cx="16.4" cy="10.6" r=".5" fill="#9fe36e"/><text x="${cx}" y="14.6" text-anchor="middle" font-size="1.3" class="silk">GY-521</text>`;
-  if (kind === 'bmi160') art += `<rect x="8.1" y="6.2" width="2.8" height="2.4" fill="#1e2124"/><rect x="4.4" y="6.8" width="1.4" height=".8" fill="#d8d2b8"/><rect x="13.2" y="6.8" width="1.4" height=".8" fill="#d8d2b8"/><text x="${cx}" y="12.4" text-anchor="middle" font-size="1.2" class="silk">BMI160</text>`;
-  const labelY = spec.bottom ? spec.header - 1.45 : spec.header + 2.25;
-  slots.forEach(({ label }, index) => {
-    const x = cx + (index - (slots.length - 1) / 2) * 2.54;
-    art += hole(x, spec.header, .75) + `<text x="${x}" y="${labelY}" text-anchor="middle" font-size="${kind === 'mpu6050' || kind === 'bmi160' ? .95 : 1.05}" class="silk">${label}</text>`;
+  const part = (x, y, w, h, fill = '#d8d2b8') => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx=".15" fill="${fill}"/>`;
+  if (kind === 'mpu6050') art += `${part(6.6, 1.4, 3.2, 2.6, '#1e2124')}${part(6.2, 5.2, 1.6, .9)}${part(10.6, 5.2, 1.6, .9)}${part(6.2, 14.2, 1.6, .9)}${part(10.6, 14.2, 1.6, .9)}
+    <rect x="6.2" y="7.3" width="4.2" height="4.2" fill="#1e2124" stroke="#3a3f46" stroke-width=".15"/><text x="8.3" y="9.2" text-anchor="middle" font-size=".55" fill="#b9bec4">MPU-6050</text><text x="8.3" y="10.1" text-anchor="middle" font-size=".5" fill="#8d939b">INVENSENSE</text>
+    ${part(12.3, 8.6, 1.5, 2.3, '#e3a43a')}<text x="15.6" y="10.6" text-anchor="middle" font-size="1.05" class="silk" transform="rotate(-90 15.6 10.6)">ITG/MPU</text>
+    <path d="M8.6 20.2h2.4m-.6-.5.6.5-.6.5M11.6 20.2v-2.2m-.5.6.5-.6.5.6" fill="none" stroke="#eef2ec" stroke-width=".18"/>`;
+  if (kind === 'bmi160') art += `${part(7.2, .6, 2.6, 1.6, '#1e2124')}${part(6, 4, 1.4, .7)}${part(9.8, 4, 1.4, .7)}${part(6, 12.4, 1.4, .7)}${part(9.8, 12.4, 1.4, .7)}
+    <rect x="7.1" y="7" width="2.8" height="2.8" fill="#26292e" stroke="#4a3c5a" stroke-width=".15"/><text x="8.5" y="8.6" text-anchor="middle" font-size=".5" fill="#b9bec4">BMI</text>
+    <text x="8.3" y="16.6" text-anchor="middle" font-size=".95" class="silk">BMI160</text>`;
+  const pinRow = (column, labels, labelSide) => labels.forEach((label, index) => {
+    const y = spec.first + index * 2.54, square = kind === 'mpu6050' && index === 0;
+    art += (square ? `<rect x="${column - .75}" y="${y - .75}" width="1.5" height="1.5" fill="#d9b55c"/><circle cx="${column}" cy="${y}" r=".39" fill="#3a3328"/>` : hole(column, y, .75))
+      + `<text x="${column + labelSide * 1.2}" y="${y + .36}" text-anchor="${labelSide > 0 ? 'start' : 'end'}" font-size=".9" class="silk">${label}</text>`;
   });
+  if (spec.column !== undefined) {
+    pinRow(spec.column, slots.map(slot => slot.label), 1);
+    if (spec.extraColumn !== undefined) pinRow(spec.extraColumn, geometry.extra || [], -1);
+  } else {
+    const labelY = spec.bottom ? spec.header - 1.45 : spec.header + 2.25;
+    slots.forEach(({ label }, index) => {
+      const x = cx + (index - (slots.length - 1) / 2) * 2.54;
+      art += hole(x, spec.header, .75) + `<text x="${x}" y="${labelY}" text-anchor="middle" font-size="1.05" class="silk">${label}</text>`;
+    });
+  }
   const group = svgElement('g', { 'aria-hidden': 'true' });
   const body = svgElement('g', { transform: `translate(${round(geometry.left)} ${round(geometry.top)}) scale(${geometry.scale})` });
   body.innerHTML = art;
   group.append(body);
-  if (caption) group.append(svgElement('text', { x: geometry.left + W * geometry.scale / 2, y: geometry.bottom ? geometry.top - 8 : geometry.top + H * geometry.scale + 16, 'text-anchor': 'middle', class: 'component-subtitle' }, caption));
+  if (caption) group.append(svgElement('text', { x: geometry.left + W * geometry.scale / 2, y: geometry.bottom ? geometry.top - 8 : geometry.top + H * geometry.scale + 18, 'text-anchor': 'middle', class: 'component-subtitle' }, caption));
   return group;
 }
 // Orthogonal path through the given points with rounded corners.
@@ -190,13 +209,14 @@ export class WiringGraph {
     const displayGeo = moduleGeometry(profile.art, displaySlots.length, 7, 715, moduleSpecs[profile.art].bottom ? 375 : 132);
     const display = componentCard(530, 20, 370, 390, profile.short, `${profile.driver} · ${profile.bus}`);
     display.append(moduleArt(profile.art, displaySlots, displayGeo));
-    const sensorGeo = moduleGeometry(this.sensor.id, sensorSlots.length, 7.6, 715, 528);
+    const sensorGeo = moduleGeometry(this.sensor.id, sensorSlots.length, 8.4, 690, 486);
+    sensorGeo.extra = this.sensor.extraHeader;
     const sensor = componentCard(530, 425, 370, 275, 'Motion sensor', `${this.sensor.module} · I²C`);
     sensor.append(moduleArt(this.sensor.id, sensorSlots, sensorGeo, `I²C address ${this.sensor.address}`));
     this.svg.append(boardCard, display, sensor);
     displaySlots.forEach((slot, index) => {
       if (slot.label !== 'BLK') return;
-      const backlight = svgElement('circle', { cx: displayGeo.pinX(index), cy: displayGeo.hy, r: 7, class: 'backlight-port' });
+      const [x, y] = displayGeo.pin(index), backlight = svgElement('circle', { cx: x, cy: y, r: 7, class: 'backlight-port' });
       backlight.append(svgElement('title', {}, 'BLK: ต่อไฟหรือวงจรขับตามสเปกโมดูลจอ'));
       this.svg.append(backlight);
     });
@@ -207,10 +227,10 @@ export class WiringGraph {
       this.addPin(`board:${id}`, slot.label, boardGeo.columns[slot.side], boardGeo.pinY(slot.index), Math.min(boardGeo.pitch - 4, 22), `${board.name} ${id === slot.label ? id : `${slot.label} (${id})`}`, slot.side);
     }
     displaySlots.forEach((slot, index) => {
-      if (slot.pin) this.addPin(`display:${slot.pin}`, slot.label, displayGeo.pinX(index), displayGeo.hy, displayGeo.pitch - 2, `${profile.short} ${slot.label}`);
+      if (slot.pin) this.addPin(`display:${slot.pin}`, slot.label, ...displayGeo.pin(index), displayGeo.pitch - 2, `${profile.short} ${slot.label}`);
     });
     sensorSlots.forEach((slot, index) => {
-      if (slot.pin) this.addPin(`sensor:${slot.pin}`, slot.label, sensorGeo.pinX(index), sensorGeo.hy, sensorGeo.pitch - 2, `${this.sensor.name} ${slot.label}`);
+      if (slot.pin) this.addPin(`sensor:${slot.pin}`, slot.label, ...sensorGeo.pin(index), sensorGeo.pitch - 2, `${this.sensor.name} ${slot.label}`);
     });
     this.routes = this.route(boardGeo, { display: displayGeo, sensor: sensorGeo });
     this.ghost = svgElement('path', { class: 'wire-ghost', hidden: '' });
@@ -240,7 +260,13 @@ export class WiringGraph {
     let lane = 0;
     for (const device of ['display', 'sensor']) {
       const module = modules[device];
-      const wires = this.connections.filter(c => c.device === device).sort((a, b) => target(a).x - target(b).x);
+      const wires = this.connections.filter(c => c.device === device);
+      if (module.side === 'left') {
+        // Side header: the lowest pin takes the leftmost lane so the horizontal runs never cross.
+        wires.sort((a, b) => target(b).y - target(a).y).forEach(c => plan.set(c.id, { lane: LANE_X + lane++ * LANE_GAP, side: true }));
+        continue;
+      }
+      wires.sort((a, b) => target(a).x - target(b).x);
       wires.forEach((c, index) => plan.set(c.id, { channel: module.hy + (module.bottom ? 16 + index * CHANNEL_GAP : -16 - index * CHANNEL_GAP) }));
       for (const c of device === 'display' && !module.bottom ? [...wires].reverse() : wires) plan.get(c.id).lane = LANE_X + lane++ * LANE_GAP;
     }
@@ -250,8 +276,8 @@ export class WiringGraph {
     over.forEach((c, index) => { plan.get(c.id).detour = { x: boardGeo.left - 12 - index * 7, y: boardGeo.top - 22 - index * 7 }; });
     under.forEach((c, index) => { plan.get(c.id).detour = { x: boardGeo.left - 12 - (over.length + index) * 7, y: boardGeo.bottom + 18 + index * 7 }; });
     for (const c of this.connections) {
-      const s = source(c), t = target(c), { lane: x, channel, detour } = plan.get(c.id);
-      const points = [[s.x, s.y], ...(detour ? [[detour.x, s.y], [detour.x, detour.y], [x, detour.y]] : [[x, s.y]]), [x, channel], [t.x, channel], [t.x, t.y]];
+      const s = source(c), t = target(c), { lane: x, channel, detour, side } = plan.get(c.id);
+      const points = [[s.x, s.y], ...(detour ? [[detour.x, s.y], [detour.x, detour.y], [x, detour.y]] : [[x, s.y]]), ...(side ? [[x, t.y]] : [[x, channel], [t.x, channel]]), [t.x, t.y]];
       routes.set(c.id, roundedPath(points));
     }
     return routes;
