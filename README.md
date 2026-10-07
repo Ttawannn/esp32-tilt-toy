@@ -1,42 +1,73 @@
 # esp32-tilt-toy
 
-ESP32 motion-controlled pocket toy with OLED and TFT support, mini-games, and mobile configuration.
+พวงกุญแจ **ESP32-C6 SuperMini + GY-521/MPU6050** ที่เล่นด้วยการเอียงและเขย่า มีเว็บเลือกจอ ทดลองโหมด และแฟลชผ่าน USB พร้อมหน้าเว็บบนอุปกรณ์สำหรับตั้งค่าจากมือถือ
 
-โปรเจกต์พวงกุญแจที่เล่นด้วยการเอียงและเขย่า รองรับการออกแบบสำหรับจอ OLED และ TFT หลายขนาด โดยใช้โค้ดเกมร่วมกันและปรับการวาดภาพตามจอ
+## รุ่นแรก v0.1.0
 
-## สถานะ
+มี source firmware และ merged binary แยกตามจอ 5 โปรไฟล์ รวมโหมด Liquid, Tilt maze, Snow globe, Orbit pong, Pocket eyes และ Dice ในแต่ละไฟล์ โหมดน้ำเป็นกราฟิกผิวน้ำ 2D พร้อมคลื่นและ damping
 
-เริ่มต้น repository แล้ว ยังไม่มีเฟิร์มแวร์หรือการทดสอบกับฮาร์ดแวร์จริง ฟีเจอร์ด้านล่างเป็นขอบเขตที่วางแผนไว้
+| จอ | Controller | โปรไฟล์ |
+| --- | --- | --- |
+| TFT 80×160 | ST7735S Mini 160×80 | `tft-80x160` |
+| GMT130 240×240 | ST7789, 7 ขา ไม่มี CS | `gmt130-240x240` |
+| TFT กลม 240×240 | GC9A01 | `tft-240x240-gc9a01` |
+| TFT เหลี่ยม 240×240 | ST7789, มี CS | `tft-240x240-st7789` |
+| OLED 128×64 | SSD1306, I²C 0x3C/0x3D | `oled-128x64` |
 
-## ฮาร์ดแวร์เริ่มต้น
+ไฟล์เป็นรุ่นทดลองสำหรับ **C6 / Flash 4MB** ต้องทดลองกับบอร์ดและจอจริงก่อนยืนยัน compatibility ของโมดูลแต่ละผู้ผลิต ยังไม่มีผลวัด FPS กระแสไฟ หรืออายุแบตเตอรี่ จอ SH1106 และ ST7735 ที่ใช้ offsets ต่างจาก Mini160×80 ต้องเพิ่มโปรไฟล์
 
-- ESP32-C6 SuperMini
-- เซนเซอร์ GY-521 ซึ่งโดยทั่วไปใช้ชิป MPU6050
-- จอที่เลือกใช้: OLED 0.96 นิ้ว 128×64 หรือจอ TFT เช่น GC9A01 แบบวงกลม 240×240
-- ปุ่มสำหรับเปลี่ยนโหมดและเปิดการตั้งค่าผ่านมือถือ
-- แบตเตอรี่และวงจรจ่ายไฟ/ชาร์จที่เหมาะกับอุปกรณ์
+อ่าน [แผนพัฒนา](docs/PLAN.md) และ [ผังสาย/รายละเอียดฮาร์ดแวร์](docs/HARDWARE.md)
 
-รุ่นจอ ความจุ Flash ผังขาของบอร์ด และวงจรไฟเลี้ยงต้องยืนยันก่อนเริ่มต่อฮาร์ดแวร์และตั้งค่าเฟิร์มแวร์
+## เปิดเว็บในเครื่อง
 
-## โหมดที่วางแผนไว้
+ใช้ Node.js 22 ขึ้นไป Binary รุ่นแรกอยู่ใน `web/firmware/` จึงเปิดเว็บได้โดยไม่ต้องติดตั้ง toolchain ของ Arduino
 
-- น้ำในลูกแก้ว: ผิวน้ำและคลื่นแบบ 2D ตามการเอียงและเขย่า
-- ลูกบอลเขาวงกต: เอียงเครื่องเพื่อพาลูกบอลไปถึงเป้าหมาย
-- ลูกแก้วหิมะ: เขย่าให้อนุภาคฟุ้งและตกตามแรงโน้มถ่วง
-- Pong รอบวง: ควบคุมแป้นเพื่อรับลูกบอล
-- สัตว์เลี้ยงหรือตาการ์ตูน: ตอบสนองต่อการเคลื่อนไหว
-- ลูกเต๋าหรือวงล้อสุ่ม: เขย่าเพื่อสุ่มผล
+```sh
+npm ci
+npm test
+npm run build
+npm run dev
+```
 
-## การตั้งค่าผ่านมือถือ
+เปิด `http://localhost:4173` เลือกจอ แล้วกดเชื่อมต่อและแฟลชผ่าน **Chrome / Edge บนคอมพิวเตอร์** ต้องใช้ HTTPS หรือ localhost และสาย USB data ตัวแฟลช ESP Web Tools ตรวจตระกูลชิปและแสดงผลแฟลชจริง หน้าเว็บตรวจขนาดไฟล์และ SHA-256 ก่อนเปิดปุ่ม ติดตั้งครั้งแรกเลือก erase หากต้องการเริ่มด้วยค่าจากโปรไฟล์ใหม่ การล้าง flash ลบค่าที่บันทึกไว้
 
-แนวทางเริ่มต้นคือเปิด Wi-Fi access point จากอุปกรณ์ แล้วใช้หน้าเว็บในมือถือเพื่อเลือกโหมดและปรับค่าที่เกี่ยวข้อง บันทึกโหมดล่าสุดและปิด Wi-Fi หลังตั้งค่าเพื่อประหยัดแบตเตอรี่
+ถ้าไม่เจอพอร์ต: ปิด Serial Monitor กด BOOT ค้างขณะเสียบสาย USB ปล่อย BOOT แล้วลองใหม่ โทรศัพท์ใช้ Wi-Fi ตั้งค่าหลังแฟลช ส่วนเว็บ preview ใช้เล่นจำลองได้โดยไม่ต่อบอร์ด
 
-## แนวทางโครงสร้างโปรแกรม
+## ตั้งค่าจากมือถือ
 
-- แยกไดรเวอร์จอออกจากโค้ดเกมและการอ่านเซนเซอร์
-- ปรับการวาดภาพตามความละเอียด รูปทรง และสีที่จอรองรับ
-- เก็บโค้ดและภาพใน Flash และใช้หน่วยความจำร่วมกันสำหรับโหมดที่กำลังเล่น
-- เปิดเล่นทีละโหมด โดยเริ่มจากกราฟิก 2D และจำนวนอนุภาคจำกัด
-- วัดหน่วยความจำ ความลื่น และการใช้ไฟกับฮาร์ดแวร์จริง
+1. ต่อปุ่มเพิ่มระหว่าง **GPIO2 ↔ GND** กดค้าง 2 วินาทีเพื่อเปิด Wi-Fi
+2. เชื่อม `TiltToy-xxxx` รหัส `tilttoy32` แล้วเปิด `http://192.168.4.1`
+3. เลือกโหมด ตั้งระดับน้ำ/ความไว/rotation และกดบันทึก ตั้ง inversion และ SPI mode ของ ST7789 ได้
+4. ปิด Wi-Fi แล้วเล่นต่อ หรือรอ timeout 3 นาที โหมดและค่าตั้งเก็บใน NVS กดปุ่มสั้นเพื่อเปลี่ยนโหมด
 
-เฟรมเวิร์กสำหรับพัฒนาและคำสั่ง build จะเพิ่มเมื่อเริ่มทำเฟิร์มแวร์
+วางเครื่องนิ่งเมื่อเปิดเครื่องหรือกดคาลิเบรต gyro ให้แกน X/Y ของเซนเซอร์สอดคล้องกับจอ MPU6050 ให้ roll/pitch จากแรงโน้มถ่วง ไม่มี compass yaw ปุ่ม GPIO2 เป็นปุ่มใช้งานของเล่นแยกจาก BOOT บนบอร์ด
+
+## Build firmware ใหม่
+
+ติดตั้ง Arduino CLI 1.5.1 และ core/ไลบรารีตามนี้ หรือใช้ Arduino IDE ที่มี CLI ภายใน (script ตรวจ path มาตรฐานบน Windows)
+
+```sh
+arduino-cli config init
+arduino-cli config add board_manager.additional_urls https://espressif.github.io/arduino-esp32/package_esp32_index.json
+arduino-cli core update-index
+arduino-cli core install esp32:esp32@3.3.11
+arduino-cli lib install "Adafruit GFX Library@1.12.6" "Adafruit BusIO@1.17.4" "Adafruit ST7735 and ST7789 Library@1.11.0" "Adafruit GC9A01A@1.1.1" "Adafruit SSD1306@2.5.17" "Adafruit MPU6050@2.2.9" "Adafruit Unified Sensor@1.1.15"
+npm run firmware
+npm test
+npm run build
+```
+
+Build จอเดียว: `npm run firmware -- tft-240x240-gc9a01` ตั้ง environment `ARDUINO_CLI`, `ARDUINO_DATA_DIR` หรือ `ESPTOOL` หาก toolchain อยู่ที่อื่น
+
+Script ใช้ FQBN `esp32:esp32:esp32c6`, USB CDC, DIO, Flash4M และ `huge_app` (3MB app, ไม่มี OTA) ใช้ค่าของ toolchain รุ่นที่ตรึงไว้ merge bootloader@0, partitions@0x8000, boot_app0@0xe000 และ app@0x10000 เป็นไฟล์เดียว ไม่ pad ให้เต็ม 4MB สร้าง manifest + SHA-256 ใหม่ทุกครั้ง ผล compile อยู่ใน `work/firmware/` และ artifacts ใน `web/firmware/`
+
+## โครงสร้าง
+
+- `firmware/tilt_toy/` — sketch, motion, 6 โหมด, Wi-Fi UI, NVS
+- `web/` — installer, preview, profile contract และ firmware artifacts
+- `scripts/` — build เว็บ, build/merge firmware และ local server
+- `tests/` — ตรวจ profile, binary header/chip, partition และ checksum
+- `docs/` — แผนและ hardware acceptance checklist
+- `.github/workflows/ci.yml` — ตรวจเว็บและ build firmware ครบทุกโปรไฟล์
+
+เว็บ build เป็น static files ใน `dist/` โดย bundle ESP Web Tools ไว้ในเว็บเอง มี `.openai/hosting.json` สำหรับ deployment ผ่าน Sites และนำ `dist/` ไป host บน HTTPS อื่นได้
