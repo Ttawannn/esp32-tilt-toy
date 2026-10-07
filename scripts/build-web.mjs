@@ -3,6 +3,9 @@ import { resolve } from 'node:path';
 import { build } from 'esbuild';
 const root = resolve(import.meta.dirname, '..');
 const out = resolve(root, 'dist');
+// Check browser imports before replacing the files served by localhost.
+// The installer module is generated separately below.
+await build({ entryPoints: [resolve(root, 'web', 'app.js')], bundle: true, write: false, format: 'esm', target: 'es2022', external: ['./assets/installer.js'], logLevel: 'silent' });
 // Only the known generated output directory may be replaced.
 if (out !== resolve(root, 'dist')) throw new Error('Invalid output path');
 await rm(out, { recursive: true, force: true });

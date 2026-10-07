@@ -1,12 +1,12 @@
 # esp32-tilt-toy
 
-พวงกุญแจ **ESP32-C6 SuperMini + GY-521/MPU6050** ที่เล่นด้วยการเอียงและเขย่า มีเว็บเลือกจอ ทดลองเล่น และแฟลชผ่าน USB พร้อมหน้าตั้งค่าบนตัวเครื่องที่เปิดจากมือถือ
+พวงกุญแจ **ESP32-C6 SuperMini + BMI160 / MPU6050** ที่เล่นด้วยการเอียงและเขย่า มีเว็บเลือกจอและโมดูลเซนเซอร์ ทดลองเล่น และแฟลชผ่าน USB พร้อมหน้าตั้งค่าบนตัวเครื่องที่เปิดจากมือถือ
 
 **เว็บ installer + preview:** https://ttawannn.github.io/esp32-tilt-toy/
 
 ## โหมดในเครื่อง
 
-ทุก firmware มีครบ 6 โหมด กดปุ่มสั้นเพื่อสลับ หน้าจอใช้เป็นพื้นที่เล่นทั้งหมด ไม่มีชื่อโหมด ตัวเลข หรือกรอบ ค่าต่าง ๆ ไปแสดงบนหน้าเว็บในมือถือแทน ข้อความบนจอมีแค่ 2 กรณี คือชื่อ Wi-Fi กับ IP ขณะเปิดโหมดตั้งค่า และ `IMU NOT FOUND` เมื่อไม่พบเซนเซอร์
+ทุก firmware มีครบ 6 โหมด กดปุ่ม **BOOT บนบอร์ด** สั้น ๆ เพื่อสลับ หน้าจอใช้เป็นพื้นที่เล่นทั้งหมด ไม่มีชื่อโหมด ตัวเลข หรือกรอบ ค่าต่าง ๆ ไปแสดงบนหน้าเว็บในมือถือแทน ข้อความบนจอมีแค่ 2 กรณี คือชื่อ Wi-Fi กับ IP ขณะเปิดโหมดตั้งค่า และ `IMU NOT FOUND` เมื่อไม่พบเซนเซอร์
 
 | โหมด | เล่นอย่างไร |
 | --- | --- |
@@ -24,7 +24,7 @@
 - `firmware/tilt_toy/flip_fluid.h`: C++ จองหน่วยความจำคงที่ไว้สูงสุด 400 cells / 900 particles (~28 KB) ไม่ allocate ระหว่างรัน
 - `web/fluid.js`: JavaScript สำหรับ preview บนเว็บ
 
-ทั้งสองชุดใช้ fixed step 25 ms มีภาชนะทรงกลมสำหรับจอ GC9A01 หาเพื่อนบ้านด้วย linked-cell และแรงโน้มถ่วงมาจาก roll/pitch ของ MPU6050 ขนาดกริดปรับตามจอ ส่วนจอกลมใช้ 20×20
+ทั้งสองชุดใช้ fixed step 25 ms มีภาชนะทรงกลมสำหรับจอ GC9A01 หาเพื่อนบ้านด้วย linked-cell และแรงโน้มถ่วงมาจาก roll/pitch ของเซนเซอร์ที่ตรวจพบ ขนาดกริดปรับตามจอ ส่วนจอกลมใช้ 20×20
 
 ESP32-C6 ไม่มี FPU จึงต้องวัดเวลา solver บนบอร์ดจริง ดูได้จากช่อง Solver ในหน้าตั้งค่าบนมือถือ (หรือ `simMs` ใน `/api/status`) ถ้าเกินราว 25 ms ภาพจะกระตุก ให้ลดขนาดกริดหรือระดับน้ำ ข้อความ license อยู่ที่ [web/licenses/ten-minute-physics.txt](web/licenses/ten-minute-physics.txt) และที่ `/license` บนตัวเครื่อง
 
@@ -32,11 +32,14 @@ ESP32-C6 ไม่มี FPU จึงต้องวัดเวลา solver �
 
 | จอ | Controller | โปรไฟล์ |
 | --- | --- | --- |
-| TFT 80×160 | ST7735S Mini 160×80 | `tft-80x160` |
+| TFT 80×160 แนวตั้ง | ST7735S Mini 160×80, rotation 0 | `tft-80x160` |
+| TFT 160×80 แนวนอน | จอเดียวกัน, rotation 1 | `tft-80x160-landscape` |
 | GMT130 240×240 | ST7789, 7 ขา ไม่มี CS | `gmt130-240x240` |
 | TFT กลม 240×240 | GC9A01 | `tft-240x240-gc9a01` |
 | TFT เหลี่ยม 240×240 | ST7789, มี CS | `tft-240x240-st7789` |
 | OLED 128×64 | SSD1306, I²C 0x3C/0x3D | `oled-128x64` |
+
+เลือก **TFT 80×160 → แนวของจอ → แนวตั้ง / แนวนอน** ในเว็บ installer ภาพ preview และไฟล์แฟลชเปลี่ยนตามแนวที่เลือก เว็บจำตัวเลือกหลัง reload เมื่อติดตั้งโปรไฟล์ Mini TFT คนละแนว firmware จะใช้ rotation ของโปรไฟล์ใหม่นั้น แม้มีค่าเดิมใน NVS เมื่อบูตครั้งต่อไปยังคงค่าที่เปลี่ยนจากมือถือได้ โดยเลือก **แนวจอ / หมุนภาพ** แล้วกดบันทึก
 
 แต่ละโปรไฟล์มี merged binary แยกกัน ไฟล์เป็นรุ่นทดลองสำหรับ **C6 / Flash 4MB** ทุก manifest ระบุ `hardwareTested: false` เพราะยังไม่ได้ทดลองกับบอร์ดและจอจริง และยังไม่มีผลวัด FPS กระแสไฟ หรืออายุแบตเตอรี่ ส่วนจอ SH1106 และ ST7735 ที่ใช้ offsets ต่างจาก Mini160×80 ต้องเพิ่มโปรไฟล์ใหม่
 
@@ -44,12 +47,27 @@ ESP32-C6 ไม่มี FPU จึงต้องวัดเวลา solver �
 
 | สัญญาณ | GPIO |
 | --- | --- |
-| I²C SDA / SCL (MPU6050 และ OLED) | 0 / 1 |
+| I²C SDA / SCL (BMI160, MPU6050 และ OLED) | 0 / 1 |
 | SPI SCK / MOSI | 6 / 7 |
 | CS / DC / RST | 18 / 19 / 20 |
-| ปุ่มใช้งาน (ต่อลง GND) | 2 |
+| ปุ่ม BOOT บนบอร์ด (ไม่ต้องต่อเพิ่ม) | 9 |
+
+ใช้ BOOT หลังเครื่องเริ่มทำงาน: กดสั้นเปลี่ยนโหมด กดค้าง 2 วินาทีเปิด/ปิด Wi-Fi ส่วนปุ่ม RST ใช้รีสตาร์ตเครื่อง ให้ปล่อย BOOT ขณะเปิดเครื่องหรือกด RST เพื่อบูตเล่นตามปกติ; กด BOOT ค้างช่วงนั้นจะเข้าโหมดแฟลช [การเลือก boot mode ของ ESP32-C6](https://docs.espressif.com/projects/esptool/en/latest/esp32c6/advanced-topics/boot-mode-selection.html)
 
 ผังเต็ม ข้อควรระวังเรื่องไฟ backlight และ checklist ทดสอบอยู่ใน [docs/HARDWARE.md](docs/HARDWARE.md)
+
+### โมดูลเซนเซอร์
+
+เฟิร์มแวร์ทุกโปรไฟล์จอตรวจชนิดเซนเซอร์อัตโนมัติจาก Chip ID เมื่อเปิดเครื่อง ไม่ต้อง build แยกตามเซนเซอร์ เลือก **โมดูลเซนเซอร์** ในเว็บเพื่อดูผังสายให้ตรงกับโมดูลที่ใช้ ต่อเซนเซอร์หนึ่งตัวต่อเครื่อง โดยให้แกน X/Y สัมพันธ์กับจอ
+
+| เซนเซอร์ | I²C address ที่ตรวจ | การตั้งขาเลือก I²C / address | การเคลื่อนไหว |
+| --- | --- | --- | --- |
+| BMI160 | `0x68` / `0x69` | CS/CSB → 3V3, SDO/SA0 → GND สำหรับ `0x68` หรือ 3V3 สำหรับ `0x69` | แรงเร่ง + gyro |
+| MPU6050 / GY-521 | `0x68` / `0x69` | AD0 → GND สำหรับ `0x68` หรือ 3V3 สำหรับ `0x69` | แรงเร่ง + gyro |
+
+ทั้งสองรุ่นเป็น IMU 6 แกน (แรงเร่ง + gyro) ตั้งค่าอ่านประมาณ 100 Hz, ช่วงแรงเร่ง ±8 g และ gyro ±500°/s ปัจจุบันอ่าน roll/pitch จากแรงโน้มถ่วง ไม่มี yaw แบบเข็มทิศ หากอ่าน I²C ล้มเหลวติดกัน 5 ครั้งจะแสดงว่าไม่พบเซนเซอร์ ให้ตรวจสายแล้วเปิดเครื่องใหม่
+
+หน้าเว็บมีกราฟรูปอุปกรณ์และเส้นต่อสายตามจอที่เลือก พร้อมรายการว่า pin ไหนต่อ pin ไหน กดสายเพื่อไฮไลต์คู่ขา หรือเลือก “ลองลากต่อสาย” เพื่อฝึกต่อได้ทั้งลากสาย แตะทีละขา และใช้คีย์บอร์ด ระบบตรวจคู่ขาและนับสายที่ต่อแล้ว โดยใช้ GPIO ตามเฟิร์มแวร์เดิม
 
 ## แฟลชผ่านเว็บ
 
@@ -63,17 +81,17 @@ ESP32-C6 ไม่มี FPU จึงต้องวัดเวลา solver �
 
 ## ตั้งค่าจากมือถือ
 
-1. กดปุ่ม GPIO2 ค้าง 2 วินาทีเพื่อเปิด Wi-Fi
+1. เมื่อเครื่องเริ่มทำงานแล้ว กดปุ่ม BOOT บนบอร์ดค้าง 2 วินาทีเพื่อเปิด Wi-Fi
 2. เชื่อมต่อ `TiltToy-xxxx` รหัส `tilttoy32` แล้วเปิด `http://192.168.4.1`
 3. ด้านบนของหน้าแสดงค่าสดที่อัปเดตทุก 1 วินาที ได้แก่ โหมด, roll/pitch, FPS, คะแนน (เขาวงกต/Pong), เวลา solver และจำนวนอนุภาค (โหมดน้ำ) และ heap ว่าง
 4. ตั้งโหมด ระดับน้ำ ความไว และการหมุนภาพ แล้วกดบันทึก สำหรับจอ TFT ตั้ง inversion ได้ และสำหรับ ST7789 ตั้ง SPI mode ได้ ค่าทั้งหมดเก็บใน NVS
 5. กดปิด Wi-Fi แล้วเล่นต่อ หรือรอให้ปิดเองหลัง 3 นาที
 
-ให้วางเครื่องนิ่งตอนเปิดเครื่องหรือตอนกดคาลิเบรต gyro และวางแกน X/Y ของเซนเซอร์ให้ตรงกับจอ MPU6050 วัดได้แค่ roll/pitch จากแรงโน้มถ่วง ไม่มี yaw
+หน้าเครื่องแสดงชื่อและ I²C address ของเซนเซอร์ที่ตรวจพบ ให้วางเครื่องนิ่งตอนเปิดเครื่องหรือตอนกดคาลิเบรต gyro ของ BMI160 / MPU6050 และวางแกน X/Y ของเซนเซอร์ให้ตรงกับจอ
 
 | Endpoint | หน้าที่ |
 | --- | --- |
-| `GET /api/status` | version, profile, โหมด, ค่าตั้ง, roll/pitch, `fps`, `simMs`, `score`, `particles`, `freeHeap` |
+| `GET /api/status` | version, profile, โหมด, ค่าตั้ง, `imu`, `sensor`, `sensorAddress` (เลขฐานสิบ), `gyro`, roll/pitch, `fps`, `simMs`, `score`, `particles`, `freeHeap` |
 | `POST /api/config` | `mode`, `fill`, `sensitivity`, `rotation`, `invert`, `spiMode` |
 | `POST /api/shake` · `/api/calibrate` · `/api/close` | เขย่า, คาลิเบรต gyro, ปิด Wi-Fi |
 | `GET /license` | ข้อความ MIT license ของ FLIP solver |
@@ -100,7 +118,7 @@ arduino-cli config init
 arduino-cli config add board_manager.additional_urls https://espressif.github.io/arduino-esp32/package_esp32_index.json
 arduino-cli core update-index
 arduino-cli core install esp32:esp32@3.3.11
-arduino-cli lib install "Adafruit GFX Library@1.12.6" "Adafruit BusIO@1.17.4" "Adafruit ST7735 and ST7789 Library@1.11.0" "Adafruit GC9A01A@1.1.1" "Adafruit SSD1306@2.5.17" "Adafruit MPU6050@2.2.9" "Adafruit Unified Sensor@1.1.15"
+arduino-cli lib install "Adafruit GFX Library@1.12.6" "Adafruit BusIO@1.17.4" "Adafruit ST7735 and ST7789 Library@1.11.0" "Adafruit GC9A01A@1.1.1" "Adafruit SSD1306@2.5.17" "Adafruit Unified Sensor@1.1.15"
 npm run firmware
 npm test
 npm run build
@@ -110,12 +128,14 @@ npm run build
 
 script จะทำตามลำดับนี้
 
-1. stage ไฟล์ `tilt_toy.ino`, `config.h` และ `flip_fluid.h`
+1. stage ไฟล์ `tilt_toy.ino`, `config.h`, `flip_fluid.h` และ `motion_sensor.h`
 2. compile ด้วย FQBN `esp32:esp32:esp32c6` (USB CDC, DIO, Flash 4M, partition `huge_app` คือ app 3MB ไม่มี OTA)
 3. merge bootloader@0, partitions@0x8000, boot_app0@0xe000 และ app@0x10000 เป็นไฟล์เดียว
-4. สร้าง manifest ใหม่ ซึ่งเก็บ SHA-256 ของ binary และ `sourceSha256` ของ source ทั้งสามไฟล์
+4. สร้าง manifest ใหม่ ซึ่งเก็บ SHA-256 ของ binary และ `sourceSha256` ของ source ทั้งสี่ไฟล์
 
-ผล compile อยู่ใน `work/firmware/` ส่วน artifacts อยู่ใน `web/firmware/` และ `npm test` จะ fail ถ้าแก้ source แล้วไม่ได้ build firmware ใหม่
+ผล compile อยู่ใน `work/firmware/run-<pid>/` แต่ละรอบแยก staging และ cache เพื่อไม่ให้ build ที่รันพร้อมกันสลับโปรไฟล์กัน ส่วน artifacts อยู่ใน `web/firmware/` และ `npm test` จะ fail ถ้าแก้ source แล้วไม่ได้ build firmware ใหม่ ตั้ง `FIRMWARE_WORK_DIR` เพื่อใช้ cache เดิมได้เมื่อไม่มี build อื่นใช้โฟลเดอร์นั้น
+
+ไดรเวอร์เซนเซอร์ใช้ `Wire` โดยตรง ไม่ต้องลงไลบรารีเซนเซอร์เพิ่ม `npm test` ทดสอบ C++ driver กับ I²C จำลองด้วย `g++` หรือ compiler ในตัวแปร `CXX` (`clang++` / `cl` ใช้ได้) ถ้าไม่มี host compiler จะข้ามเฉพาะ test นี้ สำหรับ MSVC ให้รันใน Developer Command Prompt โดยตั้ง `CXX=cl`
 
 ## โครงสร้าง
 

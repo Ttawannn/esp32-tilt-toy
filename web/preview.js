@@ -1,4 +1,4 @@
-// Browser simulation of the six toy modes. Hardware reads the MPU6050 instead of sliders.
+// Browser simulation of the six toy modes. Hardware reads BMI160 or MPU6050 instead of sliders.
 import { FlipFluid, fluidLayout } from './fluid.js';
 export class ToyPreview {
   constructor(canvas){this.canvas=canvas;this.ctx=canvas.getContext('2d');this.roll=0;this.pitch=0;this.fill=50;this.showGrid=false;this.mode='water';this.mono=false;this.shakenAt=-10;this.dice=3;this.reset();this.last=performance.now();this.running=true;this.bindStir();requestAnimationFrame(t=>this.frame(t));}

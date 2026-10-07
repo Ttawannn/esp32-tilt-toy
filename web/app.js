@@ -1,15 +1,19 @@
-import { displayChoices, findProfile, modes, wiringFor, validateRelease } from './profiles.js';
+import { displayChoices, findProfile, findSensor, modes, sensors, validateRelease } from './profiles.js';
 import { ToyPreview } from './preview.js';
+import { WiringGraph } from './wiring.js';
 const $ = id => document.getElementById(id);
 let saved={}; try { saved=JSON.parse(localStorage.getItem('tilt-toy-selection')||'{}'); } catch {}
 let choice=displayChoices.some(d=>d.id===saved.choice)?saved.choice:'tft-240x240';
 let driver=saved.driver==='ST7789'?'ST7789':'GC9A01';
+let orientation=saved.orientation==='landscape'?'landscape':'portrait';
+let sensorId=findSensor(saved.sensor).id;
 let currentMode=modes.some(m=>m.id===saved.mode)?saved.mode:'water';
 let fill=Number.isFinite(saved.fill)?Math.min(90,Math.max(10,Math.round(saved.fill))):50;
-let profile=findProfile(choice,driver), generation=0, installerReady=false, releaseReady=false;
+let profile=findProfile(choice,driver,orientation), generation=0, installerReady=false, releaseReady=false;
 const supported=window.isSecureContext && 'serial' in navigator;
 const preview=new ToyPreview($('toy-canvas'));preview.fill=fill;
-function remember(){try{localStorage.setItem('tilt-toy-selection',JSON.stringify({choice,driver,mode:currentMode,fill}));}catch{}}
+const wiring=new WiringGraph($('wiring'));
+function remember(){try{localStorage.setItem('tilt-toy-selection',JSON.stringify({choice,driver,orientation,sensor:sensorId,mode:currentMode,fill}));}catch{}}
 function syncFlash(){ $('flash-button').disabled=!(supported&&installerReady&&releaseReady); }
 function status(state,message){$('release-status').dataset.state=state;$('release-message').textContent=message;}
 async function verifyRelease(p,revision){
@@ -31,19 +35,23 @@ async function verifyRelease(p,revision){
   }catch(error){if(revision!==generation)return;status('error',error.message);releaseReady=false;syncFlash();}
 }
 function chooseDisplay(){
-  profile=findProfile(choice,driver);remember();
+  profile=findProfile(choice,driver,orientation);remember();
   document.querySelectorAll('[data-display]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.display===choice)));
   $('driver-wrap').hidden=choice!=='tft-240x240';$('driver').value=driver;$('profile-note').textContent=profile.note;
+  $('orientation-wrap').hidden=choice!=='tft-80x160';$('orientation').value=orientation;
   $('preview-panel-label').textContent=`${profile.width} × ${profile.height} / ${profile.driver}`;
   $('device').dataset.shape=profile.shape;$('device').dataset.format=profile.width<profile.height?'portrait':profile.width>profile.height?'wide':'square';
-  preview.setProfile(profile);$('wiring-driver').textContent=profile.driver;
-  $('wiring-rows').replaceChildren(...wiringFor(profile).map(([from,to])=>{const row=document.createElement('tr');for(const value of[from,to]){const cell=document.createElement('td');cell.textContent=value;row.append(cell);}return row;}));
+  preview.setProfile(profile);wiring.setProfile(profile,sensorId);
   $('panel-source').href=profile.source;verifyRelease(profile,++generation);
 }
 function chooseMode(id){currentMode=id;remember();preview.setMode(id);document.querySelectorAll('[data-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.mode===id)));const m=modes.find(m=>m.id===id);$('mode-readout').textContent=m.english.toUpperCase();$('mode-description').textContent=`${m.detail} · ภาพจำลองบนเว็บ`;$('fluid-controls').hidden=id!=='water';}
 for(const d of displayChoices){const b=document.createElement('button');b.className='display-card';b.dataset.display=d.id;b.setAttribute('aria-pressed','false');b.innerHTML=`<span class="mini-screen ${d.shape}" aria-hidden="true"></span><span><strong>${d.title}</strong><small>${d.subtitle}</small></span>`;b.addEventListener('click',()=>{choice=d.id;chooseDisplay();});$('displays').append(b);}
 for(const m of modes){const b=document.createElement('button');b.className='mode-button';b.dataset.mode=m.id;b.setAttribute('aria-pressed','false');b.innerHTML=`<span class="glyph" aria-hidden="true">${m.glyph}</span><span>${m.name}</span><small>${m.english}</small>`;b.addEventListener('click',()=>chooseMode(m.id));$('modes').append(b);}
 $('driver').addEventListener('change',()=>{driver=$('driver').value;chooseDisplay();});
+$('orientation').addEventListener('change',()=>{orientation=$('orientation').value;chooseDisplay();});
+for(const sensor of sensors){const option=document.createElement('option');option.value=sensor.id;option.textContent=sensor.module;$('sensor').append(option);}
+$('sensor').value=sensorId;
+$('sensor').addEventListener('change',()=>{sensorId=findSensor($('sensor').value).id;remember();wiring.setProfile(profile,sensorId);});
 $('tilt').addEventListener('input',()=>{const value=Number($('tilt').value);preview.roll=value;$('tilt-value').textContent=value+'°';$('roll-readout').textContent=(value>=0?'+':'')+value+'°';$('device').style.transform=`rotate(${value*.12}deg)`;});
 $('pitch').addEventListener('input',()=>{const value=Number($('pitch').value);preview.pitch=value;$('pitch-readout').textContent=(value>=0?'+':'')+value+'°';});
 $('shake').addEventListener('click',()=>preview.shake());

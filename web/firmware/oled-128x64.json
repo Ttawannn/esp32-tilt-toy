@@ -1,18 +1,19 @@
 {
   "name": "ESP32 Tilt Toy · Mono OLED",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "profile": "oled-128x64",
   "chipFamily": "ESP32-C6",
   "flashSize": "4MB",
   "controller": "SSD1306",
-  "size": 1218416,
-  "sha256": "149ac86f93d207d7dfcf02e9da9f24b816fdd4cb1fad7deedfc91c937aefa488",
+  "size": 1213696,
+  "sha256": "3b00f39f1bd327e037b3993acb4ceaefcd891786372c516df0379234a7b31559",
   "hardwareTested": false,
   "build": {
     "core": "esp32:esp32@3.3.11",
     "fqbn": "esp32:esp32:esp32c6:CDCOnBoot=cdc,FlashMode=dio,FlashSize=4M,PartitionScheme=huge_app",
     "displayProfile": 4,
-    "sourceSha256": "75043615d9e6e085e5134b53cea5bb25a8df9e427d48baaa779e38625a4768b8"
+    "initialRotation": 0,
+    "sourceSha256": "cb48019a7e681f7c9ca4c9cc6db6d90a4b01ae2c20d7c16a477973eb82527587"
   },
   "new_install_prompt_erase": true,
   "new_install_improv_wait_time": 0,

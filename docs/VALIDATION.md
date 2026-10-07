@@ -1,4 +1,29 @@
-# ผลตรวจ v0.1.0
+# ผลตรวจ
+
+## v0.1.1 — BMI160 / MPU6050
+
+วันที่ 7 ตุลาคม 2026 · ESP32-C6 SuperMini / flash 4MB
+
+คอมไพล์เฟิร์มแวร์ครบ 6 โปรไฟล์ด้วย Arduino-ESP32 3.3.11, USB CDC, DIO และ partition `huge_app` ไดรเวอร์ตรวจ Chip ID ของ BMI160 / MPU6050 อัตโนมัติที่ `0x68` / `0x69` และอ่านแรงเร่งกับ gyro เป็นหน่วย m/s² และ rad/s
+
+| โปรไฟล์ | App จาก compiler (bytes) | Merged binary (bytes) | Global RAM (bytes) |
+| --- | ---: | ---: | ---: |
+| tft-80x160 | 1,150,796 | 1,216,432 | 74,612 |
+| tft-80x160-landscape | 1,150,804 | 1,216,448 | 74,612 |
+| gmt130-240x240 | 1,150,392 | 1,216,032 | 74,628 |
+| tft-240x240-st7789 | 1,150,392 | 1,216,032 | 74,628 |
+| tft-240x240-gc9a01 | 1,149,052 | 1,214,688 | 74,612 |
+| oled-128x64 | 1,148,066 | 1,213,696 | 74,548 |
+
+`npm test` ผ่าน 14 tests โดยตั้ง `CXX=cl` ใน environment ของ MSVC ไม่มี test ที่ถูกข้าม รวมการอ่าน signed data และสเกลของทั้งสองชิปทั้งสอง address, การข้าม temperature ของ MPU6050, I²C read/write ที่ล้มเหลวหรือได้ข้อมูลไม่ครบ, การไม่เขียนคำสั่งข้ามชนิดชิป, การแสดงรุ่นเซนเซอร์และคาลิเบรตในหน้าเครื่อง, pin mapping และ artifact ทั้ง 6 โปรไฟล์
+
+การตรวจ artifacts ยืนยัน checksum, chip/partition layout, profile ID ภายใน binary และ source SHA-256 ซึ่งรวม `motion_sensor.h` แล้ว ทุก binary มีทั้ง BMI160 และ MPU6050; การ build แต่ละรันใช้ staging ของตัวเองเพื่อไม่ให้โปรไฟล์ปนกันเมื่อ build พร้อมกัน
+
+`npm run build` ผ่าน หน้า installer ใน Codex in-app browser มีตัวเลือกเพียง GY-521 / MPU6050 และ BMI160; การสลับโมดูลเปลี่ยนชื่อและขาเลือก I²C ในผัง การ reload จำโมดูลที่เลือก และค่าโมดูลเก่าที่ไม่รองรับกลับไปใช้ MPU6050 ตรวจหน้า OLED + BMI160 ว่าใช้ SDA0/SCL1 ร่วมกัน พร้อม CS/CSB → 3V3 และ SDO/SA0 → GND และหน้าเว็บยืนยัน checksum ของเฟิร์มแวร์ใหม่แล้ว
+
+ยังไม่ได้แฟลชหรือทดสอบกับเซนเซอร์และจอจริง ทุก manifest คง `hardwareTested: false` ต้องตรวจแกน, การคาลิเบรต, shake, I²C เมื่อใช้ OLED ร่วมกัน และประสิทธิภาพบนอุปกรณ์ตาม [HARDWARE.md](HARDWARE.md)
+
+## บันทึกเดิม v0.1.0
 
 วันที่ 7 ตุลาคม 2026 · เป้าหมาย ESP32-C6 SuperMini / flash 4MB
 
