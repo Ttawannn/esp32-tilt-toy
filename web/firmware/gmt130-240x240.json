@@ -1,0 +1,30 @@
+{
+  "name": "ESP32 Tilt Toy · GMT130",
+  "version": "0.1.0",
+  "profile": "gmt130-240x240",
+  "chipFamily": "ESP32-C6",
+  "flashSize": "4MB",
+  "controller": "ST7789",
+  "size": 1178896,
+  "sha256": "35fe6ff0a34c7f487e149fd1c5e8a7350a71c08382cf47bbad3460e5e8a29380",
+  "hardwareTested": false,
+  "build": {
+    "core": "esp32:esp32@3.3.11",
+    "fqbn": "esp32:esp32:esp32c6:CDCOnBoot=cdc,FlashMode=dio,FlashSize=4M,PartitionScheme=huge_app",
+    "displayProfile": 1,
+    "sourceSha256": "6c360f91d1429fa8a4da1a69b49da4e539a07e972825181f7a7331244a1ee5e9"
+  },
+  "new_install_prompt_erase": true,
+  "new_install_improv_wait_time": 0,
+  "builds": [
+    {
+      "chipFamily": "ESP32-C6",
+      "parts": [
+        {
+          "path": "./gmt130-240x240.bin",
+          "offset": 0
+        }
+      ]
+    }
+  ]
+}

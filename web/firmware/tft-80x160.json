@@ -1,0 +1,30 @@
+{
+  "name": "ESP32 Tilt Toy · Pocket TFT",
+  "version": "0.1.0",
+  "profile": "tft-80x160",
+  "chipFamily": "ESP32-C6",
+  "flashSize": "4MB",
+  "controller": "ST7735S",
+  "size": 1179264,
+  "sha256": "6e5359b1595647b3a126ca92889b4ddf01407ef7f8f7b8e0e8d5359b5695cee9",
+  "hardwareTested": false,
+  "build": {
+    "core": "esp32:esp32@3.3.11",
+    "fqbn": "esp32:esp32:esp32c6:CDCOnBoot=cdc,FlashMode=dio,FlashSize=4M,PartitionScheme=huge_app",
+    "displayProfile": 0,
+    "sourceSha256": "6c360f91d1429fa8a4da1a69b49da4e539a07e972825181f7a7331244a1ee5e9"
+  },
+  "new_install_prompt_erase": true,
+  "new_install_improv_wait_time": 0,
+  "builds": [
+    {
+      "chipFamily": "ESP32-C6",
+      "parts": [
+        {
+          "path": "./tft-80x160.bin",
+          "offset": 0
+        }
+      ]
+    }
+  ]
+}
