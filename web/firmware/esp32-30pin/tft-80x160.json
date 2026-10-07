@@ -1,19 +1,19 @@
 {
-  "name": "ESP32 Tilt Toy · ESP32-C6 SuperMini · Pocket TFT · Portrait",
+  "name": "ESP32 Tilt Toy · ESP32 30-pin · Pocket TFT · Portrait",
   "version": "0.1.2",
-  "board": "esp32-c6-supermini",
+  "board": "esp32-30pin",
   "profile": "tft-80x160",
-  "chipFamily": "ESP32-C6",
+  "chipFamily": "ESP32",
   "flashSize": "4MB",
   "controller": "ST7735S",
-  "size": 1216592,
-  "sha256": "3499bae1ceac1aaf325575f3b1e5fb1974c64f9cd2d10f84ef6f095704e17419",
+  "size": 1097488,
+  "sha256": "1012931e4c918196146c251b19276878e0da34566bc6227337e99fc66d9b0d79",
   "hardwareTested": false,
   "build": {
     "core": "esp32:esp32@3.3.11",
-    "fqbn": "esp32:esp32:esp32c6:CDCOnBoot=cdc,FlashMode=dio,FlashSize=4M,PartitionScheme=huge_app",
-    "boardProfile": 2,
-    "bootloaderOffset": 0,
+    "fqbn": "esp32:esp32:esp32:FlashMode=dio,FlashSize=4M,PartitionScheme=huge_app",
+    "boardProfile": 0,
+    "bootloaderOffset": 4096,
     "displayProfile": 0,
     "initialRotation": 0,
     "sourceSha256": "fe38c4027331946ad2547516eb32bd1582dddbdce549e04a8fac681ab0a4c9af"
@@ -22,7 +22,7 @@
   "new_install_improv_wait_time": 0,
   "builds": [
     {
-      "chipFamily": "ESP32-C6",
+      "chipFamily": "ESP32",
       "parts": [
         {
           "path": "./tft-80x160.bin",

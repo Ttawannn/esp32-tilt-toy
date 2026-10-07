@@ -4,13 +4,14 @@ import { spawnSync } from 'node:child_process';
 import { mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { sensors, profiles, findSensor, wiringConnections } from '../web/profiles.js';
+import { boards } from '../web/boards.js';
 
 test('each sensor uses the shared bus and its own I²C selection pins with every display', () => {
   assert.equal(findSensor('unknown').id, 'mpu6050');
-  for (const sensor of sensors) for (const profile of profiles) {
-    const connections = wiringConnections(profile, sensor.id);
+  for (const board of boards) for (const sensor of sensors) for (const profile of profiles) {
+    const connections = wiringConnections(profile, sensor.id, board);
     const endpoint = pin => connections.find(c => c.device === 'sensor' && c.pin === pin)?.boardPin;
-    assert.equal(endpoint('SDA'), 'GPIO0'); assert.equal(endpoint('SCL'), 'GPIO1');
+    assert.equal(endpoint('SDA'), `GPIO${board.pins.SDA}`); assert.equal(endpoint('SCL'), `GPIO${board.pins.SCL}`);
     assert.equal(endpoint('VCC'), '3V3'); assert.equal(endpoint('GND'), 'GND');
     if (sensor.id === 'mpu6050') {
       assert.equal(endpoint('AD0'), 'GND'); assert.equal(endpoint('CS'), undefined);
@@ -18,7 +19,7 @@ test('each sensor uses the shared bus and its own I²C selection pins with every
       assert.equal(endpoint('CS'), '3V3'); assert.equal(endpoint('SDO'), 'GND'); assert.equal(endpoint('AD0'), undefined);
     }
     assert.equal(new Set(connections.map(c => c.id)).size, connections.length);
-    assert.deepEqual(connections.filter(c => c.device !== 'sensor'), wiringConnections(profile).filter(c => c.device !== 'sensor'));
+    assert.deepEqual(connections.filter(c => c.device !== 'sensor'), wiringConnections(profile, 'mpu6050', board).filter(c => c.device !== 'sensor'));
   }
 });
 

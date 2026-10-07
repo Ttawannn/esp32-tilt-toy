@@ -2,11 +2,11 @@
 
 ปรับปรุง: 7 ตุลาคม 2026
 
-เป้าหมายคือพวงกุญแจ ESP32-C6 SuperMini + BMI160 / GY-521/MPU6050 ที่เล่นด้วยการเอียงและเขย่า มีหลายโหมดในเฟิร์มแวร์เดียว เลือกจอและดูผังโมดูลเซนเซอร์ก่อนแฟลชผ่านเว็บ และเปลี่ยนโหมดจากมือถือผ่าน Wi-Fi ของเครื่องได้
+เป้าหมายคือพวงกุญแจ ESP32 30-pin / ESP32-C3 SuperMini / ESP32-C6 SuperMini + BMI160 / GY-521/MPU6050 ที่เล่นด้วยการเอียงและเขย่า มีหลายโหมดในเฟิร์มแวร์เดียว เลือกบอร์ด จอ และดูผังโมดูลเซนเซอร์ก่อนแฟลชผ่านเว็บ และเปลี่ยนโหมดจากมือถือผ่าน Wi-Fi ของเครื่องได้
 
 เอกสารนี้ระบุงานและเกณฑ์ผ่าน การ build ผ่านไม่ใช่การยืนยันว่าจอจริงหรือแบตเตอรี่ผ่านการทดสอบแล้ว ให้บันทึกผลทดลองจริงแยกตามรุ่นบอร์ดและโมดูลจอ
 
-รุ่นแรกมีเว็บ installer + preview, firmware หกโหมด และหน้า device UI แล้ว ขั้นต่อไปคือทดสอบกับ C6 และจอจริงตามระยะ D ก่อนออกแบบแบตเตอรี่/เคสตามระยะ E ช่องที่ทำเครื่องหมายระบุผลตรวจซอฟต์แวร์เท่านั้น
+รุ่นแรกมีเว็บ installer + preview, firmware หกโหมด และหน้า device UI แล้ว รุ่น v0.1.2 เพิ่มบอร์ดทั้งสามแบบและ artifact แยกตามบอร์ด/จอ รวม 18 ชุด ขั้นต่อไปคือทดสอบกับบอร์ดแต่ละรุ่นและจอจริงตามระยะ D ก่อนออกแบบแบตเตอรี่/เคสตามระยะ E ช่องที่ทำเครื่องหมายระบุผลตรวจซอฟต์แวร์เท่านั้น
 
 โหมดที่ใช้ gyro และ sensor fusion (น้ำมีแรงเฉื่อย/น้ำวน, ตาลาย, ลูกเต๋าทอยจริง, หน้าต่างอวกาศ, ระดับน้ำ, Balance) อยู่ใน [MOTION-PLAN.md](MOTION-PLAN.md)
 
@@ -22,13 +22,13 @@
 
 ชื่อขนาดจออย่างเดียวไม่ระบุชิป ต้องตรวจตัวโมดูลและเลือกโปรไฟล์ให้ตรง SH1106 ไม่ใช้ไดรเวอร์ SSD1306 โดยอัตโนมัติ ส่วนจอ TFT 240×240 แบบกลมกับแบบสี่เหลี่ยมต้องแยกโปรไฟล์ รายละเอียดการต่อและข้อจำกัดอยู่ใน [HARDWARE.md](HARDWARE.md)
 
-**แนวทาง release:** build หนึ่ง merged binary ต่อโปรไฟล์ รวมทุกโหมดที่รองรับใน binary นั้น เว็บเลือกโปรไฟล์แล้วโหลด manifest ของโปรไฟล์เดียว หลีกเลี่ยง manifest ที่มีหลาย build ของ ESP32-C6 แต่ต่างจอ เพราะระบบตรวจ chip ตรวจได้แค่ตระกูล ESP32 ไม่ทราบรุ่นจอ
+**แนวทาง release:** build หนึ่ง merged binary ต่อคู่บอร์ด/โปรไฟล์จอ รวมทุกโหมดที่รองรับใน binary นั้น เว็บเลือกบอร์ดและจอแล้วโหลด manifest ที่ตรงกัน ระบบตรวจ chip ตรวจได้เฉพาะตระกูลชิป จึงต้องตรวจ board/profile/controller metadata และ checksum เพิ่มด้วย
 
 ## 2. โครงสร้างระบบ
 
 ```mermaid
 flowchart LR
-  Installer[เว็บ Installer บนคอมพิวเตอร์] -->|USB / Web Serial| C6[ESP32-C6]
+  Installer[เว็บ Installer บนคอมพิวเตอร์] -->|USB / Web Serial| C6[ESP32 / C3 / C6]
   Phone[เบราว์เซอร์มือถือ] -->|Wi-Fi AP / HTTP| C6
   IMU[BMI160 / MPU6050] -->|I²C| C6
   C6 -->|SPI หรือ I²C ตามโปรไฟล์| Screen[จอ]
@@ -54,7 +54,7 @@ flowchart LR
 
 | โหมด | พฤติกรรม | วิธีลดภาระ |
 | --- | --- | --- |
-| Liquid | น้ำไหลตามแรงโน้มถ่วง กระเซ็นเมื่อ shake | FLIP/PIC ขนาดเล็ก (สูงสุด 400 cells / 900 particles) แบบ fixed step 25 ms; วัด `simMs` บน C6 แล้วลดกริด/particle หากเกินงบเฟรม |
+| Liquid | น้ำไหลตามแรงโน้มถ่วง กระเซ็นเมื่อ shake | FLIP/PIC ขนาดเล็ก (สูงสุด 400 cells / 900 particles) แบบ fixed step 25 ms; วัด `simMs` บนแต่ละบอร์ดแล้วลดกริด/particle หากเกินงบเฟรม |
 | Maze | เอียงให้ลูกบอลไปถึงเป้าหมาย | รุ่นแรกใช้กำแพง 2 แผงและวงกลม collision; เพิ่มแผนที่ช่องภายหลัง |
 | Snow globe | เขย่าให้หิมะฟุ้งและตกตามทิศถือ | จำกัดจำนวน particle ต่อโปรไฟล์และ reuse array |
 | Pong | เอียงเพื่อรับลูกบอล | รุ่นแรกใช้สนามวงกลมที่ย่อให้พอดีทุกจอ; ต่อไปปรับสนามตาม aspect ratio |
@@ -71,15 +71,15 @@ MPU6050 ใช้ accelerometer และ gyro สำหรับ roll/pitch ก
 
 ลำดับการใช้งาน:
 
-1. เลือก ESP32-C6 และโปรไฟล์จอ พร้อมแสดง controller และผังขาของโปรไฟล์นั้น
+1. เลือก ESP32 30-pin, C3 SuperMini หรือ C6 SuperMini และโปรไฟล์จอ พร้อมแสดง controller และผังขาที่ตรงกับบอร์ดนั้น
 2. ตรวจว่ามี binary/version/checksum ของโปรไฟล์และไฟล์โหลดได้ก่อนเปิดปุ่มแฟลช
 3. ต่อ USB ที่ส่งข้อมูลได้และกดเชื่อมต่อ เลือกพอร์ตที่แสดงใน browser
-4. ตรวจ chipFamily เป็น ESP32-C6; หยุดเมื่อชิปไม่ตรง
+4. ตรวจ chipFamily ให้ตรงกับบอร์ดที่เลือก (`ESP32`, `ESP32-C3` หรือ `ESP32-C6`); หยุดเมื่อชิปไม่ตรง
 5. แสดงสิ่งที่จะถูกเขียนและผลต่อการตั้งค่าที่บันทึกไว้ ก่อนเริ่มเขียน flash
 6. โหลด merged binary แสดง progress และสถานะ verify/reset ตามผลจริงของ flasher
 7. เมื่อเสร็จ แสดงวิธีเปิด Wi-Fi ตั้งค่าและปุ่มดาวน์โหลด binary เป็นทางเลือก
 
-manifest ใช้ `chipFamily: "ESP32-C6"` และ merged binary ที่ offset `0` ตรึงไฟล์เป็น version เดียวกันทั้ง manifest และ binary ให้ relative URL ถูกต้อง ถ้าแยก host ต้องตั้ง CORS ของไฟล์ [รูปแบบ ESP Web Tools](https://esphome.github.io/esp-web-tools/)
+manifest ใช้ `chipFamily` ตามบอร์ดและ merged binary ที่ offset `0` โดย ESP32 มี padding ถึง bootloader ที่ `0x1000` ส่วน C3/C6 เริ่ม bootloader ที่ `0` ตรึงไฟล์เป็น version เดียวกันทั้ง manifest และ binary ให้ relative URL ถูกต้อง ถ้าแยก host ต้องตั้ง CORS ของไฟล์ [รูปแบบ ESP Web Tools](https://esphome.github.io/esp-web-tools/)
 
 รองรับข้อผิดพลาดจริง: ยกเลิกเลือกพอร์ต, พอร์ตถูกโปรแกรมอื่นใช้อยู่, หลุดระหว่างแฟลช, เข้า bootloader ไม่สำเร็จ, chip ไม่ตรง, binary หาย และ HTTP response ไม่ใช่ binary ห้ามใช้ progress จำลองแทนผลแฟลชจริง หากไม่มีฮาร์ดแวร์ ต้องระบุว่า serial flash ยังไม่ได้ทดลองกับบอร์ด
 
@@ -113,7 +113,7 @@ manifest ใช้ `chipFamily: "ESP32-C6"` และ merged binary ที่ of
 ### ระยะ C — Firmware artifacts และ CI
 
 - [x] Script build ครบ ST7735, ST7789 no-CS, ST7789 CS, GC9A01 และ SSD1306
-- [x] Merge จาก layout ของ Arduino-ESP32/C6 รุ่นที่ตรึงไว้ และตรวจ chip ID/partition header ของ binary
+- [x] Merge จาก layout ของ Arduino-ESP32 รุ่นที่ตรึงไว้ และตรวจ chip ID/bootloader offset/partition header ของ binary สำหรับ ESP32, C3 และ C6
 - [x] Export binary, manifest, SHA-256, profile ID, version และ source SHA-256 ที่สอดคล้องกัน
 - [x] ตรวจว่า manifest ทุกไฟล์ชี้ไปยัง binary ที่มีอยู่ และขนาด image อยู่ใน flash 4MB
 - [x] ตรวจเว็บ/relative URLs และดาวน์โหลด artifacts; ไม่มี JavaScript error ใน browser QA
@@ -124,7 +124,7 @@ manifest ใช้ `chipFamily: "ESP32-C6"` และ merged binary ที่ of
 
 ### ระยะ D — ทดลองกับฮาร์ดแวร์จริง
 
-- [ ] แฟลชผ่าน Chrome และ Edge ด้วย USB ของ C6; บูตปกติหลังแฟลชและเสียบ USB ใหม่
+- [ ] แฟลชผ่าน Chrome และ Edge ด้วย USB ของ ESP32, C3 และ C6; บูตปกติหลังแฟลชและเสียบ USB ใหม่
 - [ ] ทดสอบจอแต่ละ profile: ขอบครบทุกด้าน orientation ถูก สีแดง/เขียว/น้ำเงินถูก inversion ถูก
 - [ ] GY-521 ตอบสนองทั้งแกน มุมไม่สลับกับ rotation จอ และไม่ crash เมื่อไม่มี sensor
 - [ ] เล่นทุกโหมดต่อเนื่อง ตรวจ frame time/minimum free heap ทั้งตอน AP เปิดและปิด

@@ -1,19 +1,19 @@
 {
-  "name": "ESP32 Tilt Toy · ESP32-C6 SuperMini · Square TFT",
+  "name": "ESP32 Tilt Toy · ESP32 30-pin · Square TFT",
   "version": "0.1.2",
-  "board": "esp32-c6-supermini",
+  "board": "esp32-30pin",
   "profile": "tft-240x240-st7789",
-  "chipFamily": "ESP32-C6",
+  "chipFamily": "ESP32",
   "flashSize": "4MB",
   "controller": "ST7789",
-  "size": 1216192,
-  "sha256": "43312496f912463cf4350937157f89d200b7802dd77ff23f982d8d9fff5fe03c",
+  "size": 1097184,
+  "sha256": "452e8003566fbdb4fe9957fa644aaeb5308139779949ae2dbcbd300b28dcf8a2",
   "hardwareTested": false,
   "build": {
     "core": "esp32:esp32@3.3.11",
-    "fqbn": "esp32:esp32:esp32c6:CDCOnBoot=cdc,FlashMode=dio,FlashSize=4M,PartitionScheme=huge_app",
-    "boardProfile": 2,
-    "bootloaderOffset": 0,
+    "fqbn": "esp32:esp32:esp32:FlashMode=dio,FlashSize=4M,PartitionScheme=huge_app",
+    "boardProfile": 0,
+    "bootloaderOffset": 4096,
     "displayProfile": 2,
     "initialRotation": 0,
     "sourceSha256": "fe38c4027331946ad2547516eb32bd1582dddbdce549e04a8fac681ab0a4c9af"
@@ -22,7 +22,7 @@
   "new_install_improv_wait_time": 0,
   "builds": [
     {
-      "chipFamily": "ESP32-C6",
+      "chipFamily": "ESP32",
       "parts": [
         {
           "path": "./tft-240x240-st7789.bin",

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { profiles, findProfile, validateRelease, wiringFor } from '../web/profiles.js';
+import { boards, releasePath, validateFirmwareImage } from '../web/boards.js';
 test('round and square TFT 240×240 have distinct drivers',()=>{
   assert.equal(findProfile('tft-240x240','GC9A01').id,'tft-240x240-gc9a01');
   assert.equal(findProfile('tft-240x240','ST7789').id,'tft-240x240-st7789');
@@ -20,20 +21,30 @@ test('Mini TFT orientation selects dimensions and the matching firmware preset',
   assert.equal(findProfile('tft-240x240','GC9A01','landscape').id,'tft-240x240-gc9a01');
 });
 test('GMT130 no-CS and shared I²C wiring match firmware',()=>{
-  assert.equal(wiringFor(findProfile('gmt130-240x240')).some(([pin])=>pin==='CS'),false);
-  assert.deepEqual(wiringFor(findProfile('oled-128x64')).slice(0,2),[['OLED SDA','GPIO0'],['OLED SCL','GPIO1']]);
-  for(const p of profiles)assert.equal(wiringFor(p).some(([,pin])=>['GPIO4','GPIO5','GPIO8','GPIO9','GPIO10','GPIO11','GPIO12','GPIO13','GPIO15'].includes(pin)),false);
+  for (const board of boards) {
+    assert.equal(wiringFor(findProfile('gmt130-240x240'), 'mpu6050', board).some(([pin])=>pin==='CS'),false);
+    assert.deepEqual(wiringFor(findProfile('oled-128x64'), 'mpu6050', board).slice(0,2),[['OLED SDA',`GPIO${board.pins.SDA}`],['OLED SCL',`GPIO${board.pins.SCL}`]]);
+    for(const p of profiles)assert.equal(wiringFor(p,'mpu6050',board).some(([,pin])=>board.reserved.map(n=>`GPIO${n}`).includes(pin)),false);
+  }
 });
-for(const profile of profiles)test(`release ${profile.id}: bytes, checksum, chip and partition layout`,async()=>{
+for(const board of boards) for(const profile of profiles)test(`release ${board.id}/${profile.id}: bytes, checksum, chip and partition layout`,async()=>{
   const base=new URL('../web/firmware/',import.meta.url);
-  const release=validateRelease(JSON.parse(await readFile(new URL(`${profile.id}.json`,base),'utf8')),profile);
-  const binary=await readFile(new URL(release.builds[0].parts[0].path,base));
+  const manifestUrl=new URL(`${releasePath(profile,board)}.json`,base);
+  const release=validateRelease(JSON.parse(await readFile(manifestUrl,'utf8')),profile,board);
+  const binary=await readFile(new URL(release.builds[0].parts[0].path,manifestUrl));
+  validateFirmwareImage(binary,board);
+  assert.throws(()=>validateFirmwareImage(binary,boards.find(b=>b.id!==board.id)));
+  const wrongAppChip=Buffer.from(binary);wrongAppChip.writeUInt16LE(0xffff,0x10000+12);assert.throws(()=>validateFirmwareImage(wrongAppChip,board));
+  assert.throws(()=>validateFirmwareImage(binary.subarray(0,32),board));
+  assert.ok(binary.includes(Buffer.from(board.id+'\0')), 'image must contain its runtime board ID');
   assert.ok(binary.includes(Buffer.from(profile.id+'\0')), 'image must contain its complete runtime profile ID');
   assert.equal(binary.length,release.size);
   assert.equal(createHash('sha256').update(binary).digest('hex'),release.sha256);
-  assert.equal(binary[0],0xe9);assert.equal(binary.readUInt16LE(12),13);
-  assert.equal(binary[2],2,'bootloader uses DIO');assert.equal(binary[3]>>4,2,'image flash size is 4MB');
-  assert.equal(binary[0x10000],0xe9);assert.equal(binary.readUInt16LE(0x10000+12),13);
+  const boot=board.bootloaderOffset;
+  if(boot)assert.ok(binary.subarray(0,boot).every(value=>value===0xff),'merged image pads to flash offset zero');
+  assert.equal(binary[boot],0xe9);assert.equal(binary.readUInt16LE(boot+12),board.chipId);
+  assert.equal(binary[boot+2],2,'bootloader uses DIO');assert.equal(binary[boot+3]>>4,2,'image flash size is 4MB');
+  assert.equal(binary[0x10000],0xe9);assert.equal(binary.readUInt16LE(0x10000+12),board.chipId);
   assert.equal(binary.readUInt16LE(0x8000),0x50aa);
   let appSize=0;
   for(let entry=0x8000;entry<0x8c00;entry+=32){
@@ -48,10 +59,15 @@ for(const profile of profiles)test(`release ${profile.id}: bytes, checksum, chip
   assert.equal(createHash('sha256').update(source+'\n'+config+'\n'+fluid+'\n'+motion).digest('hex'),release.build.sourceSha256);
   for(const sensor of ['BMI160','MPU6050'])assert.ok(binary.includes(Buffer.from(sensor)),`image must support ${sensor}`);
   assert.equal(config.match(/TOY_VERSION\s+"([^"]+)"/)[1],release.version);
-  const bad=structuredClone(release);bad.builds[0].chipFamily='ESP32-C3';assert.throws(()=>validateRelease(bad,profile));
-  assert.throws(()=>validateRelease(release,profiles.find(p=>p.id!==profile.id)));
-  const wrongOffset=structuredClone(release);wrongOffset.builds[0].parts[0].offset=0x1000;assert.throws(()=>validateRelease(wrongOffset,profile));
-  const wrongPath=structuredClone(release);wrongPath.builds[0].parts[0].path='../untrusted.bin';assert.throws(()=>validateRelease(wrongPath,profile));
-  const wrongVersion=structuredClone(release);wrongVersion.version='9.9.9';assert.throws(()=>validateRelease(wrongVersion,profile));
-  const wrongRotation=structuredClone(release);wrongRotation.build.initialRotation=release.build.initialRotation===0?1:0;assert.throws(()=>validateRelease(wrongRotation,profile));
+  const otherBoard=boards.find(b=>b.id!==board.id);
+  const bad=structuredClone(release);bad.builds[0].chipFamily=otherBoard.chipFamily;assert.throws(()=>validateRelease(bad,profile,board));
+  assert.throws(()=>validateRelease(release,profile,otherBoard));
+  assert.throws(()=>validateRelease(release,profiles.find(p=>p.id!==profile.id),board));
+  const wrongBoard=structuredClone(release);wrongBoard.board=otherBoard.id;assert.throws(()=>validateRelease(wrongBoard,profile,board));
+  const wrongFqbn=structuredClone(release);wrongFqbn.build.fqbn=otherBoard.fqbn;assert.throws(()=>validateRelease(wrongFqbn,profile,board));
+  const wrongBoot=structuredClone(release);wrongBoot.build.bootloaderOffset=board.bootloaderOffset===0?0x1000:0;assert.throws(()=>validateRelease(wrongBoot,profile,board));
+  const wrongOffset=structuredClone(release);wrongOffset.builds[0].parts[0].offset=0x1000;assert.throws(()=>validateRelease(wrongOffset,profile,board));
+  const wrongPath=structuredClone(release);wrongPath.builds[0].parts[0].path='../untrusted.bin';assert.throws(()=>validateRelease(wrongPath,profile,board));
+  const wrongVersion=structuredClone(release);wrongVersion.version='9.9.9';assert.throws(()=>validateRelease(wrongVersion,profile,board));
+  const wrongRotation=structuredClone(release);wrongRotation.build.initialRotation=release.build.initialRotation===0?1:0;assert.throws(()=>validateRelease(wrongRotation,profile,board));
 });

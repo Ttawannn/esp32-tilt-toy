@@ -1,5 +1,47 @@
 # ผลตรวจ
 
+## v0.1.2 — ESP32 30-pin / C3 SuperMini / C6 SuperMini
+
+วันที่ 7 ตุลาคม 2026 · Flash 4MB · Arduino-ESP32 3.3.11
+
+คอมไพล์ครบ **18 คู่บอร์ด/จอ** ด้วย target `esp32`, `esp32c3` และ `esp32c6` ตั้ง DIO และ partition `huge_app` (app 3MB) ใช้ USB CDC สำหรับ C3/C6 และ UART ผ่าน USB-to-Serial สำหรับ ESP32 30-pin ผลจาก compiler:
+
+| บอร์ด | โปรไฟล์ | App (bytes) | Merged binary (bytes) | Global RAM (bytes) |
+| --- | --- | ---: | ---: | ---: |
+| ESP32 30-pin | tft-80x160 | 1,031,804 | 1,097,488 | 78,080 |
+| ESP32 30-pin | tft-80x160-landscape | 1,031,820 | 1,097,504 | 78,080 |
+| ESP32 30-pin | gmt130-240x240 | 1,031,496 | 1,097,184 | 78,088 |
+| ESP32 30-pin | tft-240x240-st7789 | 1,031,496 | 1,097,184 | 78,088 |
+| ESP32 30-pin | tft-240x240-gc9a01 | 1,030,300 | 1,095,984 | 78,072 |
+| ESP32 30-pin | oled-128x64 | 1,029,896 | 1,095,584 | 78,016 |
+| ESP32-C3 SuperMini | tft-80x160 | 1,123,595 | 1,189,280 | 67,960 |
+| ESP32-C3 SuperMini | tft-80x160-landscape | 1,123,595 | 1,189,280 | 67,960 |
+| ESP32-C3 SuperMini | gmt130-240x240 | 1,123,191 | 1,188,880 | 67,976 |
+| ESP32-C3 SuperMini | tft-240x240-st7789 | 1,123,199 | 1,188,880 | 67,976 |
+| ESP32-C3 SuperMini | tft-240x240-gc9a01 | 1,121,847 | 1,187,536 | 67,960 |
+| ESP32-C3 SuperMini | oled-128x64 | 1,120,857 | 1,186,544 | 67,896 |
+| ESP32-C6 SuperMini | tft-80x160 | 1,150,962 | 1,216,592 | 74,612 |
+| ESP32-C6 SuperMini | tft-80x160-landscape | 1,150,962 | 1,216,592 | 74,612 |
+| ESP32-C6 SuperMini | gmt130-240x240 | 1,150,550 | 1,216,192 | 74,628 |
+| ESP32-C6 SuperMini | tft-240x240-st7789 | 1,150,558 | 1,216,192 | 74,628 |
+| ESP32-C6 SuperMini | tft-240x240-gc9a01 | 1,149,218 | 1,214,848 | 74,612 |
+| ESP32-C6 SuperMini | oled-128x64 | 1,148,232 | 1,213,872 | 74,548 |
+
+`npm test` ผ่าน **28 tests** โดยใช้ MSVC (`CXX=cl`) ไม่มี test ที่ถูกข้าม ครอบคลุมการเลือก GPIO จาก target chip ทั้งแบบอัตโนมัติและ `BOARD_PROFILE`, การปฏิเสธ target ที่ขัดกับบอร์ด, pin mapping ของทุกบอร์ด/จอ/เซนเซอร์, I²C driver และหน้าเครื่อง รวมถึง artifacts ทั้ง 18 ชุด
+
+ตรวจ chip ID ใน header ทั้ง bootloader และ app (`0`, `5`, `13` ตามชิป), bootloader offset `0x1000` สำหรับ ESP32 และ `0` สำหรับ C3/C6, padding ของ merged image, partition/app size, runtime board/profile ID, SHA-256 และ source hash ของ source ทั้งสี่ไฟล์ Manifest และตัวตรวจ header บนเว็บปฏิเสธไฟล์ที่เป็นคนละชิป
+
+`npm run build` ผ่าน และตรวจว่า binary/manifest ทั้ง 18 ชุดใน `dist/` ตรงกับ release ที่ทดสอบแล้ว ยังรองรับเฉพาะ BMI160 และ MPU6050 ทุกบอร์ดใช้ shared I²C ตาม GPIO ของบอร์ดนั้น และ OLED init ไม่เรียก `Wire.begin()` กลับไปใช้ขาเริ่มต้น
+
+ทดสอบหน้าเว็บใน Codex in-app browser:
+
+- ตัวเลือกรุ่นบอร์ดมี ESP32 30-pin, ESP32-C3 SuperMini และ ESP32-C6 SuperMini; จำตัวเลือกหลัง reload
+- เลือกครบ 18 คู่บอร์ด/จอแล้ว header/checksum ผ่าน ปุ่มแฟลชเปิดได้ และ manifest/download URL ตรงกับคู่ที่เลือก
+- ผังและข้อความ I²C/SPI/BOOT เปลี่ยนตามบอร์ด เช่น ESP32 ใช้ SDA21/SCL22/BOOT0 และ C3 ใช้ SDA4/SCL5/BOOT9
+- ทดสอบ viewport มือถือ 390×844 ไม่มี page horizontal overflow (ผังยังเลื่อนแนวนอนภายในกรอบได้)
+
+ยังไม่ได้แฟลชหรือทดสอบบนบอร์ด จอ และเซนเซอร์จริง ทุก manifest จึงระบุ `hardwareTested: false` ต้องตรวจ GPIO/silkscreen ของ clone, BOOT/USB, การเอียง/คาลิเบรต, Wi-Fi AP, framebuffer/free heap และ FPS บนแต่ละบอร์ดตาม [HARDWARE.md](HARDWARE.md) ตัวเลข Global RAM จาก linker ยังไม่รวม framebuffer และ heap ที่ allocate ระหว่างรัน
+
 ## v0.1.1 — BMI160 / MPU6050
 
 วันที่ 7 ตุลาคม 2026 · ESP32-C6 SuperMini / flash 4MB

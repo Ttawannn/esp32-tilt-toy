@@ -4,6 +4,7 @@ import { resolve, join } from 'node:path';
 import { homedir } from 'node:os';
 import { createHash } from 'node:crypto';
 import { profiles, VERSION } from '../web/profiles.js';
+import { boards, releasePath } from '../web/boards.js';
 
 const root = resolve(import.meta.dirname, '..');
 // Concurrent builds must not rewrite each other's staged display profile or objects.
@@ -19,16 +20,11 @@ const core = join(data, 'packages', 'esp32', 'hardware', 'esp32', '3.3.11');
 await access(core).catch(() => { throw Error('Install esp32:esp32@3.3.11 using Arduino CLI first (see README).'); });
 const toolDir = join(data, 'packages', 'esp32', 'tools', 'esptool_py', '5.3.1');
 const esptool = process.env.ESPTOOL || join(toolDir, process.platform === 'win32' ? 'esptool.exe' : 'esptool');
-const fqbn = 'esp32:esp32:esp32c6:CDCOnBoot=cdc,FlashMode=dio,FlashSize=4M,PartitionScheme=huge_app';
-const staging = join(work, 'source', 'tilt_toy');
-await mkdir(staging, { recursive: true });
 const sketchSource = (await readFile(join(root, 'firmware', 'tilt_toy', 'tilt_toy.ino'), 'utf8')).replace(/\r\n/g, '\n');
 const configSource = (await readFile(join(root, 'firmware', 'tilt_toy', 'config.h'), 'utf8')).replace(/\r\n/g, '\n');
 const fluidSource = (await readFile(join(root, 'firmware', 'tilt_toy', 'flip_fluid.h'), 'utf8')).replace(/\r\n/g, '\n');
 const motionSource = (await readFile(join(root, 'firmware', 'tilt_toy', 'motion_sensor.h'), 'utf8')).replace(/\r\n/g, '\n');
-await writeFile(join(staging, 'tilt_toy.ino'), sketchSource);
-await writeFile(join(staging, 'flip_fluid.h'), fluidSource);
-await writeFile(join(staging, 'motion_sensor.h'), motionSource);
+const sourceSha256 = createHash('sha256').update(sketchSource+'\n'+configSource+'\n'+fluidSource+'\n'+motionSource).digest('hex');
 
 function run(command, args, logPath) {
   return new Promise((yes,no) => {
@@ -43,22 +39,38 @@ function run(command, args, logPath) {
     });
   });
 }
-const selected = process.argv[2] ? profiles.filter(p=>p.id===process.argv[2]) : profiles;
-if(!selected.length) throw Error('Unknown display profile');
-for(const p of selected) {
-  console.log(`Compiling ${p.id} for ESP32-C6 / 4MB…`);
-  const output=join(work,p.id); await mkdir(output,{recursive:true});
-  // Only the staged sketch header changes. Share the core/library cache between profiles.
-  await writeFile(join(staging, 'config.h'), `#define DISPLAY_PROFILE ${p.firmwareId}\n` + configSource);
-  await run(cli,['compile','--jobs',process.env.FIRMWARE_JOBS || '8','--fqbn',fqbn,'--build-path',join(work,'build'),'--output-dir',output,staging],join(work,`${p.id}.log`));
-  const merged=join(output,`${p.id}.merged.bin`);
-  await run(esptool,['--chip','esp32c6','merge-bin','-o',merged,'--flash-mode','keep','--flash-freq','keep','--flash-size','keep','0x0',join(output,'tilt_toy.ino.bootloader.bin'),'0x8000',join(output,'tilt_toy.ino.partitions.bin'),'0xe000',join(core,'tools','partitions','boot_app0.bin'),'0x10000',join(output,'tilt_toy.ino.bin')],join(work,`${p.id}-merge.log`));
-  const binary=await readFile(merged);
-  const manifest={name:`ESP32 Tilt Toy · ${p.short}`,version:VERSION,profile:p.id,chipFamily:'ESP32-C6',flashSize:'4MB',controller:p.driver,size:binary.length,sha256:createHash('sha256').update(binary).digest('hex'),hardwareTested:false,build:{core:'esp32:esp32@3.3.11',fqbn,displayProfile:p.firmwareId,initialRotation:p.defaultRotation||0,sourceSha256:createHash('sha256').update(sketchSource+'\n'+configSource+'\n'+fluidSource+'\n'+motionSource).digest('hex')},new_install_prompt_erase:true,new_install_improv_wait_time:0,builds:[{chipFamily:'ESP32-C6',parts:[{path:`./${p.id}.bin`,offset:0}]}]};
-  // Merge and hash private files before publishing; another build cannot change these bytes.
-  await rename(merged,join(releases,`${p.id}.bin`));
-  const stagedManifest=join(output,`${p.id}.json`);
-  await writeFile(stagedManifest,JSON.stringify(manifest,null,2)+'\n');
-  await rename(stagedManifest,join(releases,`${p.id}.json`));
-  console.log(`Release ${p.id}: ${binary.length} bytes · ${manifest.sha256.slice(0,12)}`);
+let selectedProfiles = profiles, selectedBoards = boards;
+let hasProfile = false, hasBoard = false;
+for (const argument of process.argv.slice(2)) {
+  const profile = profiles.find(p => p.id === argument), board = boards.find(b => b.id === argument);
+  if (profile && !hasProfile) { selectedProfiles = [profile]; hasProfile = true; }
+  else if (board && !hasBoard) { selectedBoards = [board]; hasBoard = true; }
+  else throw Error(`Unknown or repeated board/display argument: ${argument}`);
+}
+for (const board of selectedBoards) {
+  const boardWork = join(work, board.id);
+  const staging = join(boardWork, 'source', 'tilt_toy');
+  await mkdir(staging, { recursive: true });
+  await writeFile(join(staging, 'tilt_toy.ino'), sketchSource);
+  await writeFile(join(staging, 'flip_fluid.h'), fluidSource);
+  await writeFile(join(staging, 'motion_sensor.h'), motionSource);
+  for(const p of selectedProfiles) {
+    console.log(`Compiling ${p.id} for ${board.name} / 4MB…`);
+    const output=join(boardWork,p.id); await mkdir(output,{recursive:true});
+    // Only the staged sketch header changes. Share the core/library cache between profiles.
+    await writeFile(join(staging, 'config.h'), `#define BOARD_PROFILE ${board.firmwareId}\n#define DISPLAY_PROFILE ${p.firmwareId}\n` + configSource);
+    await run(cli,['compile','--jobs',process.env.FIRMWARE_JOBS || '8','--fqbn',board.fqbn,'--build-path',join(boardWork,'build'),'--output-dir',output,staging],join(boardWork,`${p.id}.log`));
+    const merged=join(output,`${p.id}.merged.bin`);
+    await run(esptool,['--chip',board.target,'merge-bin','-o',merged,'--target-offset','0x0','--flash-mode','keep','--flash-freq','keep','--flash-size','keep',`0x${board.bootloaderOffset.toString(16)}`,join(output,'tilt_toy.ino.bootloader.bin'),'0x8000',join(output,'tilt_toy.ino.partitions.bin'),'0xe000',join(core,'tools','partitions','boot_app0.bin'),'0x10000',join(output,'tilt_toy.ino.bin')],join(boardWork,`${p.id}-merge.log`));
+    const binary=await readFile(merged);
+    const manifest={name:`ESP32 Tilt Toy · ${board.name} · ${p.short}`,version:VERSION,board:board.id,profile:p.id,chipFamily:board.chipFamily,flashSize:'4MB',controller:p.driver,size:binary.length,sha256:createHash('sha256').update(binary).digest('hex'),hardwareTested:false,build:{core:'esp32:esp32@3.3.11',fqbn:board.fqbn,boardProfile:board.firmwareId,bootloaderOffset:board.bootloaderOffset,displayProfile:p.firmwareId,initialRotation:p.defaultRotation||0,sourceSha256},new_install_prompt_erase:true,new_install_improv_wait_time:0,builds:[{chipFamily:board.chipFamily,parts:[{path:`./${p.id}.bin`,offset:0}]}]};
+    const releaseBase = join(releases, releasePath(p, board));
+    await mkdir(resolve(releaseBase, '..'), { recursive: true });
+    // Merge and hash private files before publishing; another build cannot change these bytes.
+    await rename(merged,`${releaseBase}.bin`);
+    const stagedManifest=join(output,`${p.id}.json`);
+    await writeFile(stagedManifest,JSON.stringify(manifest,null,2)+'\n');
+    await rename(stagedManifest,`${releaseBase}.json`);
+    console.log(`Release ${board.id}/${p.id}: ${binary.length} bytes · ${manifest.sha256.slice(0,12)}`);
+  }
 }
