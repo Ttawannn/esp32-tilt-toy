@@ -8,13 +8,13 @@
 
 | โปรไฟล์ | App จาก compiler (bytes) | Merged binary (bytes) | Global RAM (bytes) |
 | --- | ---: | ---: | ---: |
-| tft-80x160 | 1,113,634 | 1,179,264 | 46,044 |
-| gmt130-240x240 | 1,113,258 | 1,178,896 | 46,044 |
-| tft-240x240-st7789 | 1,113,258 | 1,178,896 | 46,044 |
-| tft-240x240-gc9a01 | 1,112,112 | 1,177,744 | 46,028 |
-| oled-128x64 | 1,110,990 | 1,176,624 | 45,980 |
+| tft-80x160 | 1,155,478 | 1,221,120 | 74,668 |
+| gmt130-240x240 | 1,155,096 | 1,220,736 | 74,668 |
+| tft-240x240-st7789 | 1,155,104 | 1,220,736 | 74,668 |
+| tft-240x240-gc9a01 | 1,153,762 | 1,219,392 | 74,652 |
+| oled-128x64 | 1,152,772 | 1,218,416 | 74,604 |
 
-Global RAM เป็นรายงาน static data จาก linker ยังไม่รวม framebuffer ที่ allocate ระหว่างรันหรือ heap ของ Wi-Fi จึงต้องวัดกับอุปกรณ์ก่อนสรุปหน่วยความจำและ FPS
+Global RAM เป็นรายงาน static data จาก linker ยังไม่รวม framebuffer ที่ allocate ระหว่างรันหรือ heap ของ Wi-Fi จึงต้องวัดกับอุปกรณ์ก่อนสรุปหน่วยความจำและ FPS ส่วนที่เพิ่มราว 28 KB มาจาก array คงที่ของ FLIP solver (400 cells / 900 particles) ESP32-C6 ไม่มี FPU จึงต้องวัดเวลา solver จริงจาก `simMs` ใน `/api/status`
 
 `npm test` ผ่าน 7 tests ตรวจ mapping ของจอและสาย, version/controller/profile contract, ขนาดไฟล์, SHA-256, source SHA-256, header ของ bootloader/app เป็น C6, DIO/flash4MB, partition app ที่ 0x10000 ขนาด 3MB และการปฏิเสธ manifest ที่ผิดชิป/จอ/offset/path/version
 

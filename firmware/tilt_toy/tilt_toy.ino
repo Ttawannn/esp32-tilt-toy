@@ -11,6 +11,7 @@
 #include <Adafruit_GC9A01A.h>
 #include <Adafruit_SSD1306.h>
 #include "config.h"
+#include "flip_fluid.h"
 
 // One shared renderer; each release selects a concrete panel initializer.
 #if DISPLAY_PROFILE == 0
@@ -33,7 +34,6 @@ const char *profileName = "oled-128x64";
 #endif
 
 const char *modeIds[] = {"water", "maze", "snow", "pong", "pet", "dice"};
-const char *modeLabels[] = {"LIQUID", "TILT MAZE", "SNOW GLOBE", "PONG", "POCKET EYES", "SHAKE & ROLL"};
 Preferences preferences;
 WebServer server(80);
 Adafruit_MPU6050 imu;
@@ -48,7 +48,8 @@ bool inverted = true;
 float fillPercent = 50, sensitivity = 1.0f;
 float accelX = 0, accelY = 9.81f, accelZ = 0, roll = 0, pitch = 0;
 float gyroXBias = 0, gyroYBias = 0, gyroZBias = 0;
-float wave = 0, waveSpeed = 0;
+FlipFluid fluid;
+float simulationMs = 0;
 float ballX = 0, ballY = 0, ballVX = 0.1f, ballVY = -0.35f;
 int score = 0, diceValue = 1;
 struct Particle { float x, y, vx, vy; };
@@ -69,7 +70,14 @@ float randomUnit() { return (float)esp_random() / (float)UINT32_MAX; }
 
 void resetMode() {
   ballX = -0.55f; ballY = 0.5f; ballVX = 0.3f; ballVY = -0.4f;
-  score = 0; wave = 0; waveSpeed = 0;
+  score = 0;
+  if (scene) {
+    const float w = scene->width()-4, h = scene->height()-4;
+    const float shortest = fminf(w,h);
+    const int cells = shortest < 40 ? 6 : shortest < 100 ? 8 : 16;
+    const int nx = 2 + fminf(30,roundf(cells*w/shortest)), ny = 2 + fminf(30,roundf(cells*h/shortest));
+    fluid.configure(DISPLAY_PROFILE == 3 ? 20 : nx, DISPLAY_PROFILE == 3 ? 20 : ny, DISPLAY_PROFILE == 3, fillPercent);
+  }
   for (auto &f : flakes) { f.x = randomUnit() * 1.8f - 0.9f; f.y = randomUnit() * 1.8f - 0.9f; f.vx = 0; f.vy = 0; }
 }
 void saveSettings() {
@@ -132,7 +140,8 @@ void textCenter(const char *text, int y, uint16_t color, int size = 1) {
   scene->print(text);
 }
 void shake() {
-  lastShake = millis(); waveSpeed += 1.8f;
+  lastShake = millis();
+  if (activeMode == 0) fluid.impulse(sinf(roll*PI/180),cosf(roll*PI/180));
   diceValue = 1 + esp_random() % 6;
   for (auto &f : flakes) { f.vx = (randomUnit() - 0.5f) * 4; f.vy = (randomUnit() - 0.5f) * 4; }
 }
@@ -160,40 +169,33 @@ void readImu(float dt) {
   float spin = fabsf(g.gyro.x - gyroXBias) + fabsf(g.gyro.y - gyroYBias) + fabsf(g.gyro.z - gyroZBias);
   float magnitude = sqrtf(a.acceleration.x * a.acceleration.x + a.acceleration.y * a.acceleration.y + a.acceleration.z * a.acceleration.z);
   if ((fabsf(magnitude - 9.81f) > 7 || spin > 5) && millis() - lastShake > 800) shake();
-  waveSpeed += (-wave * 28 - waveSpeed * 5 + (g.gyro.z - gyroZBias) * 0.4f) * dt;
-  wave += waveSpeed * dt; wave = limit(wave, -0.25f, 0.25f);
 }
 
 void renderGame(float dt) {
   const int w = scene->width(), h = scene->height();
   const float cx = w * 0.5f, cy = h * 0.5f;
-  const float radius = fminf(w - 8, h - 26) * 0.5f;
+  // The whole panel is the play area: no frame, title or readouts on screen.
+  const float radius = fminf(w, h) * 0.5f - 2;
   const uint16_t white = ink(0xFFFF), accent = rgb(65, 224, 184), blue = rgb(42, 140, 238);
   scene->fillScreen(0);
   float theta = roll * PI / 180;
   float gx = sinf(theta) * sensitivity, gy = cosf(theta) * sensitivity;
   if (!imuReady) { gx = 0; gy = 1; }
   if (activeMode == 0) {
-    // Rotate the free surface normal, then add an odd surface wave.
-    const float sx = sinf(theta), sy = cosf(theta);
-    const float level = (50 - fillPercent) * radius / 50;
-    for (int y = (int)(cy - radius); y <= (int)(cy + radius); y++) {
-      for (int x = (int)(cx - radius); x <= (int)(cx + radius); x++) {
-        float px = x - cx, py = y - cy;
-        if (px * px + py * py > radius * radius) continue;
-        float normal = px * sx + py * sy;
-        float tangent = px * sy - py * sx;
-        float surface = level + wave * radius * sinf(tangent * 4 / radius);
-        if (normal > surface) {
-#if DISPLAY_PROFILE == 4
-          if (normal - surface < 2 || ((x + y) & 1) == 0) scene->drawPixel(x, y, white);
-#else
-          scene->drawPixel(x, y, normal - surface < 2 ? accent : blue);
-#endif
-        }
-      }
+    uint32_t started = micros();
+    float planar = cosf(pitch*PI/180);
+    fluid.advance(dt,gx*4*planar,gy*4*planar);
+    simulationMs = (micros()-started)*.001f;
+    const float left = DISPLAY_PROFILE == 3 ? 4 : 2, top = left;
+    const float viewW = w-left*2, viewH = h-top*2;
+    const float scaleX = viewW/((fluid.nx-2)*fluid.h), scaleY = viewH/((fluid.ny-2)*fluid.h);
+    const int particleSize = fmaxf(1,fluid.radius*fminf(scaleX,scaleY)*.92f);
+    for (int p=0;p<fluid.count;p++) {
+      int x=left+(fluid.x[p]-fluid.h)*scaleX, y=top+(fluid.y[p]-fluid.h)*scaleY;
+      const bool spray = fluid.density[fluid.cell(fluid.x[p],fluid.y[p])] < fluid.restDensity*.65f;
+      const uint16_t color = spray ? rgb(137,227,255) : rgb(24,105,245);
+      scene->fillCircle(x,y,particleSize,color);
     }
-    scene->drawCircle(cx, cy, radius, white);
   } else if (activeMode == 1) {
     float oldX = ballX, oldY = ballY;
     ballVX = (ballVX + gx * dt * 2.5f) * powf(0.1f, dt);
@@ -207,12 +209,10 @@ void renderGame(float dt) {
       if (ballX > wall[0] - 0.08f && ballX < wall[2] + 0.08f && ballY > wall[1] - 0.08f && ballY < wall[3] + 0.08f) { ballX = oldX; ballY = oldY; ballVX *= -0.2f; ballVY *= -0.2f; }
       scene->fillRect(cx + wall[0] * radius, cy + wall[1] * radius, (wall[2]-wall[0])*radius, (wall[3]-wall[1])*radius, white);
     }
-    scene->drawCircle(cx, cy, radius, white);
     scene->drawCircle(cx + radius * 0.58f, cy - radius * 0.58f, fmaxf(3,radius*0.12f), accent);
     scene->fillCircle(cx + ballX * radius, cy + ballY * radius, fmaxf(2,radius*0.065f), blue);
     if (hypotf(ballX - 0.58f, ballY + 0.58f) < 0.14f) { score++; ballX = -0.55f; ballY = 0.5f; ballVX = ballVY = 0; }
   } else if (activeMode == 2) {
-    scene->drawCircle(cx, cy, radius, white);
     for (auto &f : flakes) {
       f.vx += gx * dt * 0.7f; f.vy += gy * dt * 0.7f;
       f.vx *= powf(0.35f, dt); f.vy *= powf(0.35f, dt);
@@ -229,7 +229,6 @@ void renderGame(float dt) {
       if (fabsf(diff) < 0.48f) { float dot=(ballVX*ballX+ballVY*ballY)/(m*m); ballVX-=2*dot*ballX; ballVY-=2*dot*ballY; ballX*=0.84f/m; ballY*=0.84f/m; score++; }
       else { ballX=ballY=0; ballVX=0.3f; ballVY=-0.4f; score=0; }
     }
-    scene->drawCircle(cx,cy,radius,white);
     for(int i=-16;i<=16;i++){float a=paddle+i*0.025f;scene->fillCircle(cx+sinf(a)*radius*0.94f,cy-cosf(a)*radius*0.94f,fmaxf(1,radius*0.035f),accent);}
     scene->fillCircle(cx+ballX*radius,cy+ballY*radius,fmaxf(2,radius*0.055f),blue);
   } else if (activeMode == 4) {
@@ -246,26 +245,23 @@ void renderGame(float dt) {
     int value=millis()-lastShake<450?1+(millis()/60)%6:diceValue;
     for(int i=1;i<=positions[value-1][0];i++){int index=positions[value-1][i];scene->fillCircle(left+size*(0.25f+(index%3)*0.25f),top+size*(0.25f+(index/3)*0.25f),fmaxf(1,size*0.055f),accent);}
   }
+  // Live values are shown on the phone page; the panel only says how to reach it.
   const int titleY = DISPLAY_PROFILE == 3 ? 22 : 2;
   const int footerY = DISPLAY_PROFILE == 3 ? h-30 : h-10;
-  textCenter(apActive ? "WIFI SETUP" : modeLabels[activeMode], titleY, 0xFFFF);
-  char caption[48];
-  if (apActive) snprintf(caption,sizeof(caption),"192.168.4.1");
-  else if (!imuReady) snprintf(caption,sizeof(caption),"IMU NOT FOUND");
-  else if(activeMode==1||activeMode==3) snprintf(caption,sizeof(caption),"SCORE %d",score);
-  else snprintf(caption,sizeof(caption),"R:%d P:%d",(int)roll,(int)pitch);
-  textCenter(caption,footerY,0xFFFF);
+  if (apActive) { textCenter(apSsid.c_str(), titleY, 0xFFFF); textCenter("192.168.4.1", footerY, 0xFFFF); }
+  else if (!imuReady) textCenter("IMU NOT FOUND", footerY, 0xFFFF);
 }
 
 // Device-local controls are served by the ESP32's AP, independent of the hosted installer.
-const char devicePage[] PROGMEM = R"HTML(<!doctype html><html lang="th"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Tilt Toy</title><style>body{font:16px system-ui;background:#111820;color:#edf4f6;max-width:560px;margin:auto;padding:24px}h1{font-size:26px}label{display:block;margin:22px 0}select,input,button{font:inherit;width:100%;box-sizing:border-box;padding:13px;border:1px solid #394652;border-radius:10px;background:#1d2833;color:inherit}button{background:#bef365;color:#162109;margin:10px 0;cursor:pointer}[hidden]{display:none!important}small{color:#b3c1ca}#status{min-height:24px}a{color:#bef365}</style><h1>esp32-tilt-toy</h1><p>เลือกโหมด แล้วเล่นต่อบนเครื่องได้เลย</p><small id="hardware"></small><label>โหมด<select id="mode"><option value="water">น้ำในลูกแก้ว</option><option value="maze">เขาวงกต</option><option value="snow">ลูกแก้วหิมะ</option><option value="pong">Pong</option><option value="pet">ตาการ์ตูน</option><option value="dice">ลูกเต๋า</option></select></label><label>ระดับน้ำ <input id="fill" type="range" min="10" max="90"></label><label>ความไว <input id="sensitivity" type="range" min="0.4" max="2" step="0.1"></label><label>หมุนภาพ<select id="rotation"><option value="0">0°</option><option value="1">90°</option><option value="2">180°</option><option value="3">270°</option></select></label><label id="invertWrap">สีจอ TFT<select id="invert"><option value="1">เปิด inversion</option><option value="0">ปิด inversion</option></select></label><label id="spiWrap">SPI ของ ST7789<select id="spiMode"><option value="3">Mode 3</option><option value="0">Mode 0</option></select></label><button id="save">บันทึกและใช้โหมดนี้</button><button id="shake">เขย่า / ทอยลูกเต๋า</button><button id="calibrate">คาลิเบรต gyro (วางเครื่องนิ่ง)</button><button id="close">ปิด Wi-Fi แล้วเล่นต่อ</button><p id="status" role="status"></p><small>กดปุ่มบนเครื่องสั้น ๆ เพื่อเปลี่ยนโหมด กดค้าง 2 วินาทีเพื่อเปิด/ปิด Wi-Fi</small><script>
-const ids=['mode','fill','sensitivity','rotation','invert','spiMode'];const status=document.getElementById('status');async function post(path,data={}){const response=await fetch(path,{method:'POST',body:new URLSearchParams(data)});if(!response.ok)throw Error(await response.text());return response;}async function load(){const r=await fetch('/api/status');if(!r.ok)throw Error('อ่านข้อมูลเครื่องไม่ได้');const s=await r.json();ids.forEach(id=>document.getElementById(id).value=String(id==='invert'?Number(s[id]):s[id]));document.getElementById('hardware').textContent=s.profile+' · v'+s.version+(s.imu?' · MPU6050':' · ไม่พบ MPU6050');document.getElementById('invertWrap').hidden=s.profile==='oled-128x64';document.getElementById('spiWrap').hidden=!s.profile.includes('st7789')&&!s.profile.includes('gmt130');}document.getElementById('save').onclick=async()=>{try{const data={};ids.forEach(id=>data[id]=document.getElementById(id).value);await post('/api/config',data);status.textContent='บันทึกแล้ว';}catch(e){status.textContent=e.message;}};for(const [id,path,message]of[['shake','/api/shake','ทำแอ็กชันแล้ว'],['calibrate','/api/calibrate','คาลิเบรตแล้ว'],['close','/api/close','ปิด Wi-Fi แล้ว กลับไปเล่นบนเครื่องได้เลย']])document.getElementById(id).onclick=async()=>{try{await post(path);status.textContent=message;}catch(e){status.textContent=e.message;}};load().catch(e=>status.textContent=e.message);
+const char devicePage[] PROGMEM = R"HTML(<!doctype html><html lang="th"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Tilt Toy</title><style>body{font:16px system-ui;background:#111820;color:#edf4f6;max-width:560px;margin:auto;padding:24px}h1{font-size:26px;margin:0 0 4px}h2{font-size:15px;margin:28px 0 10px;color:#b3c1ca;font-weight:600;display:flex;justify-content:space-between;align-items:center}label{display:block;margin:22px 0}.row{display:flex;justify-content:space-between}output{font-variant-numeric:tabular-nums;color:#bef365}select,input,button{font:inherit;width:100%;box-sizing:border-box;padding:13px;border:1px solid #394652;border-radius:10px;background:#1d2833;color:inherit}input[type=range]{padding:0;margin-top:12px;accent-color:#bef365}button{background:#bef365;color:#162109;margin:10px 0;cursor:pointer}[hidden]{display:none!important}small{color:#b3c1ca}#status{min-height:24px}.live{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.stat{background:#1d2833;border:1px solid #394652;border-radius:10px;padding:10px 12px;min-width:0}.stat span{display:block;font-size:12px;color:#b3c1ca}.stat b{display:block;font-size:20px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.wide{grid-column:1/-1}#link{font-size:12px;font-weight:400}#link:before{content:'';display:inline-block;width:8px;height:8px;border-radius:50%;background:#6b7a86;margin-right:6px}#link[data-on]:before{background:#bef365}@media(max-width:360px){.live{grid-template-columns:repeat(2,1fr)}}</style><h1>esp32-tilt-toy</h1><small id="hardware"></small><h2>ค่าบนเครื่อง <span id="link">กำลังเชื่อมต่อ…</span></h2><div class="live" aria-live="off"><div class="stat wide"><span>โหมด</span><b id="vMode">–</b></div><div class="stat"><span>Roll</span><b id="vRoll">–</b></div><div class="stat"><span>Pitch</span><b id="vPitch">–</b></div><div class="stat"><span>FPS</span><b id="vFps">–</b></div><div class="stat" id="sScore"><span>คะแนน</span><b id="vScore">–</b></div><div class="stat" id="sSim"><span>Solver</span><b id="vSim">–</b></div><div class="stat" id="sParticles"><span>อนุภาค</span><b id="vParticles">–</b></div><div class="stat"><span>Heap ว่าง</span><b id="vHeap">–</b></div></div><h2>ตั้งค่า</h2><label>โหมด<select id="mode"><option value="water">น้ำในลูกแก้ว</option><option value="maze">เขาวงกต</option><option value="snow">ลูกแก้วหิมะ</option><option value="pong">Pong</option><option value="pet">ตาการ์ตูน</option><option value="dice">ลูกเต๋า</option></select></label><label><span class="row">ระดับน้ำ <output id="fillOut"></output></span><input id="fill" type="range" min="10" max="90"></label><label><span class="row">ความไว <output id="sensOut"></output></span><input id="sensitivity" type="range" min="0.4" max="2" step="0.1"></label><label>หมุนภาพ<select id="rotation"><option value="0">0°</option><option value="1">90°</option><option value="2">180°</option><option value="3">270°</option></select></label><label id="invertWrap">สีจอ TFT<select id="invert"><option value="1">เปิด inversion</option><option value="0">ปิด inversion</option></select></label><label id="spiWrap">SPI ของ ST7789<select id="spiMode"><option value="3">Mode 3</option><option value="0">Mode 0</option></select></label><button id="save">บันทึกและใช้โหมดนี้</button><button id="shake">เขย่า / ทอยลูกเต๋า</button><button id="calibrate">คาลิเบรต gyro (วางเครื่องนิ่ง)</button><button id="close">ปิด Wi-Fi แล้วเล่นต่อ</button><p id="status" role="status"></p><small>กดปุ่มบนเครื่องสั้น ๆ เพื่อเปลี่ยนโหมด กดค้าง 2 วินาทีเพื่อเปิด/ปิด Wi-Fi</small><script>
+const $=id=>document.getElementById(id),ids=['mode','fill','sensitivity','rotation','invert','spiMode'],status=$('status');const names={water:'น้ำในลูกแก้ว',maze:'เขาวงกต',snow:'ลูกแก้วหิมะ',pong:'Pong',pet:'ตาการ์ตูน',dice:'ลูกเต๋า'};let stopped=false,busy=false;const deg=v=>(v>0?'+':'')+v.toFixed(0)+'°';function showValues(){$('fillOut').value=$('fill').value+'%';$('sensOut').value=Number($('sensitivity').value).toFixed(1)+'×';}$('fill').oninput=$('sensitivity').oninput=showValues;async function post(path,data={}){const response=await fetch(path,{method:'POST',body:new URLSearchParams(data)});if(!response.ok)throw Error(await response.text());return response;}async function read(){const r=await fetch('/api/status',{cache:'no-store',signal:AbortSignal.timeout?AbortSignal.timeout(2500):undefined});if(!r.ok)throw Error('อ่านข้อมูลเครื่องไม่ได้');return r.json();}function live(s){$('vMode').textContent=names[s.mode]||s.mode;$('vRoll').textContent=s.imu?deg(s.roll):'–';$('vPitch').textContent=s.imu?deg(s.pitch):'–';$('vFps').textContent=s.fps.toFixed(1);$('vScore').textContent=s.score;$('vSim').textContent=s.simMs.toFixed(1)+' ms';$('vParticles').textContent=s.particles;$('vHeap').textContent=Math.round(s.freeHeap/1024)+' KB';$('sScore').hidden=s.mode!=='maze'&&s.mode!=='pong';$('sSim').hidden=$('sParticles').hidden=s.mode!=='water';$('link').dataset.on='';$('link').textContent='อัปเดตสด';}function offline(text){delete $('link').dataset.on;$('link').textContent=text;}async function load(){const s=await read();ids.forEach(id=>$(id).value=String(id==='invert'?Number(s[id]):s[id]));$('hardware').textContent=s.profile+' · v'+s.version+(s.imu?' · MPU6050':' · ไม่พบ MPU6050');$('invertWrap').hidden=s.profile==='oled-128x64';$('spiWrap').hidden=!s.profile.includes('st7789')&&!s.profile.includes('gmt130');showValues();live(s);}setInterval(async()=>{if(stopped||busy||document.hidden)return;busy=true;try{live(await read());}catch{offline('ขาดการเชื่อมต่อ');}busy=false;},1000);$('save').onclick=async()=>{try{const data={};ids.forEach(id=>data[id]=$(id).value);await post('/api/config',data);status.textContent='บันทึกแล้ว';}catch(e){status.textContent=e.message;}};for(const [id,path,message]of[['shake','/api/shake','ทำแอ็กชันแล้ว'],['calibrate','/api/calibrate','คาลิเบรตแล้ว'],['close','/api/close','ปิด Wi-Fi แล้ว กลับไปเล่นบนเครื่องได้เลย']])$(id).onclick=async()=>{try{await post(path);status.textContent=message;if(id==='close'){stopped=true;offline('ปิด Wi-Fi แล้ว');}}catch(e){status.textContent=e.message;}};load().catch(e=>{status.textContent=e.message;offline('ขาดการเชื่อมต่อ');});
 </script></html>)HTML";
 
 void setupRoutes() {
+  server.on("/license",HTTP_GET,[](){server.send(200,"text/plain; charset=utf-8",fluidLicense);});
   server.on("/", HTTP_GET, [](){server.send_P(200,"text/html; charset=utf-8",devicePage);});
   server.on("/api/status", HTTP_GET, [](){
-    char json[512]; snprintf(json,sizeof(json),"{\"version\":\"%s\",\"profile\":\"%s\",\"mode\":\"%s\",\"rotation\":%d,\"invert\":%s,\"spiMode\":%d,\"fill\":%.1f,\"sensitivity\":%.2f,\"imu\":%s,\"roll\":%.1f,\"pitch\":%.1f,\"fps\":%.1f,\"freeHeap\":%u}",TOY_VERSION,profileName,modeIds[activeMode],rotation,inverted?"true":"false",spiMode,fillPercent,sensitivity,imuReady?"true":"false",roll,pitch,fps,ESP.getFreeHeap());
+    char json[512]; snprintf(json,sizeof(json),"{\"version\":\"%s\",\"profile\":\"%s\",\"mode\":\"%s\",\"rotation\":%d,\"invert\":%s,\"spiMode\":%d,\"fill\":%.1f,\"sensitivity\":%.2f,\"imu\":%s,\"roll\":%.1f,\"pitch\":%.1f,\"fps\":%.1f,\"simMs\":%.2f,\"score\":%d,\"particles\":%d,\"freeHeap\":%u}",TOY_VERSION,profileName,modeIds[activeMode],rotation,inverted?"true":"false",spiMode,fillPercent,sensitivity,imuReady?"true":"false",roll,pitch,fps,simulationMs,score,fluid.count,ESP.getFreeHeap());
     server.send(200,"application/json",json);
   });
   server.on("/api/config", HTTP_POST, [](){

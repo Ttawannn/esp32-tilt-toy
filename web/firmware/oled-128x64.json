@@ -5,14 +5,14 @@
   "chipFamily": "ESP32-C6",
   "flashSize": "4MB",
   "controller": "SSD1306",
-  "size": 1176624,
-  "sha256": "610c1cd0157bf41ac660eaf7ef698c212c7c18c760c955c2274403d266c8dbd5",
+  "size": 1218416,
+  "sha256": "149ac86f93d207d7dfcf02e9da9f24b816fdd4cb1fad7deedfc91c937aefa488",
   "hardwareTested": false,
   "build": {
     "core": "esp32:esp32@3.3.11",
     "fqbn": "esp32:esp32:esp32c6:CDCOnBoot=cdc,FlashMode=dio,FlashSize=4M,PartitionScheme=huge_app",
     "displayProfile": 4,
-    "sourceSha256": "6c360f91d1429fa8a4da1a69b49da4e539a07e972825181f7a7331244a1ee5e9"
+    "sourceSha256": "75043615d9e6e085e5134b53cea5bb25a8df9e427d48baaa779e38625a4768b8"
   },
   "new_install_prompt_erase": true,
   "new_install_improv_wait_time": 0,
