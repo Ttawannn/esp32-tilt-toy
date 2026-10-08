@@ -150,10 +150,20 @@ export class FlipFluid {
     for(let p=0;p<this.count;p++){const d=Math.hypot(this.x[p]-x,this.y[p]-y);if(d<radius){const weight=.6*(1-d/radius);this.vx[p]+=(vx-this.vx[p])*weight;this.vy[p]+=(vy-this.vy[p])*weight;}}
     this.limitSpeed();
   }
-  advance(dt,gx=0,gy=4,flip=.9) {
+  advance(dt,gx=0,gy=4,omega=0,omegaDot=0,flip=.9,wallDrag=0) {
+    omega=clamp(omega,-12,12);omegaDot=clamp(omegaDot,-40,40);
+    wallDrag=clamp(wallDrag,0,.5);
     this.accumulator=Math.min(.075,this.accumulator+clamp(dt,0,.1));
     while(this.accumulator>=STEP-1e-8) {
-      for(let p=0;p<this.count;p++){this.vx[p]=(this.vx[p]+gx*STEP)*.996;this.vy[p]=(this.vy[p]+gy*STEP)*.996;}
+      for(let p=0;p<this.count;p++){
+        const rx=this.x[p]-this.cx,ry=this.y[p]-this.cy,oldX=this.vx[p],oldY=this.vy[p];
+        this.vx[p]=(oldX+(gx+omegaDot*ry+2*omega*oldY+omega*omega*rx)*STEP)*.996;
+        this.vy[p]=(oldY+(gy-omegaDot*rx-2*omega*oldX+omega*omega*ry)*STEP)*.996;
+        if(wallDrag>0){
+          const nearWall=this.round?Math.hypot(rx,ry)>this.vesselRadius-1.8*this.h:this.x[p]<2*this.h+this.radius||this.x[p]>(this.nx-2)*this.h-this.radius||this.y[p]<2*this.h+this.radius||this.y[p]>(this.ny-2)*this.h-this.radius;
+          if(nearWall){this.vx[p]*=1-wallDrag;this.vy[p]*=1-wallDrag;}
+        }
+      }
       this.limitSpeed();
       for(let p=0;p<this.count;p++){this.x[p]+=this.vx[p]*STEP;this.y[p]+=this.vy[p]*STEP;}
       this.keepInside();this.separate();this.toGrid();this.updateDensity();this.project();this.toParticles(flip);this.keepInside();

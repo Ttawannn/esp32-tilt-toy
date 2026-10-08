@@ -1,13 +1,13 @@
 {
   "name": "ESP32 Tilt Toy · ESP32-C3 SuperMini · Square TFT",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "board": "esp32-c3-supermini",
   "profile": "tft-240x240-st7789",
   "chipFamily": "ESP32-C3",
   "flashSize": "4MB",
   "controller": "ST7789",
-  "size": 1194992,
-  "sha256": "6676eeba0768f71688682bdf82bc1f66f3d65dd197e5c24ebae79b7109e8c2d9",
+  "size": 1205712,
+  "sha256": "c45e984c305f50ff6c4a08856464de1de32d88985f372073357fb3c1ce98c3b5",
   "hardwareTested": false,
   "build": {
     "core": "esp32:esp32@3.3.11",
@@ -16,7 +16,7 @@
     "bootloaderOffset": 0,
     "displayProfile": 2,
     "initialRotation": 0,
-    "sourceSha256": "29c4e39abcf616d52283e2052d1814f614b964a61867e21fa4cf7772c4f3d696"
+    "sourceSha256": "32d60597b87143b5be0e5e8613106e044ab31c61bc0c05708d313a0140ba350c"
   },
   "new_install_prompt_erase": true,
   "new_install_improv_wait_time": 0,

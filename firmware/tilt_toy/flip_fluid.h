@@ -185,10 +185,23 @@ class FlipFluid {
     for (int p = 0; p < count; p++) { float swirl = (p%7-3)*.12f; vx[p] += -gx*1.5f+gy*.6f+(y[p]-cy)*swirl; vy[p] += -gy*1.5f-gx*.6f-(x[p]-cx)*swirl; }
     limitSpeed();
   }
-  void advance(float dt, float gx = 0, float gy = 4, float flip = .9f) {
+  void advance(float dt, float gx = 0, float gy = 4, float omega = 0, float omegaDot = 0, float flip = .9f, float wallDrag = 0) {
+    omega = clamp(omega,-12,12); omegaDot = clamp(omegaDot,-40,40);
+    wallDrag = clamp(wallDrag,0,.5f);
     accumulator = fminf(.075f,accumulator+clamp(dt,0,.1f));
     while (accumulator >= Step-1e-8f) {
-      for (int p = 0; p < count; p++) { vx[p] = (vx[p]+gx*Step)*.996f; vy[p] = (vy[p]+gy*Step)*.996f; }
+      for (int p = 0; p < count; p++) {
+        const float rx = x[p]-cx, ry = y[p]-cy, oldX = vx[p], oldY = vy[p];
+        // Euler, Coriolis and centrifugal forces in the rotating container frame.
+        vx[p] = (oldX+(gx+omegaDot*ry+2*omega*oldY+omega*omega*rx)*Step)*.996f;
+        vy[p] = (oldY+(gy-omegaDot*rx-2*omega*oldX+omega*omega*ry)*Step)*.996f;
+        // The wall is stationary in this frame. Drag damps relative velocity near it.
+        if (wallDrag > 0) {
+          const bool nearWall = round ? hypotf(rx,ry) > vesselRadius-1.8f*h :
+            x[p] < 2*h+radius || x[p] > (nx-2)*h-radius || y[p] < 2*h+radius || y[p] > (ny-2)*h-radius;
+          if (nearWall) { vx[p] *= 1-wallDrag; vy[p] *= 1-wallDrag; }
+        }
+      }
       limitSpeed();
       for (int p = 0; p < count; p++) { x[p] += vx[p]*Step; y[p] += vy[p]*Step; }
       keepInside(); separate(); toGrid(); updateDensity(); project(); toParticles(flip); keepInside(); accumulator -= Step;

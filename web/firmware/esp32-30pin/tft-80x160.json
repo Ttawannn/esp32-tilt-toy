@@ -1,13 +1,13 @@
 {
   "name": "ESP32 Tilt Toy · ESP32 30-pin · Pocket TFT · Portrait",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "board": "esp32-30pin",
   "profile": "tft-80x160",
   "chipFamily": "ESP32",
   "flashSize": "4MB",
   "controller": "ST7735S",
-  "size": 1103024,
-  "sha256": "ef1098b126b04b322e7c4f230c7704c2235776ef8ef20995314a5a8e51d6fa45",
+  "size": 1112064,
+  "sha256": "a53396786a6a84c217baadcd78afbe85426d3e78a6981226e17fcae3d33899ad",
   "hardwareTested": false,
   "build": {
     "core": "esp32:esp32@3.3.11",
@@ -16,7 +16,7 @@
     "bootloaderOffset": 4096,
     "displayProfile": 0,
     "initialRotation": 0,
-    "sourceSha256": "29c4e39abcf616d52283e2052d1814f614b964a61867e21fa4cf7772c4f3d696"
+    "sourceSha256": "32d60597b87143b5be0e5e8613106e044ab31c61bc0c05708d313a0140ba350c"
   },
   "new_install_prompt_erase": true,
   "new_install_improv_wait_time": 0,

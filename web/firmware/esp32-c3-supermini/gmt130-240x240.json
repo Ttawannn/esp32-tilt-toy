@@ -1,13 +1,13 @@
 {
   "name": "ESP32 Tilt Toy · ESP32-C3 SuperMini · GMT130",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "board": "esp32-c3-supermini",
   "profile": "gmt130-240x240",
   "chipFamily": "ESP32-C3",
   "flashSize": "4MB",
   "controller": "ST7789",
-  "size": 1194992,
-  "sha256": "e00d87dfd18e9bbcf910229b155ec5137163d66f6a90fa53001c7f16a3ae45fb",
+  "size": 1205696,
+  "sha256": "32e3f7c97309bc7444e64bb71f613f84200a0959e9a970807795a9d3adb7140d",
   "hardwareTested": false,
   "build": {
     "core": "esp32:esp32@3.3.11",
@@ -16,7 +16,7 @@
     "bootloaderOffset": 0,
     "displayProfile": 1,
     "initialRotation": 0,
-    "sourceSha256": "29c4e39abcf616d52283e2052d1814f614b964a61867e21fa4cf7772c4f3d696"
+    "sourceSha256": "32d60597b87143b5be0e5e8613106e044ab31c61bc0c05708d313a0140ba350c"
   },
   "new_install_prompt_erase": true,
   "new_install_improv_wait_time": 0,

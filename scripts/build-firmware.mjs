@@ -24,7 +24,9 @@ const sketchSource = (await readFile(join(root, 'firmware', 'tilt_toy', 'tilt_to
 const configSource = (await readFile(join(root, 'firmware', 'tilt_toy', 'config.h'), 'utf8')).replace(/\r\n/g, '\n');
 const fluidSource = (await readFile(join(root, 'firmware', 'tilt_toy', 'flip_fluid.h'), 'utf8')).replace(/\r\n/g, '\n');
 const motionSource = (await readFile(join(root, 'firmware', 'tilt_toy', 'motion_sensor.h'), 'utf8')).replace(/\r\n/g, '\n');
-const sourceSha256 = createHash('sha256').update(sketchSource+'\n'+configSource+'\n'+fluidSource+'\n'+motionSource).digest('hex');
+const stateSource = (await readFile(join(root, 'firmware', 'tilt_toy', 'motion_state.h'), 'utf8')).replace(/\r\n/g, '\n');
+const modesSource = (await readFile(join(root, 'firmware', 'tilt_toy', 'toy_modes.h'), 'utf8')).replace(/\r\n/g, '\n');
+const sourceSha256 = createHash('sha256').update(sketchSource+'\n'+configSource+'\n'+fluidSource+'\n'+motionSource+'\n'+stateSource+'\n'+modesSource).digest('hex');
 
 function run(command, args, logPath) {
   return new Promise((yes,no) => {
@@ -54,6 +56,8 @@ for (const board of selectedBoards) {
   await writeFile(join(staging, 'tilt_toy.ino'), sketchSource);
   await writeFile(join(staging, 'flip_fluid.h'), fluidSource);
   await writeFile(join(staging, 'motion_sensor.h'), motionSource);
+  await writeFile(join(staging, 'motion_state.h'), stateSource);
+  await writeFile(join(staging, 'toy_modes.h'), modesSource);
   for(const p of selectedProfiles) {
     console.log(`Compiling ${p.id} for ${board.name} / 4MB…`);
     const output=join(boardWork,p.id); await mkdir(output,{recursive:true});

@@ -1,5 +1,5 @@
 import { defaultBoard } from './boards.js';
-export const VERSION = '0.1.2';
+export const VERSION = '0.1.3';
 export const profiles = [
   { id: 'tft-80x160', name: 'TFT 80 × 160', short: 'Pocket TFT · Portrait', driver: 'ST7735S', width: 80, height: 160, shape: 'rectangle', bus: 'SPI', firmwareId: 0, defaultRotation: 0, hasCs: true, defaultSpiMode: 0, note: 'แนวตั้ง 80×160 • เปลี่ยนแนวเพิ่มเติมจากมือถือได้', source: 'https://www.waveshare.com/wiki/0.96inch_LCD_Module' },
   { id: 'tft-80x160-landscape', name: 'TFT 160 × 80', short: 'Pocket TFT · Landscape', driver: 'ST7735S', width: 160, height: 80, shape: 'rectangle', bus: 'SPI', firmwareId: 5, defaultRotation: 1, hasCs: true, defaultSpiMode: 0, note: 'แนวนอน 160×80 • ใช้จอ 80×160 และสายต่อชุดเดิม', source: 'https://www.waveshare.com/wiki/0.96inch_LCD_Module' },
@@ -15,7 +15,9 @@ export const displayChoices = [
   { id: 'oled-128x64', title: 'OLED 128 × 64', subtitle: '0.96” · SSD1306', shape: 'wide' }
 ];
 export const modes = [
-  { id: 'water', name: 'น้ำในลูกแก้ว', english: 'Liquid', detail: 'เอียงให้น้ำไหล เขย่าให้เกิดคลื่น', glyph: '≈' },
+  { id: 'water', name: 'น้ำปกติ', english: 'Liquid', detail: 'น้ำแบบเดิม ไหลตามการเอียงและเขย่าให้เกิดคลื่น', glyph: '≈' },
+  { id: 'water-inertia', name: 'น้ำมีแรงเฉื่อย', english: 'Inertia water', detail: 'กระตุกเครื่องให้น้ำซัดสวนทิศ แล้วไหลกลับ', glyph: '↝' },
+  { id: 'water-swirl', name: 'น้ำวน', english: 'Swirl water', detail: 'หมุนรอบจอให้น้ำวน หยุดหมุนแล้วน้ำยังเคลื่อนต่อ', glyph: '◎' },
   { id: 'maze', name: 'เขาวงกต', english: 'Tilt maze', detail: 'กลิ้งลูกบอลไปยังเป้าหมาย', glyph: '⊙' },
   { id: 'snow', name: 'ลูกแก้วหิมะ', english: 'Snow globe', detail: 'เขย่าให้หิมะฟุ้ง แล้วค่อย ๆ ตก', glyph: '✳' },
   { id: 'pong', name: 'Pong', english: 'Orbit pong', detail: 'เอียงเพื่อเลื่อนแป้นรับลูกบอล', glyph: '◒' },

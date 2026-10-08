@@ -20,7 +20,7 @@ int main() {
     assert(sensor.begin(wire));
     assert(!std::strcmp(sensor.name(), "BMI160") && sensor.hasGyro());
     assert(sensor.i2cAddress() == address);
-    put(wire, address, 0x0C, 6560); put(wire, address, 0x0E, -6560); put(wire, address, 0x10, 0);
+    put(wire, address, 0x0C, 1640); put(wire, address, 0x0E, -1640); put(wire, address, 0x10, 0);
     put(wire, address, 0x12, 4096); put(wire, address, 0x14, -4096); put(wire, address, 0x16, 8192);
     MotionSample sample;
     assert(sensor.read(sample));
@@ -37,7 +37,7 @@ int main() {
     assert(sensor.i2cAddress() == address);
     put(wire, address, 0x3B, -4096, true); put(wire, address, 0x3D, 4096, true); put(wire, address, 0x3F, -32768, true);
     put(wire, address, 0x41, 12345, true); // temperature must not be treated as gyro
-    put(wire, address, 0x43, 6550, true); put(wire, address, 0x45, -6550, true); put(wire, address, 0x47, 0, true);
+    put(wire, address, 0x43, 1640, true); put(wire, address, 0x45, -1640, true); put(wire, address, 0x47, 0, true);
     MotionSample sample;
     assert(sensor.read(sample));
     closeTo(sample.ax, -9.81f); closeTo(sample.ay, 9.81f); closeTo(sample.az, -78.48f);
@@ -84,5 +84,43 @@ int main() {
     assert(sensor.begin(wire)); // another supported device remains usable
     assert(!std::strcmp(sensor.name(), "MPU6050") && sensor.i2cAddress() == 0x69);
   }
-  std::cout << "Motion sensor detection, units, signed data and I2C failures passed\n";
+  for (bool bmi : {false, true}) {
+    TwoWire wire;
+    uint8_t address = 0x68;
+    wire.devices[address][bmi ? 0x00 : 0x75] = bmi ? 0xD1 : 0x68;
+    MotionSensor sensor;
+    assert(sensor.begin(wire));
+    assert(wire.devices[address][bmi ? 0x43 : 0x1B] == (bmi ? 0 : 0x18));
+    assert(wire.devices[address][bmi ? 0x47 : 0x23] == (bmi ? 0xC0 : 0x78));
+    MotionSample samples[MotionSensor::MaxBatch]; uint8_t count = 99;
+    assert(sensor.readBatch(samples,count) && count == 0);
+    auto enqueue = [&](int16_t ax, int16_t gz) {
+      int16_t values[6] = {ax,0,4096,0,0,gz};
+      if (bmi) { values[0]=0;values[1]=0;values[2]=gz;values[3]=ax;values[4]=0;values[5]=4096; }
+      for (int16_t value : values) {
+        uint16_t bits = static_cast<uint16_t>(value);
+        wire.fifo[address].push_back(bmi ? bits & 0xff : bits >> 8);
+        wire.fifo[address].push_back(bmi ? bits >> 8 : bits & 0xff);
+      }
+    };
+    enqueue(4096,1640); enqueue(-4096,-1640); enqueue(0,32767);
+    assert(sensor.readBatch(samples,count) && count == 3);
+    closeTo(samples[0].ax,9.81f);closeTo(samples[0].az,9.81f);closeTo(samples[0].gz,1.745329f);
+    closeTo(samples[1].ax,-9.81f);closeTo(samples[1].gz,-1.745329f);
+    closeTo(samples[2].gz,34.87036f,.002f); assert(wire.fifo[address].empty());
+    enqueue(0,0);wire.shortFifoRead=true;
+    assert(!sensor.readBatch(samples,count) && count == 0 && wire.fifo[address].empty());
+    wire.shortFifoRead=false;
+    for (int i=0;i<85;i++) enqueue(0,0);
+    assert(sensor.readBatch(samples,count) && count == 0 && sensor.fifoResets == 2);
+    assert(wire.fifo[address].empty());
+    enqueue(4096,0); assert(sensor.readBatch(samples,count) && count == 1);
+    // An incomplete packet stays queued until its final bytes arrive.
+    enqueue(0,0); auto last=wire.fifo[address].back();wire.fifo[address].pop_back();
+    assert(sensor.readBatch(samples,count) && count == 0 && wire.fifo[address].size() == 11);
+    wire.fifo[address].push_back(last);assert(sensor.readBatch(samples,count) && count == 1);
+    if (!bmi) { enqueue(0,0);wire.devices[address][0x3A]=0x10;assert(sensor.readBatch(samples,count) && count == 0); }
+    wire.devices.clear();assert(!sensor.readBatch(samples,count) && count == 0);
+  }
+  std::cout << "Motion sensor detection, units, signed data, FIFO and I2C failures passed\n";
 }

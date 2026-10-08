@@ -1,5 +1,27 @@
 # ผลตรวจ
 
+## v0.1.3 — น้ำปกติ / น้ำมีแรงเฉื่อย / น้ำวน
+
+วันที่ 8 ตุลาคม 2026 · Flash 4MB · Arduino-ESP32 3.3.11
+
+แยกน้ำเป็นสามโหมดใน firmware, หน้าเครื่อง และ web preview รวมทั้งหมด 8 โหมด รักษา NVS index ของหกโหมดเดิมไว้ น้ำปกติรับแรงจากการเอียงและ shake; น้ำมีแรงเฉื่อยเพิ่มแรงสวนการขยับเครื่อง; น้ำวนเพิ่มแรงจากความเร็วและความเร่งในการหมุนรอบจอ พร้อม drag ใกล้ผนัง
+
+`npm test` ผ่าน **38 tests** ด้วย MSVC (`CXX=cl`) ไม่มี test ที่ข้าม ครอบคลุม FIFO 100 Hz ของ BMI160/MPU6050, signed SI units, short read/overflow/disconnect, axis map ทั้ง 24 ทิศ, gravity/quaternion/linear acceleration, stationary bias, การแยกแรงของสามโหมด และการควบคุมผ่านหน้าเครื่อง JS/C++ ตรงกันตลอด 150 fusion samples และ 50 liquid inputs ที่ตรวจเป็น single step แยกกัน ยังไม่รับรอง trajectory ยาวที่สะสมหลาย steps ว่าตรงกันภายใน 1e-4 เนื่องจาก float/double อาจทำให้การชนและการเลือก cell ต่างกัน
+
+คอมไพล์ใหม่ครบ **18 คู่บอร์ด/จอ** (3 บอร์ด × 6 โปรไฟล์) โดยใช้ DIO และ partition `huge_app` ตัวเลขต่อไปนี้เป็นช่วงต่ำสุด–สูงสุดจาก compiler ของแต่ละบอร์ด:
+
+| บอร์ด | App (bytes) | Merged binary (bytes) | Global RAM (bytes) |
+| --- | ---: | ---: | ---: |
+| ESP32 30-pin | 1,044,540–1,046,404 | 1,110,224–1,112,096 | 82,224–82,296 |
+| ESP32-C3 SuperMini | 1,137,779–1,140,411 | 1,203,472–1,206,096 | 72,104–72,168 |
+| ESP32-C6 SuperMini | 1,166,648–1,169,272 | 1,232,288–1,234,912 | 78,772–78,836 |
+
+ตรวจ artifacts ทั้ง 18 ชุด: chip/bootloader/app header, partition size, SHA-256, board/profile ID, ID ของน้ำสองโหมดใหม่ และ source hash ที่รวม source ทั้งหกไฟล์ `npm run build` ผ่าน และไฟล์ใน `dist/` ตรงกับ release ที่ตรวจแล้ว
+
+ตรวจเว็บใน Codex in-app browser ว่าสามปุ่มน้ำแยกกัน แสดงปุ่มกระตุกเฉพาะน้ำมีแรงเฉื่อย แสดงความเร็วหมุน/วางราบ/หยุดหมุนเฉพาะน้ำวน และน้ำปกติใช้ปุ่มเขย่า ตรวจ viewport 390×844 ไม่มี page horizontal overflow
+
+ยังไม่ได้แฟลชหรือทดสอบกับบอร์ด จอ และเซนเซอร์จริง ทุก manifest คง `hardwareTested: false` ต้องตรวจทิศแกน แรงน้ำขณะกระตุก/หมุนและหลังหยุด FIFO เมื่อจอส่งภาพ และเวลา solver/free heap ตาม [HARDWARE.md](HARDWARE.md) Global RAM ยังไม่รวม framebuffer และ heap ที่ allocate ระหว่างรัน
+
 ## v0.1.2 — ESP32 30-pin / C3 SuperMini / C6 SuperMini
 
 วันที่ 7 ตุลาคม 2026 · Flash 4MB · Arduino-ESP32 3.3.11
