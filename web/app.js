@@ -49,7 +49,37 @@ function chooseDisplay(){
   preview.setProfile(profile);wiring.setProfile(profile,sensorId,board);
   $('panel-source').href=profile.source;verifyRelease(profile,board,++generation);
 }
-function chooseMode(id){currentMode=id;remember();preview.setMode(id);document.querySelectorAll('[data-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.mode===id)));const m=modes.find(m=>m.id===id);$('mode-readout').textContent=m.english.toUpperCase();$('mode-description').textContent=`${m.detail} · ภาพจำลองบนเว็บ`;$('fluid-controls').hidden=!isLiquidMode(id);$('spin-controls').hidden=id!=='water-swirl';$('jolt-controls').hidden=id!=='water-inertia';$('shake').hidden=['water-inertia','water-swirl','water-full'].includes(id);$('spin').value=0;$('spin-value').textContent='0°/s';}
+function chooseMode(id){const wasFull=currentMode==='water-full';currentMode=id;remember();preview.setMode(id);document.querySelectorAll('[data-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.mode===id)));const m=modes.find(m=>m.id===id);$('mode-readout').textContent=m.english.toUpperCase();$('mode-description').textContent=`${m.detail} · ภาพจำลองบนเว็บ`;$('fluid-controls').hidden=!isLiquidMode(id);$('spin-controls').hidden=id!=='water-swirl';$('jolt-controls').hidden=id!=='water-inertia';$('shake').hidden=['water-inertia','water-swirl','water-full'].includes(id);$('spin').value=0;$('spin-value').textContent='0°/s';if(wasFull||id==='water-full')configureFullControls(id);}
+
+// WaterFull controls are separate from the two existing motion-water panels.
+function configureFullControls(id){
+  const full=id==='water-full';$('water-full-controls').hidden=!full;
+  $('tilt').min=full?-180:-60;$('tilt').max=full?180:60;
+  $('full-spin').value=0;$('full-spin-value').textContent='0°/s';$('full-demo').disabled=false;$('full-stop-demo').disabled=true;
+  if(!full){
+    preview.setTilt(Math.max(-60,Math.min(60,preview.roll)),preview.pitch);
+    $('tilt').value=preview.roll;$('tilt-value').textContent=Math.round(preview.roll)+'°';
+    $('roll-readout').textContent=(preview.roll>=0?'+':'')+Math.round(preview.roll)+'°';
+    $('pitch').value=preview.pitch;$('pitch-readout').textContent=(preview.pitch>=0?'+':'')+Math.round(preview.pitch)+'°';
+    $('device').style.transform=`rotate(${preview.roll*.12}deg)`;
+  }
+}
+preview.onFullMotion=state=>{
+  if(currentMode!=='water-full')return;
+  const roll=Math.round(state.roll),pitch=Math.round(state.pitch),target=Math.round(state.targetRoll);
+  $('tilt').value=target;$('tilt-value').textContent=target+'°';$('pitch').value=Math.round(state.targetPitch);
+  $('roll-readout').textContent=(roll>=0?'+':'')+roll+'°';$('pitch-readout').textContent=(pitch>=0?'+':'')+pitch+'°';
+  $('device').style.transform=`rotate(${state.roll*.12}deg)`;
+  $('full-spin').value=state.spin;$('full-spin-value').textContent=Math.round(state.spin)+'°/s';
+  $('full-demo').disabled=state.demo;$('full-stop-demo').disabled=!state.demo;
+};
+$('full-spin').addEventListener('input',()=>preview.setFullSpin(Number($('full-spin').value)));
+$('full-stop-spin').addEventListener('click',()=>preview.setFullSpin(0));
+$('full-flat').addEventListener('click',()=>preview.setTilt(preview.roll,90));
+$('full-demo').addEventListener('click',()=>preview.startFullDemo());
+$('full-stop-demo').addEventListener('click',()=>preview.stopFullDemo());
+document.querySelectorAll('[data-full-jolt]').forEach(button=>button.addEventListener('click',()=>preview.jolt(...button.dataset.fullJolt.split(',').map(Number))));
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&currentMode==='water-full')preview.pauseFullMotion();});
 for(const d of displayChoices){const b=document.createElement('button');b.className='display-card';b.dataset.display=d.id;b.setAttribute('aria-pressed','false');b.innerHTML=`<span class="mini-screen ${d.shape}" aria-hidden="true"></span><span><strong>${d.title}</strong><small>${d.subtitle}</small></span>`;b.addEventListener('click',()=>{choice=d.id;chooseDisplay();});$('displays').append(b);}
 for(const m of modes){const b=document.createElement('button');b.className='mode-button';b.dataset.mode=m.id;b.setAttribute('aria-pressed','false');b.innerHTML=`<span class="glyph" aria-hidden="true">${m.glyph}</span><span>${m.name}</span><small>${m.english}</small>`;b.addEventListener('click',()=>chooseMode(m.id));$('modes').append(b);}
 $('driver').addEventListener('change',()=>{driver=$('driver').value;chooseDisplay();});

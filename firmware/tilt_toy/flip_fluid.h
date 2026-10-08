@@ -18,6 +18,14 @@ The above copyright notice and this permission notice shall be included in all c
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.)MIT";
 
+// WaterFull-only style. The three existing water modes retain their palette and blend.
+struct FullWaterStyle {
+  static constexpr float Flip = .93f;
+  static uint16_t color(bool surface, int i, int j) {
+    return surface ? 0xB7BF : ((i+j)&1) ? 0x1E3B : 0x15DA;
+  }
+};
+
 class FlipFluid {
  public:
   static constexpr int MaxCells = 400, MaxParticles = 900;
@@ -221,7 +229,7 @@ class FlipFluid {
     return (1-tx)*(1-ty)*density[c] + tx*(1-ty)*density[c+ny] + (1-tx)*ty*density[c+1] + tx*ty*density[c+ny+1];
   }
   // Pixel (i, j) covers simulation x = originX + i*cellX, y = originY + j*cellY. Returns false if the grid is too large.
-  bool rasterize(int cols, int rows, float originX, float originY, float cellX, float cellY, float gx, float gy) {
+  bool rasterize(int cols, int rows, float originX, float originY, float cellX, float cellY, float gx, float gy, bool allSurface = false) {
     if (cols < 1 || rows < 1 || cols > MaxPixelSide || rows > MaxPixelSide) return false;
     const float threshold = restDensity*.4f;
     for (int j = 0; j < rows; j++) for (int i = 0; i < cols; i++) {
@@ -236,7 +244,7 @@ class FlipFluid {
     const float length = sqrtf(gx*gx+gy*gy), ux = length > 1e-3f ? -gx/length : 0, uy = length > 1e-3f ? -gy/length : -1;
     static const int8_t around[8][2] = {{-1,-1},{0,-1},{1,-1},{-1,0},{1,0},{-1,1},{0,1},{1,1}};
     int up[8][2], ups = 0;
-    for (auto &o : around) if ((o[0]*ux+o[1]*uy)/sqrtf((float)(o[0]*o[0]+o[1]*o[1])) > .38f) { up[ups][0] = o[0]; up[ups++][1] = o[1]; }
+    for (auto &o : around) if (allSurface || (o[0]*ux+o[1]*uy)/sqrtf((float)(o[0]*o[0]+o[1]*o[1])) > .38f) { up[ups][0] = o[0]; up[ups++][1] = o[1]; }
     for (int j = 0; j < rows; j++) for (int i = 0; i < cols; i++) {
       if (pixels[j*cols+i] != 1) continue;
       for (int k = 0; k < ups; k++) {

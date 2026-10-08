@@ -44,6 +44,7 @@ test('phone controls display each detected sensor and offer calibration only whi
     for (const [mode,name] of [['water','น้ำปกติ'],['water-inertia','น้ำมีแรงเฉื่อย'],['water-swirl','น้ำวน'],['water-full','น้ำสมจริง'],['pixel-flow','น้ำพิกเซล']]) {
       state={...state,mode};await poll();
       assert.equal(get('vMode').textContent,name);
+      assert.equal(get('fullMotionHint').hidden,mode!=='water-full');
       assert.equal(get('sSim').hidden,false);assert.equal(get('sParticles').hidden,false);
       assert.equal(get('shake').hidden,!['water','pixel-flow'].includes(mode));
       get('mode').value=mode;await get('save').onclick();

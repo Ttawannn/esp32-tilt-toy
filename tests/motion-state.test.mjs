@@ -4,7 +4,7 @@ import { spawnSync } from 'node:child_process';
 import { mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { MotionState, validAxes, GRAVITY } from '../web/motion.js';
-import { FlipFluid } from '../web/fluid.js';
+import { FlipFluid, FULL_WATER_FLIP, fullWaterColor, pixelWater } from '../web/fluid.js';
 import { waterForces } from '../web/water-modes.js';
 
 const sample = (ax=0,ay=0,az=GRAVITY,gx=0,gy=0,gz=0) => ({ax,ay,az,gx,gy,gz});
@@ -64,7 +64,7 @@ test('liquid reacts opposite a jolt and spins opposite starting rotation, retain
 });
 const compiler=process.env.CXX||'g++',msvc=/(?:^|[/\\])cl(?:\.exe)?$/i.test(compiler);
 const probe=spawnSync(compiler,msvc?[]:['--version'],{windowsHide:true});
-test('C++ and JS agree over 150 fusion samples and 50 independent liquid force steps',{skip:probe.error?'Set CXX to g++ / clang++ / cl':false},async()=>{
+test('C++/JS fusion, forces and full-water palette/raster agree; C++ survives 1000 mixed-force steps',{skip:probe.error?'Set CXX to g++ / clang++ / cl':false},async()=>{
   const dir=resolve('work','state-parity');await mkdir(dir,{recursive:true});const exe=resolve(dir,process.platform==='win32'?'parity.exe':'parity');
   const src=resolve('tests/motion/state_parity.cpp'),includes=resolve('tests/motion');
   const args=msvc?['/nologo','/std:c++17','/EHsc','/W4',`/I${includes}`,src,`/Fe:${exe}`,`/Fo:${resolve(dir,'parity.obj')}`]:['-std=c++17','-Wall','-Wextra','-Werror',`-I${includes}`,src,'-o',exe];
@@ -74,6 +74,7 @@ test('C++ and JS agree over 150 fusion samples and 50 independent liquid force s
     input.push(`W ${id} .3 .4 .5 12 -8 3 2 10`);
     expected.push(Object.values(waterForces(mode,{x:.3,y:.4,z:.5},{x:12,y:-8,z:3},2,10)));
   }
+  const fusionEnd=expected.length+150;
   for(let i=0;i<150;i++){
     const s=sample(i>100?3:0,0,GRAVITY,0,0,.7);input.push(`M ${Object.values(s).join(' ')} .01`);motion.update(s);
     expected.push([...motion.q,...Object.values(motion.gravity),...Object.values(motion.linear),...Object.values(motion.omega),motion.omegaDot,motion.roll,motion.pitch,motion.yaw]);
@@ -86,7 +87,19 @@ test('C++ and JS agree over 150 fusion samples and 50 independent liquid force s
     input.push(`F .025 ${ax} ${ay} ${omega} ${dot} .15`);fluid.advance(.025,ax,ay,omega,dot,.9,.15);
     const values=[fluid.count];for(let p=0;p<fluid.count;p++)values.push(fluid.x[p],fluid.y[p],fluid.vx[p],fluid.vy[p]);expected.push(values);
   }
+  input.push('S');expected.push([FULL_WATER_FLIP,fullWaterColor(false,0,0),fullWaterColor(false,1,0),fullWaterColor(true,0,0)]);
+  for(let i=0;i<20;i++){
+    input.push('R');fluid.reset(50);
+    const gravity={x:Math.sin(i*.2),y:Math.cos(i*.2),z:0},linear={x:Math.sin(i*.4)*12,y:Math.cos(i*.3)*8,z:0},omega=i%2?3:-3,dot=i%3?40:-40;
+    input.push(`U .025 ${Object.values(gravity).join(' ')} ${Object.values(linear).join(' ')} ${omega} ${dot}`);
+    const f=waterForces('water-full',gravity,linear,omega,dot);
+    fluid.advance(.025,f.ax,f.ay,f.omega,f.omegaDot,FULL_WATER_FLIP,f.wallDrag);
+    const values=[fluid.count];for(let p=0;p<fluid.count;p++)values.push(fluid.x[p],fluid.y[p],fluid.vx[p],fluid.vy[p]);
+    values.push(...pixelWater(fluid,10,10,fluid.h,fluid.h,6*fluid.h/10,6*fluid.h/10,gravity.x,gravity.y,undefined,true));
+    expected.push(values);
+  }
+  input.push('B');expected.push([1]);
   const run=spawnSync(exe,[],{input:input.join('\n')+'\n',windowsHide:true,encoding:'utf8'});assert.equal(run.status,0,run.stderr);
   const lines=run.stdout.trim().split(/\r?\n/);assert.equal(lines.length,expected.length);
-  lines.forEach((line,i)=>{const actual=line.split(' ').map(Number);assert.equal(actual.length,expected[i].length);actual.forEach((v,j)=>assert.ok(Math.abs(v-expected[i][j])<(i<153?2e-4:1e-4),`line ${i}, value ${j}: ${v} != ${expected[i][j]}`));});
+  lines.forEach((line,i)=>{const actual=line.split(' ').map(Number);assert.equal(actual.length,expected[i].length);actual.forEach((v,j)=>assert.ok(Math.abs(v-expected[i][j])<(i<fusionEnd?2e-4:1e-4),`line ${i}, value ${j}: ${v} != ${expected[i][j]}`));});
 });

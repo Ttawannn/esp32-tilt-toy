@@ -14,7 +14,7 @@ inline int nextToyMode(int current) {
   return Water;
 }
 struct WaterForces { float ax, ay, omega = 0, omegaDot = 0, wallDrag = 0; };
-// WaterFull and PixelFlow use tilt only until their own forces are implemented.
+// PixelFlow keeps its tilt-only placeholder until its own solver is implemented.
 inline WaterForces waterForces(int mode, MotionVector gravity, MotionVector linear, float omega, float omegaDot, float sensitivity = 1) {
   WaterForces forces{4*sensitivity*gravity.x,4*sensitivity*gravity.y};
   if (mode == WaterInertia) {
@@ -22,6 +22,12 @@ inline WaterForces waterForces(int mode, MotionVector gravity, MotionVector line
     forces.ay -= 4*sensitivity*(fabsf(linear.y)<.4f?0:linear.y)/MotionState::G;
   } else if (mode == WaterSwirl) {
     forces.omega = omega; forces.omegaDot = omegaDot; forces.wallDrag = .15f;
+  } else if (mode == WaterFull) {
+    // Full-motion preset: measured translation and rotation together, without shake impulses.
+    constexpr float linearGain = 1.35f, deadband = .4f;
+    forces.ax -= 4*sensitivity*linearGain*(fabsf(linear.x)<deadband?0:linear.x)/MotionState::G;
+    forces.ay -= 4*sensitivity*linearGain*(fabsf(linear.y)<deadband?0:linear.y)/MotionState::G;
+    forces.omega = omega; forces.omegaDot = omegaDot; forces.wallDrag = .10f;
   }
   return forces;
 }

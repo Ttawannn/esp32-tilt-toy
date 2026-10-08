@@ -8,6 +8,15 @@
 const SOLID=2, AIR=1, FLUID=0, STEP=.025;
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 
+// WaterFull-only preset and RGB565 palette, mirrored by FullWaterStyle in flip_fluid.h.
+export const FULL_WATER_FLIP=.93;
+export const fullWaterColor=(surface,i,j)=>surface?0xB7BF:((i+j)&1)?0x1E3B:0x15DA;
+const fullWaterCss=new Map([0x15DA,0x1E3B,0xB7BF].map(color=>{
+  const r=Math.round((color>>11)*255/31),g=Math.round(((color>>5)&63)*255/63),b=Math.round((color&31)*255/31);
+  return [color,`rgb(${r},${g},${b})`];
+}));
+export const fullWaterCssColor=(surface,i,j)=>fullWaterCss.get(fullWaterColor(surface,i,j));
+
 export function fluidLayout(width,height,round=false) {
   if(round)return {nx:20,ny:20,x:4,y:4,width:width-8,height:height-8,round:true};
   const w=width-4,h=height-4,short= Math.min(w,h)<40?6:Math.min(w,h)<100?8:16;
@@ -175,7 +184,7 @@ export class FlipFluid {
 // Square pixels for drawing water: each screen cell is either water or not, so blocks never overlap.
 // cells: 0 empty, 1 water, 2 surface (open toward -gravity), 3 outside the vessel.
 // Pixel (i, j) covers simulation x = originX + i*cellX ... like the C++ FlipFluid::rasterize.
-export function pixelWater(f,cols,rows,originX,originY,cellX,cellY,gx,gy,cells=new Uint8Array(cols*rows)) {
+export function pixelWater(f,cols,rows,originX,originY,cellX,cellY,gx,gy,cells=new Uint8Array(cols*rows),allSurface=false) {
   cells.fill(0);
   const min=f.h+f.radius,maxX=(f.nx-1)*f.h-f.radius,maxY=(f.ny-1)*f.h-f.radius,rim=f.vesselRadius-.8*f.h,threshold=f.restDensity*.4,n=f.ny,d=f.density;
   // Sample density inside the particle domain so water reaches the walls particles cannot touch.
@@ -195,7 +204,7 @@ export function pixelWater(f,cols,rows,originX,originY,cellX,cellY,gx,gy,cells=n
   }
   // Surface: a water pixel with an empty pixel above it (the up neighbour and the diagonals beside it).
   const length=Math.hypot(gx,gy),ux=length>1e-3?-gx/length:0,uy=length>1e-3?-gy/length:-1;
-  const up=[[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]].filter(([dx,dy])=>(dx*ux+dy*uy)/Math.hypot(dx,dy)>.38);
+  const up=[[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]].filter(([dx,dy])=>allSurface||(dx*ux+dy*uy)/Math.hypot(dx,dy)>.38);
   for(let j=0;j<rows;j++)for(let i=0;i<cols;i++){
     if(cells[j*cols+i]!==1)continue;
     for(const[dx,dy]of up){const a=i+dx,b=j+dy;if(a>=0&&a<cols&&b>=0&&b<rows&&cells[b*cols+a]===0){cells[j*cols+i]=2;break;}}
