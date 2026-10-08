@@ -3,7 +3,7 @@ on: [push, pull_request, workflow_dispatch]
 permissions:
   contents: read
 jobs:
-  web:
+  source:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -12,10 +12,32 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm test
+      - run: npm run test:source
+  web:
+    needs: source
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run test:releases
       - run: npm run build
   firmware:
+    needs: source
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        board: [esp32-30pin, esp32-c3-supermini, esp32-c6-supermini]
+    env:
+      FIRMWARE_WORK_DIR: work/firmware/cache
+      FIRMWARE_OUTPUT_DIR: work/releases
+      FIRMWARE_BOARD: ${{ matrix.board }}
+      # The source job has already checked this exact checkout.
+      FIRMWARE_SKIP_PREFLIGHT: '1'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -24,16 +46,37 @@ jobs:
       - uses: arduino/setup-arduino-cli@v2
         with:
           version: 1.5.1
-      - name: Install pinned toolchain
+      - name: Cache pinned toolchain and libraries
+        id: toolchain
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.arduino15/packages
+            ~/.arduino15/staging
+            ~/Arduino/libraries
+          key: ${{ runner.os }}-${{ runner.arch }}-arduino-toolchain-v1-${{ hashFiles('.github/workflows/ci.yml') }}
+      - name: Configure Arduino CLI
         run: |
           arduino-cli config init
           arduino-cli config add board_manager.additional_urls https://espressif.github.io/arduino-esp32/package_esp32_index.json
+      - name: Install pinned toolchain
+        if: steps.toolchain.outputs.cache-hit != 'true'
+        run: |
           arduino-cli core update-index
           arduino-cli core install esp32:esp32@3.3.11
           arduino-cli lib install "Adafruit GFX Library@1.12.6" "Adafruit BusIO@1.17.4" "Adafruit ST7735 and ST7789 Library@1.11.0" "Adafruit GC9A01A@1.1.1" "Adafruit SSD1306@2.5.17" "Adafruit Unified Sensor@1.1.15"
-      - run: npm run firmware
-      - run: npm test
+      - name: Restore board build cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            work/firmware/cache/${{ matrix.board }}/build
+            work/firmware/cache/${{ matrix.board }}/source
+          key: ${{ runner.os }}-${{ runner.arch }}-arduino-build-v1-${{ matrix.board }}-${{ hashFiles('.github/workflows/ci.yml', 'web/boards.js', 'scripts/build-firmware.mjs', 'scripts/firmware-build-utils.mjs') }}-${{ hashFiles('firmware/tilt_toy/**') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-arduino-build-v1-${{ matrix.board }}-${{ hashFiles('.github/workflows/ci.yml', 'web/boards.js', 'scripts/build-firmware.mjs', 'scripts/firmware-build-utils.mjs') }}-
+      - run: npm run firmware -- ${{ matrix.board }}
+      - run: npm run test:releases
       - uses: actions/upload-artifact@v4
         with:
-          name: esp32-firmware
-          path: web/firmware/
+          name: esp32-firmware-${{ matrix.board }}
+          path: work/releases/

@@ -4,6 +4,14 @@ import { readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { profiles, findProfile, validateRelease, wiringFor } from '../web/profiles.js';
 import { boards, releasePath, validateFirmwareImage } from '../web/boards.js';
+import { resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
+
+const releaseRoot = process.env.FIRMWARE_OUTPUT_DIR
+  ? pathToFileURL(resolve(process.env.FIRMWARE_OUTPUT_DIR) + '/')
+  : new URL('../web/firmware/', import.meta.url);
+const releaseBoards = process.env.FIRMWARE_BOARD ? boards.filter(board => board.id === process.env.FIRMWARE_BOARD) : boards;
+assert.ok(releaseBoards.length > 0, 'FIRMWARE_BOARD must name a known board');
 test('round and square TFT 240×240 have distinct drivers',()=>{
   assert.equal(findProfile('tft-240x240','GC9A01').id,'tft-240x240-gc9a01');
   assert.equal(findProfile('tft-240x240','ST7789').id,'tft-240x240-st7789');
@@ -27,8 +35,8 @@ test('GMT130 no-CS and shared I²C wiring match firmware',()=>{
     for(const p of profiles)assert.equal(wiringFor(p,'mpu6050',board).some(([,pin])=>board.reserved.map(n=>`GPIO${n}`).includes(pin)),false);
   }
 });
-for(const board of boards) for(const profile of profiles)test(`release ${board.id}/${profile.id}: bytes, checksum, chip and partition layout`,async()=>{
-  const base=new URL('../web/firmware/',import.meta.url);
+for(const board of releaseBoards) for(const profile of profiles)test(`release ${board.id}/${profile.id}: bytes, checksum, chip and partition layout`,async()=>{
+  const base=releaseRoot;
   const manifestUrl=new URL(`${releasePath(profile,board)}.json`,base);
   const release=validateRelease(JSON.parse(await readFile(manifestUrl,'utf8')),profile,board);
   const binary=await readFile(new URL(release.builds[0].parts[0].path,manifestUrl));
