@@ -1,148 +1,156 @@
 # esp32-tilt-toy
 
-พวงกุญแจ **ESP32 30-pin / ESP32-C3 SuperMini / ESP32-C6 SuperMini + BMI160 / MPU6050** ที่เล่นด้วยการเอียงและเขย่า มีเว็บเลือกบอร์ด จอ และโมดูลเซนเซอร์ ทดลองเล่น และแฟลชผ่าน USB พร้อมหน้าตั้งค่าบนตัวเครื่องที่เปิดจากมือถือ
+**English** · [ภาษาไทย](README.th.md)
 
-**เว็บ installer + preview:** https://ttawannn.github.io/esp32-tilt-toy/
+A pocket toy built with an **ESP32 30-pin / ESP32-C3 SuperMini / ESP32-C6 SuperMini + BMI160 / MPU6050**. Play by tilting and shaking it. The web app lets you choose a board, display, and sensor, try the modes, and flash over USB. The device also serves a settings page you can open from your phone.
 
-## เพิ่มใน v0.1.4
+**Web installer and preview:** [Open ESP32 Tilt Toy](https://ttawannn.github.io/esp32-tilt-toy/)
 
-- **น้ำพิกเซล (pixel-flow)**: น้ำ 1 เม็ดเท่ากับ 1 ช่องบนจอ วาดเป็นตารางจุดแบบจอ LED ผิวน้ำสว่างกว่า หยดเดี่ยวกระเซ็นได้ เอียงแล้วผิวน้ำเอียงตามมุมจริง คำนวณด้วยเลขจำนวนเต็ม จอ TFT ส่งเฉพาะเม็ดที่เปลี่ยนที่ 30 Hz
-- **น้ำสมจริง (water-full)**: ใช้ FLIP เดิม รวมแรงเอียง แรงกระตุก และแรงหมุนรอบจอในโหมดเดียว สีและ blend เฉพาะโหมด preview หมุนได้ ±180° ต่อเนื่อง มีปุ่มหมุนเครื่องตัวอย่าง
+## Language
 
-รวมเป็น 10 โหมด ID เดิม 0–7 ใน NVS ไม่เปลี่ยน แผนของสองโหมดนี้: [pixel flow plan claude draft.md](docs/pixel%20flow%20plan%20claude%20draft.md) (น้ำพิกเซล) และ [pixel flow plan codex.md](docs/pixel%20flow%20plan%20codex.md) (น้ำสมจริง)
+The installer and preview open in **English** by default. Use the **ภาษาไทย** button in the top bar to switch to Thai, or **English** to switch back. Your browser remembers the language. Switching updates the controls, mode descriptions, wiring diagram, pin pairs, and firmware status without changing the selected hardware, mode, or completed practice connections.
 
-## เพิ่มใน v0.1.3
+For the Thai documentation, open [README.th.md](README.th.md). The device settings page described below is served separately by the firmware.
 
-- อ่าน BMI160 / MPU6050 จาก FIFO ที่ 100 Hz และขยาย gyro เป็น ±2000°/s เพื่อเก็บการหมุนระหว่างส่งภาพจอ
-- รวม accelerometer กับ gyro เป็น quaternion และแยกแรงขยับออกจากแรงโน้มถ่วง แยกเป็นน้ำปกติ, น้ำมีแรงเฉื่อย (ซัดสวนการกระตุก) และน้ำวน (แรง Euler / Coriolis / centrifugal เมื่อหมุนรอบจอ)
-- ตั้งทิศแกน X/Y/Z และกลับเครื่องหมายจากมือถือได้ เก็บใน NVS และใช้กับทั้ง accelerometer และ gyro ทุกการหมุนภาพ
-- หน้ามือถือแสดง gravity, ความเร็วหมุน และแรงขยับของแต่ละแกน ส่วน preview มีวางราบ หมุน หยุดหมุน และกระตุกสี่ทิศ
+## New in v0.1.4
 
-นี่เป็นฐาน motion และโหมดน้ำของแผน [6DOF](docs/MOTION-PLAN.md) โหมด Space/Level/Balance และพฤติกรรมตา/ลูกเต๋าในแผนนั้นเป็นงานถัดไป
+- **Pixel Flow (`pixel-flow`)**: Each water drop occupies one LED-style grid cell. Surface drops are brighter; individual drops can splash. The surface follows the actual tilt angle. The simulation uses integer arithmetic, and TFT displays update only changed drops at 30 Hz.
+- **Full-motion water (`water-full`)**: Combines the existing FLIP solver with tilt, jolts, and rotation in one mode. The preview has its own colors and blending, continuous ±180° tilt, and a spin demo.
 
-## โหมดในเครื่อง
+There are now 10 modes. Existing NVS IDs 0–7 are unchanged. See the [Pixel Flow plan](docs/pixel%20flow%20plan%20claude%20draft.md) and [Full-motion water plan](docs/pixel%20flow%20plan%20codex.md).
 
-ทุก firmware มีครบ 10 โหมด กดปุ่ม **BOOT บนบอร์ด** สั้น ๆ เพื่อสลับ หน้าจอใช้เป็นพื้นที่เล่นทั้งหมด ไม่มีชื่อโหมด ตัวเลข หรือกรอบ ค่าต่าง ๆ ไปแสดงบนหน้าเว็บในมือถือแทน ข้อความบนจอมีแค่ 2 กรณี คือชื่อ Wi-Fi กับ IP ขณะเปิดโหมดตั้งค่า และ `IMU NOT FOUND` เมื่อไม่พบเซนเซอร์
+## New in v0.1.3
 
-| โหมด | เล่นอย่างไร |
+- Read BMI160 / MPU6050 FIFO samples at 100 Hz; increase the gyro range to ±2000°/s to capture rotation while transmitting display frames.
+- Fuse accelerometer and gyro measurements into a quaternion and separate translation from gravity. Liquid uses tilt, Inertia water opposes jolts, and Swirl water adds Euler, Coriolis, and centrifugal forces around the screen axis.
+- Set the X/Y/Z axis mapping and signs from a phone. Save them in NVS and apply them to both accelerometer and gyro measurements at every display rotation.
+- The phone page shows gravity, angular velocity, and translation on each axis. The preview offers lay-flat, spin, stop-spin, and four-direction jolt controls.
+
+This implements the motion foundation and water modes of the [6DOF plan](docs/MOTION-PLAN.md). Space, Level, Balance, and the planned eye/dice behaviors remain future work.
+
+## Device modes
+
+Every firmware includes all 10 modes. Tap the **onboard BOOT button** to cycle through them. The full display is a play area, without mode labels, numbers, or frames; those values appear on the phone page. On-device text is limited to the Wi-Fi name and IP address during setup, and `IMU NOT FOUND` when the sensor is missing.
+
+| Mode | How to play |
 | --- | --- |
-| **น้ำปกติ (water)** | น้ำแบบเดิม ไหลตามการเอียง เขย่าให้เกิดคลื่น พิกเซลสี่เหลี่ยมและผิวน้ำสีจาง |
-| **น้ำมีแรงเฉื่อย (water-inertia)** | กระตุกเครื่องแล้วน้ำซัดสวนทิศ ใช้แรงขยับเชิงเส้น ไม่มีแรงหมุนเพิ่ม |
-| **น้ำวน (water-swirl)** | หมุนรอบจอแล้วน้ำวน หยุดหมุนแล้วยังเคลื่อนต่อ ใช้แรงหมุน ไม่มีแรงกระตุกเพิ่ม |
-| **น้ำสมจริง (water-full)** | เอียง กระตุก และหมุนพร้อมกัน น้ำตอบสนองครบทุกแรง ไม่มีปุ่มเขย่าแยก |
-| **น้ำพิกเซล (pixel-flow)** | น้ำเม็ดละเอียดแบบจอ LED เอียงให้ไหล กระตุกให้ซัด เขย่าให้กระเซ็น |
-| Tilt maze | กลิ้งลูกบอลหลบกำแพงไปยังเป้าหมาย |
-| Snow globe | เขย่าให้หิมะฟุ้ง แล้วค่อย ๆ ตกตามแรงโน้มถ่วง |
-| Orbit pong | เอียงเพื่อเลื่อนแป้นรอบวงรับลูกบอล |
-| Pocket eyes | ตาการ์ตูนมองตามทิศที่เอียง |
-| Shake & roll | เขย่าเพื่อทอยลูกเต๋า |
+| **Liquid (`water`)** | Classic water follows tilt; shake to make waves. Square pixels and a pale surface. |
+| **Inertia water (`water-inertia`)** | Jolt the toy to send water in the opposite direction. Adds linear motion without extra rotation forces. |
+| **Swirl water (`water-swirl`)** | Spin around the screen to swirl the water. It keeps moving after you stop. Adds rotation without extra jolt forces. |
+| **Full-motion water (`water-full`)** | Tilt, jolt, and spin together. Water responds to all three forces, without a separate shake button. |
+| **Pixel Flow (`pixel-flow`)** | LED-style water drops. Tilt to flow, jolt to surge, and shake to splash. |
+| Tilt maze | Roll the ball around walls to the goal. |
+| Snow globe | Shake the snow into the air and let it fall under gravity. |
+| Orbit pong | Tilt to move the paddle around the perimeter and catch the ball. |
+| Pocket eyes | Cartoon eyes follow your tilt. |
+| Shake & roll | Shake to roll the dice. |
 
-### โหมดน้ำ (FLIP/PIC)
+### FLIP/PIC water
 
-โหมดน้ำจำลองของไหลแบบ FLIP/PIC บนกริด MAC ดัดแปลงจาก [Ten Minute Physics #18](https://matthias-research.github.io/pages/tenMinutePhysics/18-flip.html) ของ Matthias Müller (MIT license) มีโค้ดสองชุดที่ใช้สมการและค่าคงที่เดียวกัน
+The fluid simulation uses a FLIP/PIC solver on a MAC grid, adapted from Matthias Müller's [Ten Minute Physics #18](https://matthias-research.github.io/pages/tenMinutePhysics/18-flip.html) under the MIT license. Two implementations share the equations and constants:
 
-- `firmware/tilt_toy/flip_fluid.h`: C++ จองหน่วยความจำคงที่ไว้สูงสุด 400 cells / 900 particles (~32 KB รวมกริดพิกเซล) ไม่ allocate ระหว่างรัน
-- `web/fluid.js`: JavaScript สำหรับ preview บนเว็บ
+- `firmware/tilt_toy/flip_fluid.h`: C++ with fixed storage for up to 400 cells and 900 particles, about 32 KB including the pixel grid. No runtime allocation.
+- `web/fluid.js`: JavaScript for the web preview.
 
-สี่โหมดน้ำ FLIP ปรับระดับน้ำได้ 10–90% และใช้ renderer เดียวกัน (น้ำสมจริงมีสีของตัวเอง) ลำดับปุ่ม BOOT คือ น้ำปกติ → น้ำมีแรงเฉื่อย → น้ำวน → น้ำสมจริง → น้ำพิกเซล → เขาวงกต → หิมะ → Pong → ตา → ลูกเต๋า ID เดิม 0–5 ใน NVS ยังตรงกับโหมดเดิม น้ำมีแรงเฉื่อยเป็น 6, น้ำวน 7, น้ำสมจริง 8 และน้ำพิกเซล 9
+The four FLIP water modes support 10–90% fill and share a renderer; Full-motion water has its own palette. BOOT order: Liquid → Inertia water → Swirl water → Full-motion water → Pixel Flow → Maze → Snow → Pong → Eyes → Dice. Original NVS IDs 0–5 keep their meanings; Inertia water is 6, Swirl water 7, Full-motion water 8, and Pixel Flow 9.
 
-ทั้งสองชุดใช้ fixed step 25 ms มีภาชนะทรงกลมสำหรับจอ GC9A01 หาเพื่อนบ้านด้วย linked-cell และแรงโน้มถ่วงมาจาก motion filter ของเซนเซอร์ที่ตรวจพบ โหมดแรงเฉื่อยเพิ่มเฉพาะแรงขยับ ส่วนโหมดน้ำวนเพิ่มเฉพาะแรงหมุนรอบแกนจอ ขนาดกริดปรับตามจอ ส่วนจอกลมใช้ 20×20
+Both implementations use a fixed 25 ms step, a circular vessel for GC9A01, linked-cell neighbor lookup, and gravity from the detected sensor's motion filter. Inertia water adds only translation; Swirl water adds only rotation around the screen axis. Grid dimensions depend on the display; the round display uses 20×20.
 
-ต้องวัดเวลา solver บนบอร์ดแต่ละรุ่นจริง ดูได้จากช่อง Solver ในหน้าตั้งค่าบนมือถือ (หรือ `simMs` ใน `/api/status`) ถ้าเกินราว 25 ms ภาพจะกระตุก ให้ลดขนาดกริดหรือระดับน้ำ ข้อความ license อยู่ที่ [web/licenses/ten-minute-physics.txt](web/licenses/ten-minute-physics.txt) และที่ `/license` บนตัวเครื่อง
+Measure solver time on each physical board using **Solver** on the phone page, or `simMs` from `/api/status`. If it exceeds roughly 25 ms, reduce the grid size or fill level to avoid stuttering. The license is in [web/licenses/ten-minute-physics.txt](web/licenses/ten-minute-physics.txt) and at `/license` on the device.
 
-### โหมดน้ำพิกเซล (Pixel Flow)
+### Pixel Flow
 
-ไม่ใช้ FLIP แต่ละเม็ดน้ำอยู่ในช่องของตารางจอและมีความเร็วของตัวเอง (fixed-point Q8) ทุก step ที่ 30 Hz เม็ดที่ลึกที่สุดตามแรงโน้มถ่วงขยับก่อน ชนแล้วเบี่ยง 45° ไปทางลาดลง เม็ดที่วางอยู่ไหลออกข้างเพื่อให้ผิวราบ และย้ายเม็ดจากจุดสูงสุดของผิวไปจุดต่ำสุดทีละไม่เกิน 3 เม็ด เพื่อให้ผิวเอียงตามมุมจริงแทนที่จะติดอยู่แค่ 8 ทิศของตาราง แรงที่ใช้เหมือนน้ำมีแรงเฉื่อย (แรงโน้มถ่วง + แรงกระตุก) ไม่มีน้ำวน
+Pixel Flow does not use FLIP. Each drop occupies a grid cell and keeps its own Q8 fixed-point velocity. At 30 Hz, drops deepest along gravity move first. Collisions deflect them 45° downhill; resting drops flow sideways to level the surface. Up to three drops move from the highest to the lowest surface point per step, so the surface follows the actual tilt angle instead of only eight grid directions. Forces match Inertia water: gravity and jolts, without swirl.
 
-- `firmware/tilt_toy/pixel_flow.h` (class `PixelDrops`) และ `web/pixel-flow.js` เป็นเลขจำนวนเต็มทั้งหมด จึงให้ผลตรงกันทุกบิต (มี test เทียบ C++/JS) จองหน่วยความจำคงที่ สูงสุด 2,048 ช่อง / 1,900 เม็ด ราว 31 KB (บวกอีก 2 KB ใน sketch สำหรับภาพที่ส่งไปแล้ว)
-- ตาราง: จอ 240×240 ระยะ 6 px (เม็ด 5 px + ร่อง 1 px) 40×40 ช่อง, Mini TFT 4 px 20×40 / 40×20, OLED 2 px 64×32 ภาชนะมุมโค้งบนจอเหลี่ยม วงกลมบน GC9A01 และสี่เหลี่ยมบน OLED
-- สี: ผิวน้ำ, ละอองที่เคลื่อนเร็ว และเนื้อน้ำ 4 เฉดตามความลึก มีประกายเปลี่ยนช้า ๆ ช่องว่างเล็ก ๆ กลางก้อนน้ำวาดเป็นน้ำ
-- จอ TFT ไม่ผ่าน framebuffer: เทียบกับภาพเดิมแล้วเขียนเฉพาะเม็ดที่เปลี่ยน OLED, หน้าจอ Wi-Fi และ `IMU NOT FOUND` ยังใช้ทางเดิม OLED คงเฟรม 50 ms เพราะใช้ I²C ร่วมกับเซนเซอร์
-- `simMs` และ `particles` ใน `/api/status` เป็นของโหมดนี้เมื่อเปิดอยู่
+- `firmware/tilt_toy/pixel_flow.h` (`PixelDrops`) and `web/pixel-flow.js` use integer arithmetic and produce bit-for-bit identical results, checked by C++/JS parity tests. Fixed storage supports up to 2,048 cells / 1,900 drops, about 31 KB plus 2 KB in the sketch for the previously sent frame.
+- Grids: 240×240 TFT uses 6 px pitch (5 px drop + 1 px gap), 40×40 cells; Mini TFT uses 4 px pitch, 20×40 / 40×20; OLED uses 2 px pitch, 64×32. Square TFT vessels have rounded corners; GC9A01 is circular; OLED is rectangular.
+- Shading distinguishes surface, fast spray, and four body depths, with slowly changing highlights. Small gaps within a water mass render as water.
+- TFT rendering bypasses the framebuffer and writes only changed drops. OLED, Wi-Fi screens, and `IMU NOT FOUND` retain the existing rendering path. OLED frames remain at 50 ms because the display shares I²C with the sensor.
+- `/api/status` reports this mode's `simMs` and `particles` while it is active.
 
-## บอร์ดที่รองรับ
+## Supported boards
 
-| ตัวเลือกในเว็บ | ชิป / โมดูล | USB สำหรับแฟลช | Flash |
+| Web selection | Chip / module | Flashing connection | Flash |
 | --- | --- | --- | --- |
-| ESP32 30-pin | ESP32, ESP-WROOM-32 / DevKit V1 รุ่น 30 ขา | USB-to-Serial บนบอร์ด | 4 MB |
+| ESP32 30-pin | ESP32, 30-pin ESP-WROOM-32 / DevKit V1 | Onboard USB-to-Serial | 4 MB |
 | ESP32-C3 SuperMini | ESP32-C3 | USB Serial/JTAG | 4 MB |
 | ESP32-C6 SuperMini | ESP32-C6 | USB Serial/JTAG | 4 MB |
 
-เลือก **รุ่นบอร์ด** ก่อนเลือกจอ เว็บเปลี่ยนผัง GPIO และไฟล์เฟิร์มแวร์ตามบอร์ด และจำตัวเลือกหลัง reload บอร์ดเดิมที่ยังไม่ได้เลือกจะเริ่มที่ C6 รุ่น ESP32 30-pin ใช้กับ ESP-WROOM-32 / DevKit V1 ตามตาราง; ให้เทียบชื่อ GPIO ที่พิมพ์บนบอร์ดจริง
+Choose the **Board model** before the display. The web app changes the GPIO diagram and firmware for that board and remembers the selection after reload. A browser without a saved board starts with C6. The ESP32 30-pin profile targets the ESP-WROOM-32 / DevKit V1 layouts above; check the GPIO labels printed on your own board. The installer checks the chip before flashing. See [hardware details](docs/HARDWARE.md).
 
-## จอที่รองรับ
+## Supported displays
 
-| จอ | Controller | โปรไฟล์ |
+| Display | Controller / connection | Firmware profile |
 | --- | --- | --- |
-| TFT 80×160 แนวตั้ง | ST7735S Mini 160×80, rotation 0 | `tft-80x160` |
-| TFT 160×80 แนวนอน | จอเดียวกัน, rotation 1 | `tft-80x160-landscape` |
-| GMT130 240×240 | ST7789, 7 ขา ไม่มี CS | `gmt130-240x240` |
-| TFT กลม 240×240 | GC9A01 | `tft-240x240-gc9a01` |
-| TFT เหลี่ยม 240×240 | ST7789, มี CS | `tft-240x240-st7789` |
+| Mini TFT 80×160, portrait | ST7735S Mini 160×80, SPI, rotation 0 | `tft-80x160` |
+| Mini TFT 160×80, landscape | Same ST7735S module, SPI, rotation 1 | `tft-80x160-landscape` |
+| GMT130 240×240 | ST7789, 7 pins without CS, SPI Mode 3 | `gmt130-240x240` |
+| Round TFT 240×240 | GC9A01, SPI | `tft-240x240-gc9a01` |
+| Square TFT 240×240 | ST7789, with CS | `tft-240x240-st7789` |
 | OLED 128×64 | SSD1306, I²C 0x3C/0x3D | `oled-128x64` |
 
-เลือก **TFT 80×160 → แนวของจอ → แนวตั้ง / แนวนอน** ในเว็บ installer ภาพ preview และไฟล์แฟลชเปลี่ยนตามแนวที่เลือก เว็บจำตัวเลือกหลัง reload เมื่อติดตั้งโปรไฟล์ Mini TFT คนละแนว firmware จะใช้ rotation ของโปรไฟล์ใหม่นั้น แม้มีค่าเดิมใน NVS เมื่อบูตครั้งต่อไปยังคงค่าที่เปลี่ยนจากมือถือได้ โดยเลือก **แนวจอ / หมุนภาพ** แล้วกดบันทึก
+Select **TFT 80×160 → Display orientation → Portrait / Landscape**. The preview and flash image follow the selection, which is remembered after reload. Installing the other Mini TFT orientation applies the new profile's rotation even if NVS holds an old value. Later phone changes remain saved across boots; select display rotation and save on the device page.
 
-แต่ละคู่บอร์ดและโปรไฟล์จอมี merged binary แยกกัน รวม **18 ชุด / Flash 4MB** เว็บตรวจรุ่นชิป บอร์ด จอ และ checksum ก่อนเปิดปุ่มแฟลช ทุก manifest ระบุ `hardwareTested: false` เพราะยังไม่ได้ทดลองกับบอร์ดและจอจริง และยังไม่มีผลวัด FPS กระแสไฟ หรืออายุแบตเตอรี่ ส่วนจอ SH1106 และ ST7735 ที่ใช้ offsets ต่างจาก Mini160×80 ต้องเพิ่มโปรไฟล์ใหม่
+Each board/display pair has its own merged binary: **18 images, 4 MB flash**. The web app verifies chip, board, display, and checksum before enabling flashing. All manifests specify `hardwareTested: false`: physical board/display testing and FPS, power, and battery-life measurements are still pending. SH1106 displays and ST7735 modules with different offsets require additional profiles.
 
-## ต่อสาย (ย่อ)
+## Wiring at a glance
 
-| สัญญาณ | ESP32 30-pin | C3 SuperMini | C6 SuperMini |
+| Signal | ESP32 30-pin | C3 SuperMini | C6 SuperMini |
 | --- | --- | --- | --- |
-| I²C SDA / SCL (BMI160, MPU6050 และ OLED) | 21 / 22 | 4 / 5 | 0 / 1 |
+| I²C SDA / SCL: BMI160, MPU6050, OLED | 21 / 22 | 4 / 5 | 0 / 1 |
 | SPI SCK / MOSI | 18 / 23 | 6 / 7 | 6 / 7 |
 | CS / DC / RST | 27 / 26 / 25 | 10 / 3 / 1 | 18 / 19 / 20 |
-| ปุ่ม BOOT บนบอร์ด (ไม่ต้องต่อเพิ่ม) | 0 | 9 | 9 |
+| Onboard BOOT: no extra wiring | 0 | 9 | 9 |
 
-ใช้ BOOT หลังเครื่องเริ่มทำงาน: กดสั้นเปลี่ยนโหมด กดค้าง 2 วินาทีเปิด/ปิด Wi-Fi ส่วนปุ่ม RST ใช้รีสตาร์ตเครื่อง ให้ปล่อย BOOT ขณะเปิดเครื่องหรือกด RST เพื่อบูตเล่นตามปกติ; กด BOOT ค้างช่วงนั้นจะเข้าโหมดแฟลช [การเลือก boot mode ของ ESP32-C6](https://docs.espressif.com/projects/esptool/en/latest/esp32c6/advanced-topics/boot-mode-selection.html)
+After startup, tap BOOT to change modes or hold it for 2 seconds to toggle Wi-Fi. RST restarts the toy. Release BOOT at power-on or reset for normal startup; holding it then enters flashing mode. See [ESP32-C6 boot mode selection](https://docs.espressif.com/projects/esptool/en/latest/esp32c6/advanced-topics/boot-mode-selection.html).
 
-ผังเต็ม ข้อควรระวังเรื่องไฟ backlight และ checklist ทดสอบอยู่ใน [docs/HARDWARE.md](docs/HARDWARE.md)
+Full wiring, backlight power guidance, and a hardware test checklist are in [docs/HARDWARE.md](docs/HARDWARE.md).
 
-### โมดูลเซนเซอร์
+### Sensor modules
 
-เฟิร์มแวร์ทุกโปรไฟล์จอตรวจชนิดเซนเซอร์อัตโนมัติจาก Chip ID เมื่อเปิดเครื่อง ไม่ต้อง build แยกตามเซนเซอร์ เลือก **โมดูลเซนเซอร์** ในเว็บเพื่อดูผังสายให้ตรงกับโมดูลที่ใช้ ต่อเซนเซอร์หนึ่งตัวต่อเครื่อง โดยให้แกน X/Y สัมพันธ์กับจอ
+All display firmware profiles detect the sensor by Chip ID at startup; no separate sensor builds are needed. Choose **Sensor module** in the web app to show the correct wiring. Connect one sensor per toy and align its axes with the display.
 
-| เซนเซอร์ | I²C address ที่ตรวจ | การตั้งขาเลือก I²C / address | การเคลื่อนไหว |
+| Sensor | Detected I²C addresses | I²C / address selection | Motion |
 | --- | --- | --- | --- |
-| BMI160 | `0x68` / `0x69` | CS/CSB → 3V3, SDO/SA0 → GND สำหรับ `0x68` หรือ 3V3 สำหรับ `0x69` | แรงเร่ง + gyro |
-| MPU6050 / GY-521 | `0x68` / `0x69` | AD0 → GND สำหรับ `0x68` หรือ 3V3 สำหรับ `0x69` | แรงเร่ง + gyro |
+| BMI160 | `0x68` / `0x69` | CS/CSB → 3V3; SDO/SA0 → GND for `0x68`, or 3V3 for `0x69` | Accelerometer + gyro |
+| MPU6050 / GY-521 | `0x68` / `0x69` | AD0 → GND for `0x68`, or 3V3 for `0x69` | Accelerometer + gyro |
 
-ทั้งสองรุ่นเป็น IMU 6 แกน (แรงเร่ง + gyro) ตั้งค่าอ่านประมาณ 100 Hz, ช่วงแรงเร่ง ±8 g และ gyro ±2000°/s อ่าน FIFO เป็นชุดและป้อน sensor fusion ทีละ sample ที่ 10 ms ค่า roll/pitch มาจาก gravity ที่กรองแล้ว ส่วน yaw เป็นมุมสัมพัทธ์ที่อาจลอย ไม่มีเข็มทิศ หากอ่าน I²C ล้มเหลวติดกัน 5 ครั้งจะแสดงว่าไม่พบเซนเซอร์ ให้ตรวจสายแล้วเปิดเครื่องใหม่
+Both are 6-axis IMUs, configured at about 100 Hz, ±8 g acceleration, and ±2000°/s gyro. FIFO batches feed sensor fusion one sample at a time at 10 ms. Roll/pitch come from filtered gravity; yaw is relative and may drift because there is no compass. Five consecutive I²C failures mark the sensor missing; check wiring and restart.
 
-หน้าเว็บมีกราฟรูปอุปกรณ์และเส้นต่อสายตามบอร์ด จอ และเซนเซอร์ที่เลือก พร้อมรายการว่า pin ไหนต่อ pin ไหน กดสายเพื่อไฮไลต์คู่ขา หรือเลือก “ลองลากต่อสาย” เพื่อฝึกต่อได้ทั้งลากสาย แตะทีละขา และใช้คีย์บอร์ด ระบบตรวจคู่ขาและนับสายที่ต่อแล้ว โดยใช้ GPIO ตามเฟิร์มแวร์ของบอร์ดนั้น
+The web diagram shows components and wires for the selected board, display, and sensor, with a pin-to-pin list. Select a wire to highlight both endpoints. **Try wiring it** supports dragging, tapping two pins, or using the keyboard. It checks each pair and counts completed wires using the board's firmware GPIO mapping. Headers match common physical module layouts; always check the labels printed on your own module.
 
-## แฟลชผ่านเว็บ
+## Flash from the web
 
-1. เปิดเว็บ installer ด้วย **Chrome / Edge บนคอมพิวเตอร์** (ต้องเป็น HTTPS หรือ localhost)
-2. เลือกบอร์ดและจอให้ตรงกับรุ่นที่ใช้ เว็บจะตรวจรุ่นชิป ขนาดไฟล์ และ SHA-256 ก่อนเปิดปุ่มแฟลช
-3. ต่อสาย USB ที่รับส่งข้อมูลได้ แล้วกด **เชื่อมต่อและแฟลช** ถ้าเป็นการติดตั้งครั้งแรก ให้เลือก erase เพื่อเริ่มจากค่าเริ่มต้นของโปรไฟล์ (การ erase จะลบค่าที่บันทึกไว้)
+1. Open the installer in **desktop Chrome / Edge**, over HTTPS or localhost.
+2. Choose your board and display. The app verifies the chip, file size, and SHA-256 before enabling the flash button.
+3. Connect a USB data cable and click **Connect and flash**. For a first installation, choose erase to start with the profile defaults. Erasing deletes saved settings.
 
-ถ้าไม่เจอพอร์ต ให้ปิด Serial Monitor แล้วกด BOOT ค้างไว้ขณะเสียบสาย USB ปล่อย BOOT แล้วลองใหม่
+If the port is missing, close Serial Monitor, hold BOOT while plugging in USB, release it, and try again.
 
-ใช้ preview บนเว็บทดลองเล่นได้โดยไม่ต้องต่อบอร์ด มีแถบเลื่อนจำลองการเอียงและก้ม/เงย กับปุ่มเขย่า ในโหมดน้ำปรับระดับน้ำได้ เปิดแสดงกริดได้ และลากบนจอเพื่อกวนน้ำได้ เลือกน้ำวนแล้วกดวางราบ ปรับหมุนรอบจอ และกดหยุดหมุนเพื่อดูน้ำเคลื่อนต่อ เลือกน้ำมีแรงเฉื่อยเพื่อทดลองกระตุกสี่ทิศ ตัวควบคุมแสดงตามโหมดที่เลือก น้ำพิกเซลลากบนจอเพื่อผลักน้ำและมีปุ่มกระตุก น้ำสมจริงเอียงได้ ±180° มีปุ่มหมุนรอบจอ วางราบ กระตุก และหมุนเครื่องตัวอย่าง
+The preview works without a board. Sliders simulate tilt and pitch; controls let you shake, adjust fill, show the FLIP grid, and drag to stir water. Swirl water offers lay-flat, spin, and stop-spin controls; Inertia water offers four-direction jolts. Pixel Flow supports dragging and jolts. Full-motion water supports ±180° tilt, spin, lay-flat, jolts, and a spin demo. Controls follow the selected mode.
 
-## ตั้งค่าจากมือถือ
+## Configure from your phone
 
-1. เมื่อเครื่องเริ่มทำงานแล้ว กดปุ่ม BOOT บนบอร์ดค้าง 2 วินาทีเพื่อเปิด Wi-Fi
-2. เชื่อมต่อ `TiltToy-xxxx` รหัส `tilttoy32` แล้วเปิด `http://192.168.4.1`
-3. ด้านบนของหน้าแสดงค่าสดที่อัปเดตทุก 1 วินาที ได้แก่ โหมด, roll/pitch, FPS, คะแนน (เขาวงกต/Pong), เวลา solver และจำนวนอนุภาค (โหมดน้ำ) และ heap ว่าง
-4. ตั้งโหมด ระดับน้ำ ความไว และการหมุนภาพ แล้วกดบันทึก สำหรับจอ TFT ตั้ง inversion ได้ และสำหรับ ST7789 ตั้ง SPI mode ได้ ค่าทั้งหมดเก็บใน NVS
-5. กดปิด Wi-Fi แล้วเล่นต่อ หรือรอให้ปิดเองหลัง 3 นาที
+1. After startup, hold the onboard BOOT button for 2 seconds to enable Wi-Fi.
+2. Join `TiltToy-xxxx` with password `tilttoy32`, then open `http://192.168.4.1`.
+3. Live values update every second: mode, roll/pitch, FPS, Maze/Pong score, water solver time and particles, and free heap.
+4. Set mode, fill, sensitivity, and display rotation, then save. TFT profiles support inversion; ST7789 supports SPI mode selection. Settings persist in NVS.
+5. Turn off Wi-Fi to keep playing, or let it close after 3 minutes.
 
-หน้าเครื่องแสดงชื่อบอร์ด พร้อมชื่อและ I²C address ของเซนเซอร์ที่ตรวจพบ ให้วางเครื่องนิ่งตอนเปิดเครื่องหรือตอนกดคาลิเบรต gyro ของ BMI160 / MPU6050 และตรวจแผงทดสอบแกนแล้วตั้ง X/Y/Z ให้ตรงกับจอ: X ไปขวา, Y ลงล่าง, Z เข้าไปในจอ เลือกแกนไม่ซ้ำและใช้การหมุนที่รักษาระบบแกนขวา หากกลับเครื่องหมายให้กลับสองแกนพร้อมกัน คาลิเบรตขณะเคลื่อนไหวจะถูกปฏิเสธ
+The device page shows the board name and detected sensor name/address. Keep the toy still at startup or when calibrating the BMI160 / MPU6050 gyro. Use the axis test panel to align X right, Y down, and Z into the screen. Select unique axes and a right-handed rotation; reverse two signs together when needed. Calibration while moving is rejected.
 
-| Endpoint | หน้าที่ |
+| Endpoint | Purpose |
 | --- | --- |
-| `GET /api/status` | version, `board`, `boardName`, `chipFamily`, profile, โหมด, ค่าตั้ง, `imu`, `sensor`, `sensorAddress` (เลขฐานสิบ), `gyro`, roll/pitch, `fps`, `simMs`, `score`, `particles`, `freeHeap`, `axisX/Y/Z`, `gravity`, `omega`, `linear` (array X/Y/Z), `yaw`, `stillMs`, `fifoResets` |
+| `GET /api/status` | Version, `board`, `boardName`, `chipFamily`, profile, mode, settings, `imu`, `sensor`, `sensorAddress` (decimal), `gyro`, roll/pitch, `fps`, `simMs`, `score`, `particles`, `freeHeap`, `axisX/Y/Z`, X/Y/Z arrays `gravity`, `omega`, `linear`, `yaw`, `stillMs`, `fifoResets` |
 | `POST /api/config` | `mode`, `fill`, `sensitivity`, `rotation`, `invert`, `spiMode`, `axisX`, `axisY`, `axisZ` (±1=X, ±2=Y, ±3=Z) |
-| `POST /api/shake` · `/api/calibrate` · `/api/close` | เขย่า, คาลิเบรต gyro, ปิด Wi-Fi |
-| `GET /license` | ข้อความ MIT license ของ FLIP solver |
+| `POST /api/shake` · `/api/calibrate` · `/api/close` | Shake, calibrate gyro, close Wi-Fi |
+| `GET /license` | FLIP solver MIT license |
 
-`mode` รับ `water`, `water-inertia`, `water-swirl`, `water-full`, `pixel-flow`, `maze`, `snow`, `pong`, `pet`, `dice`
+Accepted mode IDs: `water`, `water-inertia`, `water-swirl`, `water-full`, `pixel-flow`, `maze`, `snow`, `pong`, `pet`, `dice`.
 
-## พัฒนาบนเครื่อง
+## Local development
 
-ใช้ Node.js 22 ขึ้นไป มี binary ที่ build แล้วอยู่ใน `web/firmware/` จึงเปิดเว็บได้โดยไม่ต้องติดตั้ง Arduino toolchain
+Use Node.js 22 or newer. Prebuilt images in `web/firmware/` let you run the web app without an Arduino toolchain.
 
 ```sh
 npm ci
@@ -151,11 +159,11 @@ npm run build
 npm run dev
 ```
 
-จากนั้นเปิด `http://localhost:4173`
+Open `http://localhost:4173`. The app starts in English unless this browser has saved Thai as its language.
 
-### Build firmware ใหม่
+### Rebuild firmware
 
-ติดตั้ง Arduino CLI 1.5.1 พร้อม core และไลบรารีตามรายการด้านล่าง หรือใช้ Arduino IDE ซึ่งมี CLI อยู่ข้างใน (script หา path มาตรฐานบน Windows ให้เอง)
+Install Arduino CLI 1.5.1 and the core/libraries below, or use the CLI bundled with Arduino IDE. The script finds standard Windows installation paths automatically.
 
 ```sh
 arduino-cli config init
@@ -168,33 +176,33 @@ npm test
 npm run build
 ```
 
-`npm run firmware` build ครบ 18 ชุด เลือกบอร์ดหรือจอเฉพาะได้ เช่น `npm run firmware -- esp32-c3-supermini` (6 แบบจอ), `npm run firmware -- tft-240x240-gc9a01` (3 บอร์ด) หรือ `npm run firmware -- esp32-30pin oled-128x64` (1 ชุด) ถ้า toolchain อยู่ที่อื่น ให้ตั้ง environment `ARDUINO_CLI`, `ARDUINO_DATA_DIR` หรือ `ESPTOOL`
+`npm run firmware` builds all 18 images. Select a board or display: `npm run firmware -- esp32-c3-supermini` builds six display profiles; `npm run firmware -- tft-240x240-gc9a01` builds three boards; `npm run firmware -- esp32-30pin oled-128x64` builds one image. Set `ARDUINO_CLI`, `ARDUINO_DATA_DIR`, or `ESPTOOL` for tools installed elsewhere.
 
-script จะทำตามลำดับนี้
+The script:
 
-1. stage ไฟล์ `tilt_toy.ino`, `config.h`, `flip_fluid.h`, `motion_sensor.h`, `motion_state.h` และ `toy_modes.h`
-2. compile ด้วย FQBN `esp32:esp32:esp32`, `esp32c3` หรือ `esp32c6` ตามบอร์ด ตั้ง DIO, Flash 4M, partition `huge_app` คือ app 3MB ไม่มี OTA และเปิด USB CDC สำหรับ C3/C6
-3. merge bootloader@0x1000 สำหรับ ESP32 หรือ @0 สำหรับ C3/C6, partitions@0x8000, boot_app0@0xe000 และ app@0x10000 เป็นไฟล์เดียวที่แฟลช @0 (ESP32 มี padding ด้านหน้า)
-4. สร้าง manifest ใหม่ ซึ่งเก็บ SHA-256 ของ binary และ `sourceSha256` ของ source ทั้งหกไฟล์
+1. Stages `tilt_toy.ino`, `config.h`, `flip_fluid.h`, `motion_sensor.h`, `motion_state.h`, `pixel_flow.h`, and `toy_modes.h`.
+2. Compiles with the board FQBN: `esp32:esp32:esp32`, `esp32c3`, or `esp32c6`, DIO, 4 MB flash, and `huge_app` (3 MB app, no OTA). C3/C6 enable USB CDC.
+3. Merges bootloader at 0x1000 for ESP32 or 0 for C3/C6, partitions at 0x8000, boot_app0 at 0xe000, and app at 0x10000 into one image flashed at 0. ESP32 images include leading padding.
+4. Writes manifests with binary SHA-256 and `sourceSha256` for the staged firmware sources.
 
-ผล compile อยู่ใน `work/firmware/run-<pid>/<board-id>/` แต่ละรอบและแต่ละบอร์ดแยก staging และ cache เพื่อไม่ให้ build ที่รันพร้อมกันสลับโปรไฟล์กัน ส่วน artifacts ของ C6 อยู่ใน `web/firmware/` เพื่อรักษา URL เดิม; ESP32 และ C3 อยู่ในโฟลเดอร์ย่อย `esp32-30pin/` และ `esp32-c3-supermini/` ตามลำดับ `npm test` จะ fail ถ้าแก้ source แล้วไม่ได้ build firmware ใหม่ ตั้ง `FIRMWARE_WORK_DIR` เพื่อใช้ cache เดิมได้เมื่อไม่มี build อื่นใช้โฟลเดอร์นั้น
+Build output goes to `work/firmware/run-<pid>/<board-id>/`. Runs and boards use separate staging/cache directories to prevent concurrent builds from mixing profiles. C6 artifacts stay in `web/firmware/` to preserve existing URLs; ESP32 and C3 use `esp32-30pin/` and `esp32-c3-supermini/`. Tests fail if firmware sources change without rebuilding images. Use `FIRMWARE_WORK_DIR` to reuse a cache when no other build is using that directory.
 
-ใน Arduino IDE เลือก ESP32 Dev Module, ESP32C3 Dev Module หรือ ESP32C6 Dev Module และตัวเลือก Flash/partition ตาม `web/boards.js` ส่วน `config.h` เลือก GPIO จาก target chip ให้อัตโนมัติ การตั้ง `BOARD_PROFILE` ให้ขัดกับ target จะคอมไพล์ไม่ผ่าน
+In Arduino IDE, choose ESP32 Dev Module, ESP32C3 Dev Module, or ESP32C6 Dev Module with the flash/partition options in `web/boards.js`. `config.h` selects GPIOs from the target chip. An incompatible `BOARD_PROFILE` fails compilation.
 
-ไดรเวอร์เซนเซอร์ใช้ `Wire` โดยตรง ไม่ต้องลงไลบรารีเซนเซอร์เพิ่ม `npm test` ทดสอบ C++ driver กับ I²C จำลองและตรวจ JS/C++ parity ด้วย `g++` หรือ compiler ในตัวแปร `CXX` (`clang++` / `cl` ใช้ได้) ถ้าไม่มี host compiler จะข้าม test ที่ต้องคอมไพล์ C++ สำหรับ MSVC ให้รันใน Developer Command Prompt โดยตั้ง `CXX=cl`
+The sensor driver uses `Wire` directly; no additional sensor library is needed. Tests compile the C++ driver against a simulated I²C bus and check JS/C++ parity using `g++`, or the compiler in `CXX` (`clang++` / `cl` also work). Tests needing C++ are skipped when no host compiler is available. For MSVC, run from a Developer Command Prompt with `CXX=cl`.
 
-## โครงสร้าง
+## Repository layout
 
-- `firmware/tilt_toy/`: sketch, IMU, 6 โหมด, FLIP solver, Wi-Fi UI, NVS
-- `web/`: installer, preview (`preview.js`, `fluid.js`), profile contract, firmware artifacts และ licenses
-- `scripts/`: build เว็บ, build/merge firmware และ local server
-- `tests/`: ตรวจ profile, การต่อสาย, binary header/chip, partition, checksum และ source hash
-- `docs/`: [แผนพัฒนา](docs/PLAN.md), [ฮาร์ดแวร์](docs/HARDWARE.md), [ผลตรวจ](docs/VALIDATION.md) และ [GitHub Pages](docs/GITHUB-PAGES.md)
-- `.github/workflows/`: `ci.yml` ตรวจเว็บและ build firmware ครบทุกโปรไฟล์ ส่วน `pages.yml` deploy เว็บเมื่อ push ขึ้น `main`
+- `firmware/tilt_toy/`: sketch, IMU, 10 modes, FLIP and Pixel Flow solvers, Wi-Fi UI, NVS.
+- `web/`: installer, preview, English/Thai UI copy in `i18n.js`, profile contract, firmware artifacts, and licenses.
+- `scripts/`: web build, firmware build/merge, and local server.
+- `tests/`: profiles, wiring, binary chip/header, partitions, checksums, source hashes, and motion/simulation parity.
+- `docs/`: [Development plan](docs/PLAN.md), [Hardware](docs/HARDWARE.md), [Validation](docs/VALIDATION.md), and [GitHub Pages](docs/GITHUB-PAGES.md).
+- `.github/workflows/`: `ci.yml` checks the web app and builds all firmware profiles; `pages.yml` deploys the web app when `main` is pushed.
 
-เว็บ build ออกมาเป็น static files ใน `dist/` และ bundle ESP Web Tools ไว้ในตัว จึง host บน HTTPS host ไหนก็ได้
+The web build produces static files in `dist/` with bundled ESP Web Tools. It can run on any HTTPS static host.
 
-## เครดิต
+## Credits
 
-- FLIP fluid ดัดแปลงจาก Ten Minute Physics โดย Matthias Müller ใช้ MIT license ตาม [web/licenses/ten-minute-physics.txt](web/licenses/ten-minute-physics.txt)
-- ตัวแฟลชใช้ [ESP Web Tools](https://esphome.github.io/esp-web-tools/)
+- FLIP fluid is adapted from Matthias Müller's Ten Minute Physics under the [MIT license](web/licenses/ten-minute-physics.txt).
+- USB flashing uses [ESP Web Tools](https://esphome.github.io/esp-web-tools/).

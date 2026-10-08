@@ -1,3 +1,4 @@
+import { t, localizedError } from './i18n.js';
 // Physical header order as printed on the board, top to bottom: [silkscreen, pin id].
 const gpio = (label, n = label) => [String(label), `GPIO${n}`];
 export const boards = [
@@ -6,7 +7,7 @@ export const boards = [
     chipId: 0, target: 'esp32', bootloaderOffset: 0x1000,
     fqbn: 'esp32:esp32:esp32:FlashMode=dio,FlashSize=4M,PartitionScheme=huge_app',
     pins: { SDA: 21, SCL: 22, SCK: 18, MOSI: 23, CS: 27, DC: 26, RST: 25, BUTTON: 0 },
-    note: 'รุ่น 30 ขา ESP-WROOM-32 / DevKit V1 · Flash 4 MB · USB ผ่านชิป USB-to-Serial',
+    get note() { return t('board.esp32-30pin'); },
     reserved: [0, 2, 5, 6, 7, 8, 9, 10, 11, 12, 15, 34, 35, 36, 39],
     // Antenna at the top, micro USB at the bottom.
     header: {
@@ -19,7 +20,7 @@ export const boards = [
     chipId: 5, target: 'esp32c3', bootloaderOffset: 0,
     fqbn: 'esp32:esp32:esp32c3:CDCOnBoot=cdc,FlashMode=dio,FlashSize=4M,PartitionScheme=huge_app',
     pins: { SDA: 4, SCL: 5, SCK: 6, MOSI: 7, CS: 10, DC: 3, RST: 1, BUTTON: 9 },
-    note: 'ESP32-C3 SuperMini · Flash 4 MB · USB Serial/JTAG · ใช้สาย USB data',
+    get note() { return t('board.esp32-c3-supermini'); },
     reserved: [2, 8, 9, 12, 13, 14, 15, 16, 17, 18, 19],
     // USB-C at the top.
     header: {
@@ -32,7 +33,7 @@ export const boards = [
     chipId: 13, target: 'esp32c6', bootloaderOffset: 0,
     fqbn: 'esp32:esp32:esp32c6:CDCOnBoot=cdc,FlashMode=dio,FlashSize=4M,PartitionScheme=huge_app',
     pins: { SDA: 0, SCL: 1, SCK: 6, MOSI: 7, CS: 18, DC: 19, RST: 20, BUTTON: 9 },
-    note: 'ESP32-C6 SuperMini · Flash 4 MB · USB Serial/JTAG · ใช้สาย USB data',
+    get note() { return t('board.esp32-c6-supermini'); },
     reserved: [4, 5, 8, 9, 10, 11, 12, 13, 14, 15, 24, 25, 26, 27, 28, 29, 30],
     // USB-C at the top.
     header: {
@@ -51,9 +52,9 @@ export function releasePath(profile, board = defaultBoard) {
 
 export function validateFirmwareImage(bytes, board = defaultBoard) {
   const data = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
-  if (data.byteLength < 0x10000 + 24) throw new Error('ไฟล์เฟิร์มแวร์ไม่ครบ');
+  if (data.byteLength < 0x10000 + 24) throw localizedError('release.incomplete');
   const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
   for (const offset of [board.bootloaderOffset, 0x10000]) {
-    if (view.getUint8(offset) !== 0xE9 || view.getUint16(offset + 12, true) !== board.chipId) throw new Error('ชิปในไฟล์เฟิร์มแวร์ไม่ตรงกับบอร์ดที่เลือก');
+    if (view.getUint8(offset) !== 0xE9 || view.getUint16(offset + 12, true) !== board.chipId) throw localizedError('release.chipError');
   }
 }

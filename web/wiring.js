@@ -1,8 +1,8 @@
 import { findSensor, headerSlots, wiringConnections, wireSignals } from './profiles.js';
 import { defaultBoard } from './boards.js';
+import { t } from './i18n.js';
 
 const namespace = 'http://www.w3.org/2000/svg';
-const deviceNames = { display: 'จอ' };
 function svgElement(tag, attributes = {}, text) {
   const element = document.createElementNS(namespace, tag);
   for (const [key, value] of Object.entries(attributes)) element.setAttribute(key, value);
@@ -167,7 +167,7 @@ export class WiringGraph {
     this.svg.addEventListener('pointerup', event => this.pointerUp(event));
     this.svg.addEventListener('pointercancel', () => { this.drag = null; this.cancel(); });
     root.addEventListener('keydown', event => {
-      if (event.key === 'Escape') { this.drag = null; this.cancel(); this.message('ยกเลิกการลากสายแล้ว'); }
+      if (event.key === 'Escape') { this.drag = null; this.cancel(); this.message(t('wiring.cancel')); }
     });
     const legend = root.querySelector('#wire-legend');
     for (const signal of Object.values(wireSignals)) {
@@ -190,14 +190,14 @@ export class WiringGraph {
     this.wires = new Map();
     this.rows = new Map();
     this.root.querySelector('#wiring-driver').textContent = `${board.chipFamily} · ${profile.driver} · ${profile.bus}`;
-    this.root.querySelector('#wiring-bus-note').textContent = profile.mono ? `OLED และ ${this.sensor.name} แชร์ I²C: SDA → GPIO${pins.SDA}, SCL → GPIO${pins.SCL} โดยมี address ต่างกัน` : `ขา SDA / DIN ของจอ SPI คือ MOSI → GPIO${pins.MOSI} ส่วน ${this.sensor.name} SDA → GPIO${pins.SDA}${!profile.hasCs ? ' · GMT130 รุ่น 7 ขาไม่มี CS' : ''}`;
-    this.root.querySelector('#wiring-button-note').textContent = `ใช้ปุ่ม BOOT บน ${board.name} (GPIO${pins.BUTTON}) · ไม่ต้องต่อปุ่มเพิ่ม · กดสั้นเปลี่ยนโหมด ค้าง 2 วินาทีเปิด/ปิด Wi-Fi · ปล่อย BOOT ขณะเปิดเครื่องหรือรีเซ็ตเพื่อบูตเล่นตามปกติ`;
+    this.root.querySelector('#wiring-bus-note').textContent = profile.mono ? t('wiring.i2c', { sensor: this.sensor.name, sda: pins.SDA, scl: pins.SCL }) : t('wiring.spi', { mosi: pins.MOSI, sensor: this.sensor.name, sda: pins.SDA }) + (!profile.hasCs ? t('wiring.noCs') : '');
+    this.root.querySelector('#wiring-button-note').textContent = t('wiring.boot', { board: board.name, pin: pins.BUTTON });
     this.root.querySelector('#wiring-sensor-note').textContent = this.sensor.note;
     this.root.querySelector('[data-wire-filter="sensor"]').textContent = this.sensor.name;
     this.root.querySelector('#wiring-backlight-note').hidden = !displaySlots.some(slot => slot.label === 'BLK');
-    this.root.querySelector('#wiring-backlight-note').textContent = 'BLK: ต่อไฟหรือวงจรขับตามสเปกโมดูลจอ ตรวจว่าเป็นขา enable หรือไฟ LED ก่อนต่อ · ไม่ต่อ LED เปล่าเข้าขา GPIO';
+    this.root.querySelector('#wiring-backlight-note').textContent = t('wiring.backlight');
     this.svg.replaceChildren();
-    this.svg.setAttribute('aria-label', `ผังต่อสาย ${board.name} กับจอและเซนเซอร์ ตามตำแหน่งขาจริงบนโมดูล`);
+    this.svg.setAttribute('aria-label', t('wiring.diagram', { board: board.name }));
     const defs = svgElement('defs');
     const pattern = svgElement('pattern', { id: 'wiring-dots', width: 20, height: 20, patternUnits: 'userSpaceOnUse' });
     pattern.append(svgElement('circle', { cx: 1, cy: 1, r: 1, fill: '#dce3d6' }));
@@ -205,19 +205,19 @@ export class WiringGraph {
     this.svg.append(defs, svgElement('rect', { width: 920, height: 720, fill: 'url(#wiring-dots)' }));
     const boardGeo = boardGeometry(board);
     const boardCard = componentCard(20, 20, 320, 680, board.name, `${board.target === 'esp32' ? 'DevKit V1' : 'SuperMini'} · Flash 4 MB`);
-    boardCard.append(boardArt(board, boardGeo), svgElement('text', { x: 180, y: 662, 'text-anchor': 'middle', class: 'component-subtitle' }, `ปุ่ม BOOT บนบอร์ด (GPIO${pins.BUTTON}) · ไม่ต้องต่อสายเพิ่ม`), svgElement('text', { x: 180, y: 681, 'text-anchor': 'middle', class: 'component-subtitle' }, 'กดสั้น → เปลี่ยนโหมด · ค้าง 2 วิ → เปิด/ปิด Wi-Fi'));
+    boardCard.append(boardArt(board, boardGeo), svgElement('text', { x: 180, y: 662, 'text-anchor': 'middle', class: 'component-subtitle' }, t('wiring.bootShort', { pin: pins.BUTTON })), svgElement('text', { x: 180, y: 681, 'text-anchor': 'middle', class: 'component-subtitle' }, t('wiring.bootActions')));
     const displayGeo = moduleGeometry(profile.art, displaySlots.length, 7, 715, moduleSpecs[profile.art].bottom ? 375 : 132);
     const display = componentCard(530, 20, 370, 390, profile.short, `${profile.driver} · ${profile.bus}`);
     display.append(moduleArt(profile.art, displaySlots, displayGeo));
     const sensorGeo = moduleGeometry(this.sensor.id, sensorSlots.length, 8.4, 690, 486);
     sensorGeo.extra = this.sensor.extraHeader;
-    const sensor = componentCard(530, 425, 370, 275, 'Motion sensor', `${this.sensor.module} · I²C`);
+    const sensor = componentCard(530, 425, 370, 275, t('wiring.sensor'), `${this.sensor.module} · I²C`);
     sensor.append(moduleArt(this.sensor.id, sensorSlots, sensorGeo, `I²C address ${this.sensor.address}`));
     this.svg.append(boardCard, display, sensor);
     displaySlots.forEach((slot, index) => {
       if (slot.label !== 'BLK') return;
       const [x, y] = displayGeo.pin(index), backlight = svgElement('circle', { cx: x, cy: y, r: 7, class: 'backlight-port' });
-      backlight.append(svgElement('title', {}, 'BLK: ต่อไฟหรือวงจรขับตามสเปกโมดูลจอ'));
+      backlight.append(svgElement('title', {}, t('wiring.backlightShort')));
       this.svg.append(backlight);
     });
     this.wireLayer = svgElement('g');
@@ -241,6 +241,15 @@ export class WiringGraph {
       this.addRow(connection);
     }
     this.reset();
+  }
+  setLanguage() {
+    // Rebuild translated SVG labels while keeping the user's practice progress.
+    const completed = new Set(this.completed), selected = this.selected;
+    this.setProfile(this.profile, this.sensor.id, this.board);
+    this.completed = completed;
+    this.selected = selected;
+    this.refresh();
+    if (selected) this.select(selected);
   }
   addPin(id, label, x, y, size, accessibleLabel, side) {
     const group = svgElement('g', { class: 'graph-pin', 'data-pin': id, tabindex: 0, role: 'button', 'aria-label': accessibleLabel });
@@ -301,7 +310,7 @@ export class WiringGraph {
     button.dataset.connection = connection.id;
     button.style.setProperty('--wire-color', wireSignals[connection.signal].color);
     const from = document.createElement('span'), to = document.createElement('strong'), mark = document.createElement('span');
-    from.textContent = `${connection.device === 'sensor' ? this.sensor.name : deviceNames[connection.device]} ${this.ports.get(connection.to).pinLabel}`;
+    from.textContent = `${connection.device === 'sensor' ? this.sensor.name : t('wiring.display')} ${this.ports.get(connection.to).pinLabel}`;
     to.textContent = `→ ${connection.boardPin}`;
     mark.className = 'connection-mark';
     mark.setAttribute('aria-hidden', 'true');
@@ -323,7 +332,7 @@ export class WiringGraph {
     this.drag = null;
     this.cancel();
     this.refresh();
-    this.message(this.practice ? 'เริ่มจากขาใดก็ได้ ลากไปยังขาที่ไฮไลต์ หรือกดเลือกขาต้นทางแล้วปลายทาง · Esc ยกเลิก' : 'เลือกสายเพื่อดูต้นทางและปลายทาง หรือกด “ลองลากต่อสาย” เพื่อฝึกต่อให้ครบ');
+    this.message(t(this.practice ? 'wiring.start' : 'wiring.select'));
   }
   cancel() {
     this.pending = null;
@@ -335,7 +344,7 @@ export class WiringGraph {
     this.selected = id;
     this.refresh();
     const connection = this.connections.find(c => c.id === id);
-    this.message(`${this.connectionLabel(connection)}${this.practice && !this.completed.has(id) ? ' · ลากระหว่างขาคู่นี้เพื่อต่อสาย' : ''}`);
+    this.message(`${this.connectionLabel(connection)}${this.practice && !this.completed.has(id) ? t('wiring.dragPair') : ''}`);
   }
   activatePin(id) {
     if (!this.practice) {
@@ -355,13 +364,13 @@ export class WiringGraph {
   connect(first, second) {
     const connection = matchingConnection(this.connections, first, second);
     this.cancel();
-    if (!connection) { this.message(`คู่นี้ไม่ตรงกับผัง: ${this.ports.get(first).label} ↔ ${this.ports.get(second).label} · เลือกขาใหม่แล้วต่อกับขาที่ไฮไลต์`, true); return; }
+    if (!connection) { this.message(t('wiring.wrong', { first: this.ports.get(first).label, second: this.ports.get(second).label }), true); return; }
     const alreadyConnected = this.completed.has(connection.id);
     this.completed.add(connection.id);
     this.selected = connection.id;
     this.refresh();
-    const done = this.completed.size === this.connections.length ? ` · ครบทุกสายแล้ว!${this.profile.mono ? '' : ' ตรวจไฟ BL / BLK ตามสเปกจอด้วย'}` : '';
-    this.message(`${alreadyConnected ? 'ต่อไว้อยู่แล้ว' : 'ต่อถูกแล้ว'}: ${this.connectionLabel(connection)}${done}`);
+    const done = this.completed.size === this.connections.length ? t('wiring.done') + (this.profile.mono ? '' : t('wiring.checkBacklight')) : '';
+    this.message(`${t(alreadyConnected ? 'wiring.already' : 'wiring.correct')}: ${this.connectionLabel(connection)}${done}`);
   }
   refreshPins() {
     const selected = this.connections.find(c => c.id === this.selected);
@@ -379,18 +388,18 @@ export class WiringGraph {
       wire.classList.toggle('is-selected', this.selected === connection.id);
       row.hidden = this.filter !== 'all' && connection.device !== this.filter;
       row.setAttribute('aria-pressed', String(this.selected === connection.id));
-      row.setAttribute('aria-label', `${this.connectionLabel(connection)}${this.practice ? this.completed.has(connection.id) ? ' ต่อแล้ว' : ' ยังไม่ต่อ' : ''}`);
+      row.setAttribute('aria-label', `${this.connectionLabel(connection)}${this.practice ? t(this.completed.has(connection.id) ? 'wiring.connected' : 'wiring.unconnected') : ''}`);
       row.querySelector('.connection-mark').textContent = this.practice ? this.completed.has(connection.id) ? '✓' : '○' : '↗';
     }
     if (this.selected) this.wireLayer.append(this.wires.get(this.selected));
     this.refreshPins();
     this.root.querySelectorAll('[data-wire-filter]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.wireFilter === this.filter)));
     const practiceButton = this.root.querySelector('#wiring-practice');
-    practiceButton.textContent = this.practice ? 'ดูผังสำเร็จ' : 'ลองลากต่อสาย';
+    practiceButton.textContent = t(this.practice ? 'wiring.finished' : 'wiring.practice');
     practiceButton.setAttribute('aria-pressed', String(this.practice));
     this.root.querySelector('#wiring-reset').hidden = !this.practice;
-    this.root.querySelector('#wiring-count').textContent = this.practice ? `${this.completed.size} / ${this.connections.length}` : `${this.connections.length} สาย`;
-    this.root.querySelector('#wiring-help').textContent = this.practice ? 'ลากจากจุด pin ไปยังขาที่ไฮไลต์ · แตะทีละขาหรือใช้ Enter / Space ได้' : 'กดที่สายหรือรายการเพื่อดูคู่ pin · เลื่อนผังซ้าย–ขวาได้บนมือถือ';
+    this.root.querySelector('#wiring-count').textContent = this.practice ? `${this.completed.size} / ${this.connections.length}` : t('wiring.count', { count: this.connections.length });
+    this.root.querySelector('#wiring-help').textContent = t(this.practice ? 'wiring.practiceHelp' : 'wiring.help');
   }
   point(event) {
     const matrix = this.svg.getScreenCTM();
@@ -424,6 +433,6 @@ export class WiringGraph {
     const target = document.elementFromPoint(event.clientX, event.clientY)?.closest('[data-pin]')?.dataset.pin;
     if (!drag.moved) this.activatePin(drag.pin);
     else if (target && target !== drag.pin) this.connect(drag.pin, target);
-    else { this.cancel(); this.message('ปล่อยสายบนจุด pin ที่ไฮไลต์เพื่อต่อ · ลองลากใหม่ได้'); }
+    else { this.cancel(); this.message(t('wiring.drop')); }
   }
 }
