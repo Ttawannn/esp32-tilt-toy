@@ -1,7 +1,7 @@
 // Browser simulation of the eight toy modes. Hardware uses BMI160 or MPU6050.
 import { FlipFluid, fluidLayout, pixelWater } from './fluid.js';
 import { MotionState, GRAVITY } from './motion.js';
-import { isWaterMode, waterForces } from './water-modes.js';
+import { isLiquidMode, waterForces } from './water-modes.js';
 export class ToyPreview {
   constructor(canvas){this.canvas=canvas;this.ctx=canvas.getContext('2d');this.roll=0;this.pitch=0;this.spin=0;this.fill=50;this.showGrid=false;this.mode='water';this.mono=false;this.shakenAt=-10;this.dice=3;this.motion=new MotionState();this.reset();this.last=performance.now();this.running=true;this.bindStir();requestAnimationFrame(t=>this.frame(t));}
   reset(){this.motion.reset();this.motionTime=0;this.spinAngle=0;this.kick={x:0,y:0};this.ball={x:-.5,y:.5,vx:.3,vy:-.4};this.score=0;this.flakes=Array.from({length:36},()=>({x:Math.random()*1.6-.8,y:Math.random()*1.6-.8,vx:0,vy:0}));this.layout=fluidLayout(this.canvas.width,this.canvas.height,!!this.round);this.fluid=new FlipFluid(this.layout.nx,this.layout.ny,!!this.round,this.fill);}
@@ -22,11 +22,12 @@ export class ToyPreview {
   setMode(mode){this.mode=mode;this.spin=0;this.reset();}
   setFill(value){this.fill=value;this.fluid.reset(value);}
   shake(){this.shakenAt=performance.now()/1000;this.fluid.impulse(Math.sin(this.roll*Math.PI/180),Math.cos(this.roll*Math.PI/180));this.dice=1+Math.floor(Math.random()*6);for(const f of this.flakes){f.vx=(Math.random()-.5)*4;f.vy=(Math.random()-.5)*4;}}
-  bindStir(){const canvas=this.canvas;let previous=null;const point=e=>{const box=canvas.getBoundingClientRect(),l=this.layout,f=this.fluid;return {x:f.h+((e.clientX-box.left)*canvas.width/box.width-l.x)/l.width*(f.nx-2)*f.h,y:f.h+((e.clientY-box.top)*canvas.height/box.height-l.y)/l.height*(f.ny-2)*f.h,time:e.timeStamp};};canvas.addEventListener('pointerdown',e=>{if(isWaterMode(this.mode)){previous=point(e);canvas.setPointerCapture(e.pointerId);}});canvas.addEventListener('pointermove',e=>{if(previous&&isWaterMode(this.mode)){const p=point(e),dt=Math.max(.01,(p.time-previous.time)/1000);this.fluid.stir(p.x,p.y,(p.x-previous.x)/dt,(p.y-previous.y)/dt);previous=p;}});for(const name of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(name,()=>previous=null);}
+  bindStir(){const canvas=this.canvas;let previous=null;const point=e=>{const box=canvas.getBoundingClientRect(),l=this.layout,f=this.fluid;return {x:f.h+((e.clientX-box.left)*canvas.width/box.width-l.x)/l.width*(f.nx-2)*f.h,y:f.h+((e.clientY-box.top)*canvas.height/box.height-l.y)/l.height*(f.ny-2)*f.h,time:e.timeStamp};};canvas.addEventListener('pointerdown',e=>{if(isLiquidMode(this.mode)){previous=point(e);canvas.setPointerCapture(e.pointerId);}});canvas.addEventListener('pointermove',e=>{if(previous&&isLiquidMode(this.mode)){const p=point(e),dt=Math.max(.01,(p.time-previous.time)/1000);this.fluid.stir(p.x,p.y,(p.x-previous.x)/dt,(p.y-previous.y)/dt);previous=p;}});for(const name of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(name,()=>previous=null);}
   frame(now){if(!this.running)return;const dt=Math.min(.05,(now-this.last)/1000);this.last=now;if(!document.hidden)this.draw(now/1000,dt);requestAnimationFrame(t=>this.frame(t));}
   draw(t,dt){const c=this.ctx,w=this.canvas.width,h=this.canvas.height,cx=w/2,cy=h/2,r=Math.min(w,h)/2-2,theta=this.roll*Math.PI/180,gx=Math.sin(theta),gy=Math.cos(theta),white=this.mono?'#edf5ec':'#e3eee9',accent=this.mono?white:'#b9ee82',blue=this.mono?white:'#38bfe8';c.fillStyle=this.mono?'#060b08':'#041419';c.fillRect(0,0,w,h);c.save();c.translate(cx,cy);c.lineWidth=1;c.strokeStyle=white;c.fillStyle=blue;
     const circle=(x,y,radius,fill=true)=>{c.beginPath();c.arc(x,y,Math.max(1,radius),0,Math.PI*2);fill?c.fill():c.stroke();};
-    if(isWaterMode(this.mode)){
+    // Until pixel-flow.js lands, pixel-flow is drawn by the FLIP solver like normal water.
+    if(isLiquidMode(this.mode)){
       const f=this.fluid,l=this.layout,input=this.updateMotion(dt),planar=Math.cos(this.pitch*Math.PI/180);
       const g=this.mode==='water'?{x:gx*planar,y:gy*planar,z:Math.sin(this.pitch*Math.PI/180)}:this.motion.gravity;
       const forces=waterForces(this.mode,g,input.linear,this.motion.omega.z,input.omegaDot);

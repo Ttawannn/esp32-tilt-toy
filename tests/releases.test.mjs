@@ -38,7 +38,7 @@ for(const board of boards) for(const profile of profiles)test(`release ${board.i
   assert.throws(()=>validateFirmwareImage(binary.subarray(0,32),board));
   assert.ok(binary.includes(Buffer.from(board.id+'\0')), 'image must contain its runtime board ID');
   assert.ok(binary.includes(Buffer.from(profile.id+'\0')), 'image must contain its complete runtime profile ID');
-  for (const mode of ['water-inertia','water-swirl']) assert.ok(binary.includes(Buffer.from(mode+'\0')), `image must contain the separate ${mode} mode`);
+  for (const mode of ['water-inertia','water-swirl','water-full','pixel-flow']) assert.ok(binary.includes(Buffer.from(mode+'\0')), `image must contain the separate ${mode} mode`);
   assert.equal(binary.length,release.size);
   assert.equal(createHash('sha256').update(binary).digest('hex'),release.sha256);
   const boot=board.bootloaderOffset;

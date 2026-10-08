@@ -1,6 +1,6 @@
 import { displayChoices, findProfile, findSensor, modes, sensors, validateRelease } from './profiles.js';
 import { boards, findBoard, releasePath, validateFirmwareImage } from './boards.js';
-import { isWaterMode } from './water-modes.js';
+import { isLiquidMode } from './water-modes.js';
 import { ToyPreview } from './preview.js';
 import { WiringGraph } from './wiring.js';
 const $ = id => document.getElementById(id);
@@ -49,7 +49,7 @@ function chooseDisplay(){
   preview.setProfile(profile);wiring.setProfile(profile,sensorId,board);
   $('panel-source').href=profile.source;verifyRelease(profile,board,++generation);
 }
-function chooseMode(id){currentMode=id;remember();preview.setMode(id);document.querySelectorAll('[data-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.mode===id)));const m=modes.find(m=>m.id===id);$('mode-readout').textContent=m.english.toUpperCase();$('mode-description').textContent=`${m.detail} · ภาพจำลองบนเว็บ`;$('fluid-controls').hidden=!isWaterMode(id);$('spin-controls').hidden=id!=='water-swirl';$('jolt-controls').hidden=id!=='water-inertia';$('shake').hidden=id==='water-inertia'||id==='water-swirl';$('spin').value=0;$('spin-value').textContent='0°/s';}
+function chooseMode(id){currentMode=id;remember();preview.setMode(id);document.querySelectorAll('[data-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.mode===id)));const m=modes.find(m=>m.id===id);$('mode-readout').textContent=m.english.toUpperCase();$('mode-description').textContent=`${m.detail} · ภาพจำลองบนเว็บ`;$('fluid-controls').hidden=!isLiquidMode(id);$('spin-controls').hidden=id!=='water-swirl';$('jolt-controls').hidden=id!=='water-inertia';$('shake').hidden=['water-inertia','water-swirl','water-full'].includes(id);$('spin').value=0;$('spin-value').textContent='0°/s';}
 for(const d of displayChoices){const b=document.createElement('button');b.className='display-card';b.dataset.display=d.id;b.setAttribute('aria-pressed','false');b.innerHTML=`<span class="mini-screen ${d.shape}" aria-hidden="true"></span><span><strong>${d.title}</strong><small>${d.subtitle}</small></span>`;b.addEventListener('click',()=>{choice=d.id;chooseDisplay();});$('displays').append(b);}
 for(const m of modes){const b=document.createElement('button');b.className='mode-button';b.dataset.mode=m.id;b.setAttribute('aria-pressed','false');b.innerHTML=`<span class="glyph" aria-hidden="true">${m.glyph}</span><span>${m.name}</span><small>${m.english}</small>`;b.addEventListener('click',()=>chooseMode(m.id));$('modes').append(b);}
 $('driver').addEventListener('change',()=>{driver=$('driver').value;chooseDisplay();});

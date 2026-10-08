@@ -6,9 +6,10 @@
 #include "../../firmware/tilt_toy/toy_modes.h"
 
 int main() {
-  assert(Water==0 && Maze==1 && Snow==2 && Pong==3 && Pet==4 && Dice==5 && ModeCount==8);
-  assert(nextToyMode(Water)==WaterInertia && nextToyMode(WaterInertia)==WaterSwirl && nextToyMode(WaterSwirl)==Maze && nextToyMode(Dice)==Water);
-  assert(isWaterMode(WaterInertia) && isWaterMode(WaterSwirl) && !isWaterMode(Dice));
+  assert(Water==0 && Maze==1 && Snow==2 && Pong==3 && Pet==4 && Dice==5 && WaterInertia==6 && WaterSwirl==7 && WaterFull==8 && PixelFlow==9 && ModeCount==10);
+  assert(nextToyMode(Water)==WaterInertia && nextToyMode(WaterInertia)==WaterSwirl && nextToyMode(WaterSwirl)==WaterFull && nextToyMode(WaterFull)==PixelFlow && nextToyMode(PixelFlow)==Maze && nextToyMode(Dice)==Water);
+  assert(isWaterMode(WaterInertia) && isWaterMode(WaterSwirl) && isWaterMode(WaterFull) && !isWaterMode(PixelFlow) && !isWaterMode(Dice));
+  assert(isLiquidMode(WaterFull) && isLiquidMode(PixelFlow) && !isLiquidMode(Maze));
   std::cout << std::setprecision(9);
   MotionState motion;
   FlipFluid fluid; fluid.configure(8,8,true,50);

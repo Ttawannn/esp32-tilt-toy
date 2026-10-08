@@ -18,6 +18,8 @@ export const modes = [
   { id: 'water', name: 'น้ำปกติ', english: 'Liquid', detail: 'น้ำแบบเดิม ไหลตามการเอียงและเขย่าให้เกิดคลื่น', glyph: '≈' },
   { id: 'water-inertia', name: 'น้ำมีแรงเฉื่อย', english: 'Inertia water', detail: 'กระตุกเครื่องให้น้ำซัดสวนทิศ แล้วไหลกลับ', glyph: '↝' },
   { id: 'water-swirl', name: 'น้ำวน', english: 'Swirl water', detail: 'หมุนรอบจอให้น้ำวน หยุดหมุนแล้วน้ำยังเคลื่อนต่อ', glyph: '◎' },
+  { id: 'water-full', name: 'น้ำสมจริง', english: 'Full-motion water', detail: 'เอียง กระตุก หรือหมุนเครื่อง น้ำตอบสนองครบทุกแรง', glyph: '≋' },
+  { id: 'pixel-flow', name: 'น้ำพิกเซล', english: 'Pixel Flow', detail: 'น้ำเม็ดละเอียดแบบจอ LED เอียงให้ไหล เขย่าให้กระเซ็น', glyph: '▦' },
   { id: 'maze', name: 'เขาวงกต', english: 'Tilt maze', detail: 'กลิ้งลูกบอลไปยังเป้าหมาย', glyph: '⊙' },
   { id: 'snow', name: 'ลูกแก้วหิมะ', english: 'Snow globe', detail: 'เขย่าให้หิมะฟุ้ง แล้วค่อย ๆ ตก', glyph: '✳' },
   { id: 'pong', name: 'Pong', english: 'Orbit pong', detail: 'เอียงเพื่อเลื่อนแป้นรับลูกบอล', glyph: '◒' },

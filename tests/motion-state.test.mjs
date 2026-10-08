@@ -70,7 +70,7 @@ test('C++ and JS agree over 150 fusion samples and 50 independent liquid force s
   const args=msvc?['/nologo','/std:c++17','/EHsc','/W4',`/I${includes}`,src,`/Fe:${exe}`,`/Fo:${resolve(dir,'parity.obj')}`]:['-std=c++17','-Wall','-Wextra','-Werror',`-I${includes}`,src,'-o',exe];
   const build=spawnSync(compiler,args,{cwd:dir,windowsHide:true,encoding:'utf8'});assert.equal(build.status,0,build.stdout+build.stderr);
   const input=[],expected=[],motion=new MotionState(),fluid=new FlipFluid(8,8,true,50);
-  for(const [id,mode]of [[0,'water'],[6,'water-inertia'],[7,'water-swirl']]){
+  for(const [id,mode]of [[0,'water'],[6,'water-inertia'],[7,'water-swirl'],[8,'water-full'],[9,'pixel-flow']]){
     input.push(`W ${id} .3 .4 .5 12 -8 3 2 10`);
     expected.push(Object.values(waterForces(mode,{x:.3,y:.4,z:.5},{x:12,y:-8,z:3},2,10)));
   }

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { waterForces, isWaterMode } from '../web/water-modes.js';
+import { waterForces, isWaterMode, isLiquidMode } from '../web/water-modes.js';
 import { modes } from '../web/profiles.js';
 import { ToyPreview } from '../web/preview.js';
 import { FlipFluid } from '../web/fluid.js';
@@ -17,7 +17,10 @@ test('normal water ignores translation and spin; each new mode uses only its own
   assert.equal(swirl.ax,base.ax);assert.equal(swirl.ay,base.ay);assert.equal(swirl.omega,2);assert.equal(swirl.omegaDot,10);
   assert.deepEqual(swirl,waterForces('water-swirl',gravity,zero,2,10));
   assert.deepEqual(waterForces('water-inertia',gravity,{x:.39,y:-.39,z:9},0,0),base);
-  assert.equal(modes.length,8);assert.deepEqual(modes.filter(m=>isWaterMode(m.id)).map(m=>m.id),['water','water-inertia','water-swirl']);
+  assert.equal(modes.length,10);assert.deepEqual(modes.filter(m=>isWaterMode(m.id)).map(m=>m.id),['water','water-inertia','water-swirl','water-full']);
+  assert.deepEqual(modes.filter(m=>isLiquidMode(m.id)).map(m=>m.id),['water','water-inertia','water-swirl','water-full','pixel-flow']);
+  // Placeholders: both new modes use tilt only until their own forces land.
+  for(const mode of ['water-full','pixel-flow'])assert.deepEqual(waterForces(mode,gravity,linear,12,40),base);
 });
 test('normal preview keeps the original tilt-only solver; switching modes resets water and hidden spin',()=>{
   // Call the real renderer with a no-op canvas; compare numerical state, not drawing internals.
