@@ -127,6 +127,8 @@ The web diagram shows components and wires for the selected board, display, and 
 
 If the port is missing, close Serial Monitor, hold BOOT while plugging in USB, release it, and try again.
 
+The installation dialog shows the current step, elapsed time, firmware download progress, and writing progress starting at 0%. Open **Show installation log** to see the loader output. If it waits for the bootloader without a new update for 30 seconds, it shows BOOT/RST instructions. A firmware download with no new data for 30 seconds fails with a retry message; serial operations use esptool's command timeouts.
+
 The preview works without a board. Sliders simulate tilt and pitch; controls let you shake, adjust fill, show the FLIP grid, and drag to stir water. Swirl water offers lay-flat, spin, and stop-spin controls; Inertia water offers four-direction jolts. Pixel Flow supports dragging and jolts. Full-motion water supports ±180° tilt, spin, lay-flat, jolts, and a spin demo. Controls follow the selected mode.
 
 ## Configure from your phone

@@ -14,7 +14,7 @@ test('both languages cover the page and interpolate the same hardware/status val
   const html = await readFile(new URL('../web/index.html', import.meta.url), 'utf8');
   assert.match(html, /<html lang="en">/);
   for (const [, key] of html.matchAll(/data-i18n(?:-aria-label|-content)?="([^"]+)"/g)) assert.ok(messages[key], `Missing page translation: ${key}`);
-  for (const file of ['app.js', 'wiring.js', 'profiles.js', 'boards.js']) {
+  for (const file of ['app.js', 'wiring.js', 'profiles.js', 'boards.js', 'installer.js', 'flash-progress.js']) {
     const source = await readFile(new URL(`../web/${file}`, import.meta.url), 'utf8');
     for (const [, key] of source.matchAll(/\b(?:t|localizedError)\('([^']+)'/g)) assert.ok(messages[key], `Missing runtime translation: ${key}`);
   }

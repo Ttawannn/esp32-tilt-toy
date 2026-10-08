@@ -12,7 +12,9 @@
     "firmware": "node scripts/build-firmware.mjs"
   },
   "dependencies": {
-    "esp-web-tools": "10.4.0"
+    "esp-web-tools": "10.4.0",
+    "esptool-js": "0.6.1",
+    "lit": "3.3.3"
   },
   "devDependencies": {
     "esbuild": "0.25.12"
