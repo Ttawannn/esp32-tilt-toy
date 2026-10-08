@@ -80,5 +80,6 @@ The complete 18-image verification build took 17 minutes 50 seconds under the
 host's concurrent workload. MSVC ran all 61 tests against those generated
 images with zero skips; the web build and local CI YAML validation also passed.
 The CI matrix/cache changes have not yet run on GitHub. Verification images
-were written under ignored `work/`, so checked-in release images still need to
-be updated before publishing the source-hash fix.
+were initially written under ignored `work/`. All 18 validated images and
+manifests were promoted into `web/firmware/` when the source-hash fix and build
+changes were merged into `main`.

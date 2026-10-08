@@ -7,7 +7,7 @@
   "flashSize": "4MB",
   "controller": "SSD1306",
   "size": 1271200,
-  "sha256": "b56d47cb00068deb64072e5640b5615ad68df4e299194a8b102dd88b82ccf12c",
+  "sha256": "e2bfb1aa666d8715c2e88e7852ec0ea621a95283e1bdd78b1bbaf5d7b7c59ce0",
   "hardwareTested": false,
   "build": {
     "core": "esp32:esp32@3.3.11",
@@ -16,7 +16,7 @@
     "bootloaderOffset": 0,
     "displayProfile": 4,
     "initialRotation": 0,
-    "sourceSha256": "74cc062d7ed2f76edc06f0d8ea495a6c700e0b0f2af710c2fb985903100f5274"
+    "sourceSha256": "42cf35b51893b85dc1da5b757f8bbf6955aac78b46b17e8556d5399173b1054d"
   },
   "new_install_prompt_erase": true,
   "new_install_improv_wait_time": 0,
