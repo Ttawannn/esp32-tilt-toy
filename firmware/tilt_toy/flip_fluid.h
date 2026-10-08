@@ -141,7 +141,8 @@ class FlipFluid {
     }
     for (int i = 0; i < nx; i++) for (int j = 0; j < ny; j++) {
       int c = i*ny+j;
-      if (weightU[c] > 0) u[c] /= weightU[c]; if (weightV[c] > 0) v[c] /= weightV[c];
+      if (weightU[c] > 0) u[c] /= weightU[c];
+      if (weightV[c] > 0) v[c] /= weightV[c];
       if (kind[c] == Solid || i == 0 || kind[c-ny] == Solid) u[c] = 0;
       if (kind[c] == Solid || j == 0 || kind[c-1] == Solid) v[c] = 0;
     }
