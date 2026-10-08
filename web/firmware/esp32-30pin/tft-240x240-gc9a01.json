@@ -1,13 +1,13 @@
 {
   "name": "ESP32 Tilt Toy · ESP32 30-pin · Round TFT",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "board": "esp32-30pin",
   "profile": "tft-240x240-gc9a01",
   "chipFamily": "ESP32",
   "flashSize": "4MB",
   "controller": "GC9A01",
-  "size": 1110576,
-  "sha256": "6ad75a3bb6e1e19f074607250d5a1e7dc7b2f7b90a55380826a675c546639ee4",
+  "size": 1148704,
+  "sha256": "dca470095cb0106e67d08b49bfba98f9a9fda151c61989f71419566729954e40",
   "hardwareTested": false,
   "build": {
     "core": "esp32:esp32@3.3.11",
@@ -16,7 +16,7 @@
     "bootloaderOffset": 4096,
     "displayProfile": 3,
     "initialRotation": 0,
-    "sourceSha256": "32d60597b87143b5be0e5e8613106e044ab31c61bc0c05708d313a0140ba350c"
+    "sourceSha256": "74cc062d7ed2f76edc06f0d8ea495a6c700e0b0f2af710c2fb985903100f5274"
   },
   "new_install_prompt_erase": true,
   "new_install_improv_wait_time": 0,

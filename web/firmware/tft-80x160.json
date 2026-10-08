@@ -1,13 +1,13 @@
 {
   "name": "ESP32 Tilt Toy · ESP32-C6 SuperMini · Pocket TFT · Portrait",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "board": "esp32-c6-supermini",
   "profile": "tft-80x160",
   "chipFamily": "ESP32-C6",
   "flashSize": "4MB",
   "controller": "ST7735S",
-  "size": 1234912,
-  "sha256": "ba3ccff5f748ed41f3f84cba705eb948016bd744f2481572739dd76dc44e6cae",
+  "size": 1274544,
+  "sha256": "0d7a950b9ef80d200f37264796fe7eb14233d1900b7d0bf7f5194dea8d32d448",
   "hardwareTested": false,
   "build": {
     "core": "esp32:esp32@3.3.11",
@@ -16,7 +16,7 @@
     "bootloaderOffset": 0,
     "displayProfile": 0,
     "initialRotation": 0,
-    "sourceSha256": "32d60597b87143b5be0e5e8613106e044ab31c61bc0c05708d313a0140ba350c"
+    "sourceSha256": "74cc062d7ed2f76edc06f0d8ea495a6c700e0b0f2af710c2fb985903100f5274"
   },
   "new_install_prompt_erase": true,
   "new_install_improv_wait_time": 0,

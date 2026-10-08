@@ -1,5 +1,5 @@
 import { defaultBoard } from './boards.js';
-export const VERSION = '0.1.3';
+export const VERSION = '0.1.4';
 export const profiles = [
   { id: 'tft-80x160', name: 'TFT 80 × 160', short: 'Pocket TFT · Portrait', driver: 'ST7735S', width: 80, height: 160, shape: 'rectangle', bus: 'SPI', firmwareId: 0, defaultRotation: 0, hasCs: true, defaultSpiMode: 0, note: 'แนวตั้ง 80×160 • เปลี่ยนแนวเพิ่มเติมจากมือถือได้', source: 'https://www.waveshare.com/wiki/0.96inch_LCD_Module' },
   { id: 'tft-80x160-landscape', name: 'TFT 160 × 80', short: 'Pocket TFT · Landscape', driver: 'ST7735S', width: 160, height: 80, shape: 'rectangle', bus: 'SPI', firmwareId: 5, defaultRotation: 1, hasCs: true, defaultSpiMode: 0, note: 'แนวนอน 160×80 • ใช้จอ 80×160 และสายต่อชุดเดิม', source: 'https://www.waveshare.com/wiki/0.96inch_LCD_Module' },

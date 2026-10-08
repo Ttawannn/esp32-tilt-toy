@@ -14,7 +14,7 @@ inline int nextToyMode(int current) {
   return Water;
 }
 struct WaterForces { float ax, ay, omega = 0, omegaDot = 0, wallDrag = 0; };
-// PixelFlow keeps its tilt-only placeholder until its own solver is implemented.
+// PixelFlow is not passed here under its own id; pixel_flow.h is driven with WaterInertia forces.
 inline WaterForces waterForces(int mode, MotionVector gravity, MotionVector linear, float omega, float omegaDot, float sensitivity = 1) {
   WaterForces forces{4*sensitivity*gravity.x,4*sensitivity*gravity.y};
   if (mode == WaterInertia) {

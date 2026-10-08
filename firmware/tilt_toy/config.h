@@ -2,7 +2,7 @@
 #ifndef DISPLAY_PROFILE
 #define DISPLAY_PROFILE 3
 #endif
-#define TOY_VERSION "0.1.3"
+#define TOY_VERSION "0.1.4"
 #define TOY_DEFAULT_ROTATION (DISPLAY_PROFILE == 5 ? 1 : 0)
 
 // Direct Arduino IDE builds select the board from the target chip. The release
