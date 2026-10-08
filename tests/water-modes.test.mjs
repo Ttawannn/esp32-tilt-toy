@@ -20,7 +20,7 @@ test('normal water ignores translation and spin; each new mode uses only its own
   assert.deepEqual(waterForces('water-inertia',gravity,{x:.39,y:-.39,z:9},0,0),base);
   assert.equal(modes.length,10);assert.deepEqual(modes.filter(m=>isWaterMode(m.id)).map(m=>m.id),['water','water-inertia','water-swirl','water-full']);
   assert.deepEqual(modes.filter(m=>isLiquidMode(m.id)).map(m=>m.id),['water','water-inertia','water-swirl','water-full','pixel-flow']);
-  // pixel-flow remains a tilt-only placeholder until its own solver lands.
+  // pixel-flow asks for water-inertia forces (see pixel-flow.js); its own id adds nothing to tilt.
   assert.deepEqual(waterForces('pixel-flow',gravity,linear,12,40),base);
 });
 

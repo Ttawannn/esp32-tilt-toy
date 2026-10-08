@@ -13,6 +13,7 @@
 #include "motion_sensor.h"
 #include "motion_state.h"
 #include "flip_fluid.h"
+#include "pixel_flow.h"
 #include "toy_modes.h"
 
 // One shared renderer; each release selects a concrete panel initializer.
@@ -55,6 +56,13 @@ float fillPercent = 50, sensitivity = 1.0f;
 float roll = 0, pitch = 0;
 float gyroXBias = 0, gyroYBias = 0, gyroZBias = 0;
 FlipFluid fluid;
+PixelDrops drops;
+PixelDrops::Layout pixelView{};
+// Cells as last sent to the panel, so each frame only rewrites drops that changed.
+uint8_t shownLook[PixelDrops::MaxCells];
+bool pixelScreenValid = false;
+uint32_t pixelClock = 0, pixelFrame = 0;
+int pixelAx = 0, pixelAy = 64;
 float simulationMs = 0;
 float ballX = 0, ballY = 0, ballVX = 0.1f, ballVY = -0.35f;
 int score = 0, diceValue = 1;
@@ -83,6 +91,12 @@ void resetMode() {
     const int cells = shortest < 40 ? 6 : shortest < 100 ? 8 : 16;
     const int nx = 2 + fminf(30,roundf(cells*w/shortest)), ny = 2 + fminf(30,roundf(cells*h/shortest));
     fluid.configure(DISPLAY_PROFILE == 3 ? 20 : nx, DISPLAY_PROFILE == 3 ? 20 : ny, DISPLAY_PROFILE == 3, fillPercent);
+    if (activeMode == PixelFlow) {
+      pixelView = PixelDrops::layout(scene->width(), scene->height(), DISPLAY_PROFILE == 3, DISPLAY_PROFILE == 4);
+      drops.configure(pixelView.cols, pixelView.rows, pixelView.shape);
+      drops.reset((int)fillPercent, pixelAx, pixelAy, esp_random());
+      pixelClock = 0; pixelScreenValid = false;
+    }
   }
   for (auto &f : flakes) { f.x = randomUnit() * 1.8f - 0.9f; f.y = randomUnit() * 1.8f - 0.9f; f.vx = 0; f.vy = 0; }
 }
@@ -143,6 +157,44 @@ void present() {
 #else
   panel.drawRGBBitmap(0, 0, colorCanvas->getBuffer(), scene->width(), scene->height());
 #endif
+  pixelScreenValid = false;
+}
+// Pixel Flow shades: 0 empty, 1 surface, 2 spray, 3-6 body from just below the surface to deep.
+uint16_t pixelColor(uint8_t shade) {
+  static const uint8_t colors[7][3] = {{0,0,0},{142,232,255},{200,244,255},{43,184,240},{26,159,224},{18,136,204},{12,112,180}};
+  return shade < 7 ? rgb(colors[shade][0], colors[shade][1], colors[shade][2]) : 0;
+}
+// Gravity plus measured jolts, like water-inertia, in Q8 cells per step². Steps run at a fixed 30 Hz.
+void advancePixelFlow(float dt, MotionVector linear) {
+  uint32_t started = micros();
+  const bool tracked = imuReady && motion.ready;
+  WaterForces forces = waterForces(WaterInertia,tracked?motion.gravity:MotionVector{0,1,0},tracked?linear:MotionVector{},0,0,sensitivity);
+  pixelAx = PixelDrops::forceToQ8(forces.ax); pixelAy = PixelDrops::forceToQ8(forces.ay);
+  pixelClock = min(pixelClock+(uint32_t)(dt*1000), 2*PixelDrops::StepMs);
+  while (pixelClock >= PixelDrops::StepMs) { drops.step(pixelAx, pixelAy); pixelClock -= PixelDrops::StepMs; }
+  drops.shade(pixelAx, pixelAy, pixelFrame++);
+  simulationMs = (micros()-started)*.001f;
+}
+// TFT fast path: skip the framebuffer and rewrite only the drops whose shade changed.
+// Returns false when the frame needs the canvas (OLED, Wi-Fi details or a missing sensor on screen).
+bool drawPixelFlowDirect(float dt) {
+#if DISPLAY_PROFILE == 4
+  return false;
+#else
+  if (activeMode != PixelFlow || apActive || !imuReady) return false;
+  float angularAcceleration;
+  advancePixelFlow(dt, motion.consumeFrame(angularAcceleration));
+  const int cells = pixelView.cols*pixelView.rows, size = pixelView.pitch-1;
+  panel.startWrite();
+  if (!pixelScreenValid) { panel.writeFillRect(0, 0, panel.width(), panel.height(), 0); memset(shownLook, 0, cells); pixelScreenValid = true; }
+  for (int c = 0; c < cells; c++) {
+    if (drops.look[c] == shownLook[c]) continue;
+    shownLook[c] = drops.look[c];
+    panel.writeFillRect(pixelView.x+(c%pixelView.cols)*pixelView.pitch, pixelView.y+(c/pixelView.cols)*pixelView.pitch, size, size, pixelColor(shownLook[c]));
+  }
+  panel.endWrite();
+  return true;
+#endif
 }
 void textCenter(const char *text, int y, uint16_t color, int size = 1) {
   scene->setTextSize(size); scene->setTextColor(ink(color));
@@ -151,7 +203,8 @@ void textCenter(const char *text, int y, uint16_t color, int size = 1) {
 }
 void shake() {
   lastShake = millis();
-  if (activeMode == Water || activeMode == PixelFlow) fluid.impulse(sinf(roll*PI/180),cosf(roll*PI/180));
+  if (activeMode == Water) fluid.impulse(sinf(roll*PI/180),cosf(roll*PI/180));
+  if (activeMode == PixelFlow) drops.shake(pixelAx, pixelAy);
   diceValue = 1 + esp_random() % 6;
   for (auto &f : flakes) { f.vx = (randomUnit() - 0.5f) * 4; f.vy = (randomUnit() - 0.5f) * 4; }
 }
@@ -204,8 +257,11 @@ void renderGame(float dt) {
   float angularAcceleration;
   MotionVector linearFrame = motion.consumeFrame(angularAcceleration);
   if (!imuReady) { gx = 0; gy = 1; }
-  // Until pixel_flow.h lands, PixelFlow is drawn by the FLIP solver like normal water.
-  if (isLiquidMode(activeMode)) {
+  if (activeMode == PixelFlow) {
+    advancePixelFlow(dt, linearFrame);
+    for (int c = 0; c < pixelView.cols*pixelView.rows; c++) if (drops.look[c])
+      scene->fillRect(pixelView.x+(c%pixelView.cols)*pixelView.pitch, pixelView.y+(c/pixelView.cols)*pixelView.pitch, pixelView.pitch-1, pixelView.pitch-1, pixelColor(drops.look[c]));
+  } else if (isWaterMode(activeMode)) {
     uint32_t started = micros();
     const bool tracked = imuReady && motion.ready;
     WaterForces forces = waterForces(activeMode,tracked?motion.gravity:MotionVector{0,1,0},tracked?linearFrame:MotionVector{},tracked?motion.omega.z:0,tracked?angularAcceleration:0,sensitivity);
@@ -289,7 +345,7 @@ void setupRoutes() {
   server.on("/license",HTTP_GET,[](){server.send(200,"text/plain; charset=utf-8",fluidLicense);});
   server.on("/", HTTP_GET, [](){server.send_P(200,"text/html; charset=utf-8",devicePage);});
   server.on("/api/status", HTTP_GET, [](){
-    char json[1536]; int length = snprintf(json,sizeof(json),"{\"version\":\"%s\",\"board\":\"%s\",\"boardName\":\"%s\",\"chipFamily\":\"%s\",\"profile\":\"%s\",\"mode\":\"%s\",\"rotation\":%d,\"invert\":%s,\"spiMode\":%d,\"fill\":%.1f,\"sensitivity\":%.2f,\"imu\":%s,\"sensor\":\"%s\",\"sensorAddress\":%u,\"gyro\":%s,\"roll\":%.1f,\"pitch\":%.1f,\"fps\":%.1f,\"simMs\":%.2f,\"score\":%d,\"particles\":%d,\"freeHeap\":%u,\"axisX\":%d,\"axisY\":%d,\"axisZ\":%d,\"gravity\":[%.3f,%.3f,%.3f],\"omega\":[%.3f,%.3f,%.3f],\"linear\":[%.3f,%.3f,%.3f],\"yaw\":%.1f,\"stillMs\":%.0f,\"fifoResets\":%u}",TOY_VERSION,TOY_BOARD_ID,TOY_BOARD_NAME,TOY_CHIP_FAMILY,profileName,modeIds[activeMode],rotation,inverted?"true":"false",spiMode,fillPercent,sensitivity,imuReady?"true":"false",imu.name(),imu.i2cAddress(),imu.hasGyro()?"true":"false",roll,pitch,fps,simulationMs,score,fluid.count,ESP.getFreeHeap(),motion.axes[0],motion.axes[1],motion.axes[2],motion.gravity.x,motion.gravity.y,motion.gravity.z,motion.omega.x,motion.omega.y,motion.omega.z,motion.linear.x,motion.linear.y,motion.linear.z,motion.yaw,motion.stillMs,imu.fifoResets);
+    char json[1536]; int length = snprintf(json,sizeof(json),"{\"version\":\"%s\",\"board\":\"%s\",\"boardName\":\"%s\",\"chipFamily\":\"%s\",\"profile\":\"%s\",\"mode\":\"%s\",\"rotation\":%d,\"invert\":%s,\"spiMode\":%d,\"fill\":%.1f,\"sensitivity\":%.2f,\"imu\":%s,\"sensor\":\"%s\",\"sensorAddress\":%u,\"gyro\":%s,\"roll\":%.1f,\"pitch\":%.1f,\"fps\":%.1f,\"simMs\":%.2f,\"score\":%d,\"particles\":%d,\"freeHeap\":%u,\"axisX\":%d,\"axisY\":%d,\"axisZ\":%d,\"gravity\":[%.3f,%.3f,%.3f],\"omega\":[%.3f,%.3f,%.3f],\"linear\":[%.3f,%.3f,%.3f],\"yaw\":%.1f,\"stillMs\":%.0f,\"fifoResets\":%u}",TOY_VERSION,TOY_BOARD_ID,TOY_BOARD_NAME,TOY_CHIP_FAMILY,profileName,modeIds[activeMode],rotation,inverted?"true":"false",spiMode,fillPercent,sensitivity,imuReady?"true":"false",imu.name(),imu.i2cAddress(),imu.hasGyro()?"true":"false",roll,pitch,fps,simulationMs,score,activeMode==PixelFlow?drops.count:fluid.count,ESP.getFreeHeap(),motion.axes[0],motion.axes[1],motion.axes[2],motion.gravity.x,motion.gravity.y,motion.gravity.z,motion.omega.x,motion.omega.y,motion.omega.z,motion.linear.x,motion.linear.y,motion.linear.z,motion.yaw,motion.stillMs,imu.fifoResets);
     if (length < 0 || length >= (int)sizeof(json)) { server.send(500,"text/plain","Status overflow"); return; }
     server.send(200,"application/json",json);
   });
@@ -366,7 +422,10 @@ void loop(){
   if(!down&&pressed){if(!longHandled&&now-pressedAt>=40){activeMode=nextToyMode(activeMode);resetMode();saveSettings();}pressed=false;lastRelease=now;}
   if(apActive){server.handleClient();if((closeRequested&&(int32_t)(now-closeAt)>=0)||now-apStarted>180000)closeAp();}
   if(now-lastImu>=10){lastImu=now;readImu();}
-  if(now-lastFrame>=50){float dt=limit((now-lastFrame)*0.001f,0.01f,0.1f);lastFrame=now;renderGame(dt);present();frameCount++;}
+  // On TFTs Pixel Flow draws at its 30 Hz step rate; it only sends changed drops, so the panel keeps up.
+  // The OLED keeps 50 ms: it shares I²C with the sensor and a full transfer takes about 25 ms.
+  const uint32_t frameMs=activeMode==PixelFlow&&DISPLAY_PROFILE!=4?PixelDrops::StepMs:50;
+  if(now-lastFrame>=frameMs){float dt=limit((now-lastFrame)*0.001f,0.01f,0.1f);lastFrame=now;if(!drawPixelFlowDirect(dt)){renderGame(dt);present();}frameCount++;}
   if(now-fpsAt>=1000){fps=frameCount*1000.0f/(now-fpsAt);frameCount=0;fpsAt=now;}
   delay(1);
 }

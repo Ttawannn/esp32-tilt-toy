@@ -1,7 +1,10 @@
-// Browser simulation of the eight toy modes. Hardware uses BMI160 or MPU6050.
+// Browser simulation of the toy modes. Hardware uses BMI160 or MPU6050.
 import { FlipFluid, fluidLayout, pixelWater, FULL_WATER_FLIP, fullWaterCssColor } from './fluid.js';
 import { MotionState, GRAVITY } from './motion.js';
-import { isLiquidMode, waterForces } from './water-modes.js';
+import { isLiquidMode, isWaterMode, waterForces } from './water-modes.js';
+import { PixelFlow, pixelLayout, forceToQ8, STEP as PIXEL_STEP } from './pixel-flow.js';
+// Pixel Flow shades: 0 empty, 1 surface, 2 spray, 3-6 body from just below the surface to deep.
+const PIXEL_COLORS=['','#8ee8ff','#c8f4ff','#2bb8f0','#1a9fe0','#1288cc','#0c70b4'];
 
 // WaterFull input only: continuous body-to-world orientation with matching 100 Hz gyro.
 const fullRadians=Math.PI/180,fullWrap=angle=>Math.atan2(Math.sin(angle),Math.cos(angle));
@@ -60,6 +63,7 @@ export class WaterFullInput {
 export class ToyPreview {
   constructor(canvas){this.canvas=canvas;this.ctx=canvas.getContext('2d');this.roll=0;this.pitch=0;this.spin=0;this.fill=50;this.showGrid=false;this.mode='water';this.mono=false;this.shakenAt=-10;this.dice=3;this.motion=new MotionState();this.reset();this.last=performance.now();this.running=true;this.bindStir();requestAnimationFrame(t=>this.frame(t));}
   reset(){this.motion.reset();this.motionTime=0;this.spinAngle=0;this.kick={x:0,y:0};this.ball={x:-.5,y:.5,vx:.3,vy:-.4};this.score=0;this.flakes=Array.from({length:36},()=>({x:Math.random()*1.6-.8,y:Math.random()*1.6-.8,vx:0,vy:0}));this.layout=fluidLayout(this.canvas.width,this.canvas.height,!!this.round);this.fluid=new FlipFluid(this.layout.nx,this.layout.ny,!!this.round,this.fill);
+    const v=this.pixelView=pixelLayout(this.canvas.width,this.canvas.height,!!this.round,this.mono);this.pixelForce=[0,64];this.pixelClock=0;this.pixelFrame=0;this.drops=new PixelFlow(v.cols,v.rows,v.shape,this.fill,1+Math.floor(Math.random()*0x7ffffffe));
     this.fullMotion=null;
     if(this.mode==='water-full'){this.fullMotion=new WaterFullInput(this.roll,this.pitch);this.motion.update(this.fullMotion.sample(0));this.motion.consumeFrame();}
   }
@@ -88,21 +92,36 @@ export class ToyPreview {
     while(this.motionTime>=.01-1e-8){
       this.spinAngle+=speed*.01;
       const angle=this.roll*Math.PI/180+this.spinAngle;
-      this.motion.update({ax:GRAVITY*Math.sin(angle)*planar+(this.mode==='water-inertia'?this.kick.x:0),ay:GRAVITY*Math.cos(angle)*planar+(this.mode==='water-inertia'?this.kick.y:0),az:GRAVITY*Math.sin(this.pitch*Math.PI/180),gx:0,gy:0,gz:speed});
+      const kicked=this.mode==='water-inertia'||this.mode==='pixel-flow';
+      this.motion.update({ax:GRAVITY*Math.sin(angle)*planar+(kicked?this.kick.x:0),ay:GRAVITY*Math.cos(angle)*planar+(kicked?this.kick.y:0),az:GRAVITY*Math.sin(this.pitch*Math.PI/180),gx:0,gy:0,gz:speed});
       this.kick.x*=Math.exp(-.01/.08);this.kick.y*=Math.exp(-.01/.08);this.motionTime-=.01;
     }
     return this.motion.consumeFrame();
   }
   setProfile(p){this.canvas.width=p.width;this.canvas.height=p.height;this.mono=!!p.mono;this.round=p.shape==='round';this.reset();}
   setMode(mode){this.mode=mode;this.spin=0;this.reset();}
-  setFill(value){this.fill=value;this.fluid.reset(value);}
-  shake(){this.shakenAt=performance.now()/1000;this.fluid.impulse(Math.sin(this.roll*Math.PI/180),Math.cos(this.roll*Math.PI/180));this.dice=1+Math.floor(Math.random()*6);for(const f of this.flakes){f.vx=(Math.random()-.5)*4;f.vy=(Math.random()-.5)*4;}}
-  bindStir(){const canvas=this.canvas;let previous=null;const point=e=>{const box=canvas.getBoundingClientRect(),l=this.layout,f=this.fluid;return {x:f.h+((e.clientX-box.left)*canvas.width/box.width-l.x)/l.width*(f.nx-2)*f.h,y:f.h+((e.clientY-box.top)*canvas.height/box.height-l.y)/l.height*(f.ny-2)*f.h,time:e.timeStamp};};canvas.addEventListener('pointerdown',e=>{if(isLiquidMode(this.mode)){previous=point(e);canvas.setPointerCapture(e.pointerId);}});canvas.addEventListener('pointermove',e=>{if(previous&&isLiquidMode(this.mode)){const p=point(e),dt=Math.max(.01,(p.time-previous.time)/1000);this.fluid.stir(p.x,p.y,(p.x-previous.x)/dt,(p.y-previous.y)/dt);previous=p;}});for(const name of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(name,()=>previous=null);}
+  setFill(value){this.fill=value;this.fluid.reset(value);this.drops.reset(value,...this.pixelForce,1+Math.floor(Math.random()*0x7ffffffe));}
+  shake(){this.shakenAt=performance.now()/1000;this.fluid.impulse(Math.sin(this.roll*Math.PI/180),Math.cos(this.roll*Math.PI/180));this.drops.shake(...this.pixelForce);this.dice=1+Math.floor(Math.random()*6);for(const f of this.flakes){f.vx=(Math.random()-.5)*4;f.vy=(Math.random()-.5)*4;}}
+  bindStir(){const canvas=this.canvas;let previous=null;
+    const point=e=>{const box=canvas.getBoundingClientRect(),l=this.layout,f=this.fluid,px=(e.clientX-box.left)*canvas.width/box.width,py=(e.clientY-box.top)*canvas.height/box.height;return {px,py,x:f.h+(px-l.x)/l.width*(f.nx-2)*f.h,y:f.h+(py-l.y)/l.height*(f.ny-2)*f.h,time:e.timeStamp};};
+    canvas.addEventListener('pointerdown',e=>{if(isLiquidMode(this.mode)){previous=point(e);canvas.setPointerCapture(e.pointerId);}});
+    canvas.addEventListener('pointermove',e=>{if(!previous||!isLiquidMode(this.mode))return;const p=point(e),dt=Math.max(.01,(p.time-previous.time)/1000);
+      if(this.mode==='pixel-flow'){const v=this.pixelView,toQ8=256*PIXEL_STEP/v.pitch;this.drops.push(Math.floor((p.px-v.x)/v.pitch),Math.floor((p.py-v.y)/v.pitch),Math.trunc((p.px-previous.px)/dt*toQ8),Math.trunc((p.py-previous.py)/dt*toQ8),3);}
+      else this.fluid.stir(p.x,p.y,(p.x-previous.x)/dt,(p.y-previous.y)/dt);
+      previous=p;});
+    for(const name of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(name,()=>previous=null);}
   frame(now){if(!this.running)return;const dt=Math.min(.05,(now-this.last)/1000);this.last=now;if(document.hidden&&this.mode==='water-full')this.pauseFullMotion();if(!document.hidden)this.draw(now/1000,dt);requestAnimationFrame(t=>this.frame(t));}
   draw(t,dt){const c=this.ctx,w=this.canvas.width,h=this.canvas.height,cx=w/2,cy=h/2,r=Math.min(w,h)/2-2,theta=this.roll*Math.PI/180,gx=Math.sin(theta),gy=Math.cos(theta),white=this.mono?'#edf5ec':'#e3eee9',accent=this.mono?white:'#b9ee82',blue=this.mono?white:'#38bfe8';c.fillStyle=this.mono?'#060b08':'#041419';c.fillRect(0,0,w,h);c.save();c.translate(cx,cy);c.lineWidth=1;c.strokeStyle=white;c.fillStyle=blue;
     const circle=(x,y,radius,fill=true)=>{c.beginPath();c.arc(x,y,Math.max(1,radius),0,Math.PI*2);fill?c.fill():c.stroke();};
-    // Until pixel-flow.js lands, pixel-flow is drawn by the FLIP solver like normal water.
-    if(isLiquidMode(this.mode)){
+    if(this.mode==='pixel-flow'){
+      // Same forces as water-inertia, stepped at the firmware's fixed 30 Hz.
+      const v=this.pixelView,f=this.drops,input=this.updateMotion(dt),forces=waterForces('water-inertia',this.motion.gravity,input.linear,0,0);
+      const ax=forceToQ8(forces.ax),ay=forceToQ8(forces.ay);this.pixelForce=[ax,ay];
+      this.pixelClock=Math.min(2*PIXEL_STEP,this.pixelClock+dt);
+      while(this.pixelClock>=PIXEL_STEP-1e-9){f.step(ax,ay);this.pixelClock-=PIXEL_STEP;}
+      const look=f.shade(ax,ay,this.pixelFrame++),left=v.x-cx,top=v.y-cy,size=v.pitch-1;
+      for(let k=0;k<v.cols*v.rows;k++)if(look[k]){c.fillStyle=this.mono?white:PIXEL_COLORS[look[k]];c.fillRect(left+(k%v.cols)*v.pitch,top+Math.floor(k/v.cols)*v.pitch,size,size);}
+    } else if(isWaterMode(this.mode)){
       const f=this.fluid,l=this.layout,input=this.updateMotion(dt),planar=Math.cos(this.pitch*Math.PI/180);
       const g=this.mode==='water'?{x:gx*planar,y:gy*planar,z:Math.sin(this.pitch*Math.PI/180)}:this.motion.gravity;
       const forces=waterForces(this.mode,g,input.linear,this.motion.omega.z,input.omegaDot);

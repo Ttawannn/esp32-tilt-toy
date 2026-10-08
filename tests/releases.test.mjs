@@ -59,7 +59,8 @@ for(const board of boards) for(const profile of profiles)test(`release ${board.i
   const motion = (await readFile(new URL('../firmware/tilt_toy/motion_sensor.h',import.meta.url),'utf8')).replace(/\r\n/g,'\n');
   const state = (await readFile(new URL('../firmware/tilt_toy/motion_state.h',import.meta.url),'utf8')).replace(/\r\n/g,'\n');
   const modes = (await readFile(new URL('../firmware/tilt_toy/toy_modes.h',import.meta.url),'utf8')).replace(/\r\n/g,'\n');
-  assert.equal(createHash('sha256').update(source+'\n'+config+'\n'+fluid+'\n'+motion+'\n'+state+'\n'+modes).digest('hex'),release.build.sourceSha256);
+  const pixel = (await readFile(new URL('../firmware/tilt_toy/pixel_flow.h',import.meta.url),'utf8')).replace(/\r\n/g,'\n');
+  assert.equal(createHash('sha256').update(source+'\n'+config+'\n'+fluid+'\n'+motion+'\n'+state+'\n'+modes+'\n'+pixel).digest('hex'),release.build.sourceSha256);
   for(const sensor of ['BMI160','MPU6050'])assert.ok(binary.includes(Buffer.from(sensor)),`image must support ${sensor}`);
   assert.equal(config.match(/TOY_VERSION\s+"([^"]+)"/)[1],release.version);
   const otherBoard=boards.find(b=>b.id!==board.id);
