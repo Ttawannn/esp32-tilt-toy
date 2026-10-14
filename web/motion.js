@@ -18,7 +18,8 @@ export class MotionState {
   estimateGravity(){const[w,x,y,z]=this.q;this.gravity=vector(2*(x*z-w*y),2*(w*x+y*z),1-2*(x*x+y*y));}
   update(sample,dt=.01){
     if(!Number.isFinite(dt)||dt<=0||dt>.05)return;
-    const a=this.map(sample.ax,sample.ay,sample.az),w=this.map(sample.gx,sample.gy,sample.gz),magnitude=length(a);
+    // Accelerometers report specific force: +1 g pointing up at rest. Gravity (down) is its opposite.
+    const f=this.map(sample.ax,sample.ay,sample.az),a=vector(-f.x,-f.y,-f.z),w=this.map(sample.gx,sample.gy,sample.gz),magnitude=length(a);
     if(!Number.isFinite(magnitude)||!Number.isFinite(length(w)))return;
     if(!this.ready){if(magnitude<1)return;this.q=[1+a.z/magnitude,a.y/magnitude,-a.x/magnitude,0];if(this.q[0]<.00001)this.q=[0,1,0,0];this.normalize();this.estimateGravity();this.ready=true;}
     for(const axis of ['x','y','z'])w[axis]-=this.bias[axis];
@@ -33,7 +34,8 @@ export class MotionState {
     this.q[0]+=(-qx*wx-qy*wy-qz*wz)*half;this.q[1]+=(qw*wx+qy*wz-qz*wy)*half;
     this.q[2]+=(qw*wy-qx*wz+qz*wx)*half;this.q[3]+=(qw*wz+qx*wy-qy*wx)*half;
     this.normalize();this.estimateGravity();
-    this.linear=vector(a.x-GRAVITY*this.gravity.x,a.y-GRAVITY*this.gravity.y,a.z-GRAVITY*this.gravity.z);
+    // Translation: specific force plus gravity.
+    this.linear=vector(GRAVITY*this.gravity.x-a.x,GRAVITY*this.gravity.y-a.y,GRAVITY*this.gravity.z-a.z);
     this.roll=Math.atan2(this.gravity.x,this.gravity.y)*degrees;this.pitch=Math.atan2(this.gravity.z,Math.hypot(this.gravity.x,this.gravity.y))*degrees;
     const[w0,x,y,z]=this.q;this.yaw=Math.atan2(2*(w0*z+x*y),1-2*(y*y+z*z))*degrees;
     this.shake=Math.abs(magnitude-GRAVITY)>7||Math.abs(w.x)+Math.abs(w.y)+Math.abs(w.z)>5;

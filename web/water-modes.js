@@ -1,20 +1,15 @@
 import { GRAVITY } from './motion.js';
-// Mirror of toy_modes.h. pixel-flow has its own solver, so it is a liquid mode but not a FLIP water mode.
-export const isWaterMode = mode => ['water','water-inertia','water-swirl','water-full'].includes(mode);
-export const isLiquidMode = mode => isWaterMode(mode) || mode === 'pixel-flow';
-// Each water mode receives its own forces. pixel-flow keeps its tilt-only placeholder.
-export function waterForces(mode,gravity,linear,omega,omegaDot,sensitivity=1) {
-  const forces={ax:4*sensitivity*gravity.x,ay:4*sensitivity*gravity.y,omega:0,omegaDot:0,wallDrag:0};
-  if(mode==='water-inertia'){
+// Mirror of toy_modes.h. water and water-slosh use the FLIP solver; pixel-flow has its own.
+export const isFlipMode = mode => mode === 'water' || mode === 'water-slosh';
+export const isLiquidMode = mode => isFlipMode(mode) || mode === 'pixel-flow';
+// Water follows tilt only. Pixel Flow also reacts to jolts: measured translation pushes the drops the other way.
+// Slosh water adds turning about the screen axis, so moving or rocking the toy leaves the water behind.
+export function waterForces(mode,gravity,linear,omega=0,omegaDot=0,sensitivity=1) {
+  const forces={ax:4*sensitivity*gravity.x,ay:4*sensitivity*gravity.y,omega:0,omegaDot:0};
+  if(mode==='pixel-flow'||mode==='water-slosh'){
     forces.ax-=4*sensitivity*(Math.abs(linear.x)<.4?0:linear.x)/GRAVITY;
     forces.ay-=4*sensitivity*(Math.abs(linear.y)<.4?0:linear.y)/GRAVITY;
-  }else if(mode==='water-swirl'){
-    forces.omega=omega;forces.omegaDot=omegaDot;forces.wallDrag=.15;
-  }else if(mode==='water-full'){
-    const linearGain=1.35,deadband=.4;
-    forces.ax-=4*sensitivity*linearGain*(Math.abs(linear.x)<deadband?0:linear.x)/GRAVITY;
-    forces.ay-=4*sensitivity*linearGain*(Math.abs(linear.y)<deadband?0:linear.y)/GRAVITY;
-    forces.omega=omega;forces.omegaDot=omegaDot;forces.wallDrag=.10;
   }
+  if(mode==='water-slosh'){forces.omega=omega;forces.omegaDot=omegaDot;}
   return forces;
 }

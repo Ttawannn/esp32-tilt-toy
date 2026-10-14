@@ -21,10 +21,11 @@ export function direction(x,y) {
 }
 
 // Pitch is the cell spacing on screen; each drop is drawn pitch-1 pixels wide, leaving a dark gap.
+// Same view margin and cell size as the FLIP water pixels (fluidLayout + preview.js), so both grids match.
 export function pixelLayout(width,height,round=false,mono=false) {
-  const short=Math.min(width,height),pitch=short>=200?6:short>=80?4:2;
-  const cols=Math.min(MAX_COLS,Math.floor(width/pitch)),rows=Math.min(MAX_ROWS,Math.floor(height/pitch));
-  return {pitch,cols,rows,x:(width-cols*pitch)>>1,y:(height-rows*pitch)>>1,shape:round?SHAPE_CIRCLE:mono?SHAPE_RECT:SHAPE_ROUNDED};
+  const margin=round?4:2,w=width-2*margin,h=height-2*margin,pitch=Math.max(3,Math.floor((Math.min(w,h)+17)/34));
+  const cols=Math.min(MAX_COLS,Math.floor(w/pitch)),rows=Math.min(MAX_ROWS,Math.floor(h/pitch));
+  return {pitch,cols,rows,x:margin+((w-cols*pitch)>>1),y:margin+((h-rows*pitch)>>1),shape:round?SHAPE_CIRCLE:mono?SHAPE_RECT:SHAPE_ROUNDED};
 }
 
 // Convert a solver force (water-modes.js units) to Q8 cells per step², rounding half away from zero.

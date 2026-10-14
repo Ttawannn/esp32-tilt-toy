@@ -75,12 +75,16 @@ const moduleSpecs = {
   st7789: { width: 27.5, height: 39, header: 2.3, pcb: '#1d5aa6', mounts: [[2.6, 2.6], [24.9, 2.6], [2.6, 36.4], [24.9, 36.4]] },
   gc9a01: { width: 36, height: 45.5, header: 43.3, bottom: true, pcb: '#1d5aa6', mounts: [[5.2, 39.4], [30.8, 39.4]] },
   oled: { width: 27.3, height: 27.8, header: 1.9, pcb: '#18191b', mounts: [[2, 2], [25.3, 2], [2, 25.8], [25.3, 25.8]] },
-  // Sensor breakouts have a vertical header on the left edge (column x, first pin y); BMI160 adds an unwired right column.
+  // Sensor artwork starts with a left header; BMI160 rotates it to the top, with interrupts below.
   mpu6050: { width: 16.4, height: 21.2, column: 1.3, first: 1.7, pcb: '#2b5fae', mounts: [[14, 2.3], [14.6, 19.4]] },
   bmi160: { width: 16.6, height: 17.8, column: 1.25, extraColumn: 15.35, first: 1.3, pcb: '#6a2fa0', mounts: [[13.6, 15.6]] }
 };
 function moduleGeometry(kind, count, scale, cx, anchor) {
   const spec = moduleSpecs[kind], pitch = 2.54 * scale;
+  if (kind === 'bmi160') return {
+    spec, scale, pitch, left: cx - spec.height * scale / 2, top: anchor, hy: anchor + spec.column * scale, rotation: 90,
+    pin: index => [cx + (spec.height / 2 - spec.first - index * 2.54) * scale, anchor + spec.column * scale]
+  };
   const left = cx - spec.width * scale / 2;
   if (spec.column !== undefined) return { spec, scale, pitch, left, top: anchor, side: 'left', pin: index => [left + spec.column * scale, anchor + (spec.first + index * 2.54) * scale] };
   const top = spec.bottom ? anchor - spec.height * scale : anchor - spec.header * scale, hy = top + spec.header * scale;
@@ -124,10 +128,10 @@ function moduleArt(kind, slots, geometry, caption) {
     });
   }
   const group = svgElement('g', { 'aria-hidden': 'true' });
-  const body = svgElement('g', { transform: `translate(${round(geometry.left)} ${round(geometry.top)}) scale(${geometry.scale})` });
+  const body = svgElement('g', { transform: `translate(${round(geometry.left)} ${round(geometry.top)}) scale(${geometry.scale})${geometry.rotation ? ` translate(${H} 0) rotate(${geometry.rotation})` : ''}` });
   body.innerHTML = art;
   group.append(body);
-  if (caption) group.append(svgElement('text', { x: geometry.left + W * geometry.scale / 2, y: geometry.bottom ? geometry.top - 8 : geometry.top + H * geometry.scale + 18, 'text-anchor': 'middle', class: 'component-subtitle' }, caption));
+  if (caption) group.append(svgElement('text', { x: geometry.left + (geometry.rotation ? H : W) * geometry.scale / 2, y: geometry.bottom ? geometry.top - 8 : geometry.top + (geometry.rotation ? W : H) * geometry.scale + 18, 'text-anchor': 'middle', class: 'component-subtitle' }, caption));
   return group;
 }
 // Orthogonal path through the given points with rounded corners.

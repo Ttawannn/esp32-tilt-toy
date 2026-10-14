@@ -13,7 +13,7 @@ test('phone controls display each detected sensor and offer calibration only whi
       if (!elements.has(id)) elements.set(id, { value: '', textContent: '', hidden: false, dataset: {}, options: [] });
       return elements.get(id);
     };
-    let state = { board: board.id, boardName: board.name, chipFamily: board.chipFamily, profile: 'oled-128x64', version: '0.1.2', mode: 'water', fill: 50, sensitivity: 1, rotation: 0, invert: false, spiMode: 0, imu: true, sensor, sensorAddress, gyro, roll: 12, pitch: -5, fps: 20, score: 0, simMs: 5, particles: 100, freeHeap: 180000, axisX: 1, axisY: 2, axisZ: 3, gravity: [0,.98,-.1], omega: [0,0,1.5], linear: [2,0,0] };
+    let state = { board: board.id, boardName: board.name, chipFamily: board.chipFamily, profile: 'oled-128x64', version: '0.1.2', mode: 'water', fill: 50, sensitivity: 1, rotation: 0, invert: false, spiMode: 0, imu: true, sensor, sensorAddress, gyro, roll: 12, pitch: -5, fps: 20, simMs: 5, particles: 100, freeHeap: 180000, axisX: 1, axisY: 2, axisZ: 3, gravity: [0,.98,-.1], omega: [0,0,1.5], linear: [2,0,0] };
     let poll;
     const requests = [];
     runInNewContext(script, {
@@ -41,15 +41,18 @@ test('phone controls display each detected sensor and offer calibration only whi
       assert.equal(requests.at(-1)[0], '/api/calibrate');
       assert.equal(requests.at(-1)[1].method, 'POST');
     }
-    for (const [mode,name] of [['water','น้ำปกติ'],['water-inertia','น้ำมีแรงเฉื่อย'],['water-swirl','น้ำวน'],['water-full','น้ำสมจริง'],['pixel-flow','น้ำพิกเซล']]) {
-      state={...state,mode};await poll();
+    for (const [mode,name] of [['water','น้ำปกติ'],['water-slosh','น้ำกระฉอก'],['pixel-flow','น้ำพิกเซล'],['pet','ตาการ์ตูน'],['robot','ตาหุ่นยนต์ · ดีใจ']]) {
+      state={...state,mode,mood:'happy'};await poll();
       assert.equal(get('vMode').textContent,name);
-      assert.equal(get('fullMotionHint').hidden,mode!=='water-full');
-      assert.equal(get('sSim').hidden,false);assert.equal(get('sParticles').hidden,false);
-      assert.equal(get('shake').hidden,!['water','pixel-flow'].includes(mode));
+      const liquid=['water','water-slosh','pixel-flow'].includes(mode);
+      assert.equal(get('sSim').hidden,!liquid);assert.equal(get('sParticles').hidden,!liquid);
+      assert.equal(get('shake').hidden,mode==='pet');
+      assert.equal(get('moodWrap').hidden,mode!=='robot');
       get('mode').value=mode;await get('save').onclick();
       assert.equal(requests.at(-1)[1].body.get('mode'),mode);
     }
+    get('mood').value='love';await get('save').onclick();
+    assert.equal(requests.at(-1)[1].body.get('mood'),'love');
     state = { ...state, imu: false };
     await poll();
     assert.ok(get('hardware').textContent.includes('ไม่พบเซนเซอร์'));

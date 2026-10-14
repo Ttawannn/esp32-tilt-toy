@@ -6,6 +6,7 @@ import { resolve } from 'node:path';
 import { PixelFlow, pixelLayout, forceToQ8, direction, SHAPE_RECT, SHAPE_ROUNDED, SHAPE_CIRCLE, MAX_CELLS, MAX_DROPS } from '../web/pixel-flow.js';
 import { profiles } from '../web/profiles.js';
 import { ToyPreview } from '../web/preview.js';
+import { fluidLayout } from '../web/fluid.js';
 
 const tilt = deg => { const r = deg*Math.PI/180; return [forceToQ8(4*Math.sin(r)), forceToQ8(4*Math.cos(r))]; };
 const settle = (f, ax, ay, steps = 300) => { for (let i = 0; i < steps; i++) f.step(ax, ay); };
@@ -123,8 +124,15 @@ test('fill level, eight-way directions and per-profile grids fit the fixed stora
     const f = new PixelFlow(l.cols, l.rows, l.shape, 90, 1);
     assert.ok(f.count <= MAX_DROPS && f.count === Math.trunc(f.usable*.9), `${p.id}: ${f.count} drops`);
   }
-  assert.deepEqual(pixelLayout(240, 240, false), { pitch: 6, cols: 40, rows: 40, x: 0, y: 0, shape: SHAPE_ROUNDED });
-  assert.deepEqual(pixelLayout(128, 64, false, true), { pitch: 2, cols: 64, rows: 32, x: 0, y: 0, shape: SHAPE_RECT });
+  // Same cell size, count and position as the Liquid water pixels drawn in preview.js / tilt_toy.ino.
+  for (const p of profiles) {
+    const round = p.shape === 'round', l = fluidLayout(p.width, p.height, round), cell = Math.max(3, Math.round(Math.min(l.width, l.height)/34));
+    const cols = Math.min(64, Math.floor(l.width/cell)), rows = Math.min(64, Math.floor(l.height/cell));
+    assert.deepEqual(pixelLayout(p.width, p.height, round, !!p.mono), { pitch: cell, cols, rows, x: Math.trunc(l.x+(l.width-cols*cell)/2), y: Math.trunc(l.y+(l.height-rows*cell)/2), shape: round ? SHAPE_CIRCLE : p.mono ? SHAPE_RECT : SHAPE_ROUNDED }, p.id);
+  }
+  assert.deepEqual(pixelLayout(240, 240, false), { pitch: 7, cols: 33, rows: 33, x: 4, y: 4, shape: SHAPE_ROUNDED });
+  assert.deepEqual(pixelLayout(240, 240, true), { pitch: 7, cols: 33, rows: 33, x: 4, y: 4, shape: SHAPE_CIRCLE });
+  assert.deepEqual(pixelLayout(128, 64, false, true), { pitch: 3, cols: 41, rows: 20, x: 2, y: 2, shape: SHAPE_RECT });
 });
 
 test('the same seed and inputs give the same water', () => {
@@ -138,7 +146,7 @@ test('preview runs pixel-flow on its own grid at 30 steps per second and feels j
   try {
     const ctx = new Proxy({}, { get: () => () => {} }), canvas = { width: 240, height: 240, getContext: () => ctx, addEventListener: () => {} };
     const p = new ToyPreview(canvas); p.setMode('pixel-flow');
-    assert.deepEqual([p.drops.cols, p.drops.rows, p.drops.shape], [40, 40, SHAPE_ROUNDED]);
+    assert.deepEqual([p.drops.cols, p.drops.rows, p.drops.shape], [33, 33, SHAPE_ROUNDED]);
     assert.equal(p.drops.count, Math.trunc(p.drops.usable*.5));
     for (let i = 0; i < 60; i++) p.draw(i*.025, .025);
     assert.ok(p.drops.steps >= 44 && p.drops.steps <= 45, `${p.drops.steps} steps in 1.5 s`);
@@ -147,7 +155,7 @@ test('preview runs pixel-flow on its own grid at 30 steps per second and feels j
     assert.ok(p.pixelForce[0] < -32, `a jolt to the right pushes the water left: ${p.pixelForce}`);
     p.setFill(80); assert.equal(p.drops.count, Math.trunc(p.drops.usable*.8));
     p.setProfile({ width: 128, height: 64, mono: true, shape: 'rectangle' });
-    assert.deepEqual([p.drops.cols, p.drops.rows, p.drops.shape], [64, 32, SHAPE_RECT]);
+    assert.deepEqual([p.drops.cols, p.drops.rows, p.drops.shape], [41, 20, SHAPE_RECT]);
   } finally { globalThis.requestAnimationFrame = previous; }
 });
 

@@ -30,11 +30,13 @@ class PixelDrops {
     return x > 0 ? (y > 0 ? 1 : 7) : (y > 0 ? 3 : 5);
   }
   // Pitch is the cell spacing on screen; each drop is drawn pitch-1 pixels wide, leaving a dark gap.
+  // Same view margin and cell size as the FLIP water pixels in tilt_toy.ino, so both grids match.
   struct Layout { int pitch, cols, rows, x, y, shape; };
   static Layout layout(int width, int height, bool round, bool mono) {
-    const int shortest = width < height ? width : height, pitch = shortest >= 200 ? 6 : shortest >= 80 ? 4 : 2;
-    const int c = smaller(MaxCols, width/pitch), r = smaller(MaxRows, height/pitch);
-    return {pitch, c, r, (width-c*pitch) >> 1, (height-r*pitch) >> 1, round ? Circle : mono ? Rect : Rounded};
+    const int margin = round ? 4 : 2, w = width-2*margin, h = height-2*margin, shortest = w < h ? w : h;
+    const int pitch = larger(3, (shortest+17)/34);
+    const int c = smaller(MaxCols, w/pitch), r = smaller(MaxRows, h/pitch);
+    return {pitch, c, r, margin+((w-c*pitch) >> 1), margin+((h-r*pitch) >> 1), round ? Circle : mono ? Rect : Rounded};
   }
 
   bool configure(int columns, int rowCount, int vessel) {

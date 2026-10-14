@@ -12,12 +12,23 @@ The installer and preview open in **English** by default. Use the **ภาษา
 
 For the Thai documentation, open [README.th.md](README.th.md). The device settings page described below is served separately by the firmware.
 
+## Since v0.1.4
+
+- **Five modes**: Liquid, Slosh water, Pixel Flow, Pocket eyes, and Robot eyes. Inertia, Swirl, and Full-motion water, Tilt maze, Snow globe, Orbit pong, and Shake & roll were removed. A toy saved on a removed mode starts on Liquid.
+- **Robot eyes** with eight moods, chosen on the phone, or *Play all moods* to cycle through them. See [Device modes](#device-modes).
+- **Axis setup on the toy**: hold BOOT for 5 seconds (or tap *Auto axis setup* on the phone page). Lay the toy flat with the screen up until the bar fills, then stand it on its bottom edge. It works out which sensor axis points where and saves it, so the module can be mounted in any square orientation.
+- **Accelerometer sign fixed**: sensors report +1 g pointing up at rest; the motion filter now treats gravity as its opposite. The screen axes on the phone page (X right, Y down, Z into the screen) now match the physical directions. The web preview's simulated sensor follows the same convention.
+- **Arduino IDE sketch**: under the flash button, *Edit the code in Arduino IDE* offers one `.ino` for the selected board and display (download, copy, or view), the Tools settings with what each one does, and the libraries to install. `npm run build` writes all 18 sketches to `dist/arduino/` from `firmware/tilt_toy` with `scripts/arduino-sketch.mjs`: the local headers are inlined, the board and display are fixed by `#define`, and only that display's library is included.
+- **Serial Monitor (115200)**: reset reason at boot, BOOT button and Wi-Fi events, and FPS / solver time every second.
+- **Slosh water**: Liquid that also takes the toy's measured translation and rotation, so moving or rocking it leaves the water behind and it sloshes back. Pixel Flow now uses the same grid as Liquid on every display.
+- **Fixed-point water**: the FLIP solver runs in integer Q16 so the FPU-less C3/C6 keep up; see [FLIP/PIC water](#flippic-water).
+
 ## New in v0.1.4
 
 - **Pixel Flow (`pixel-flow`)**: Each water drop occupies one LED-style grid cell. Surface drops are brighter; individual drops can splash. The surface follows the actual tilt angle. The simulation uses integer arithmetic, and TFT displays update only changed drops at 30 Hz.
 - **Full-motion water (`water-full`)**: Combines the existing FLIP solver with tilt, jolts, and rotation in one mode. The preview has its own colors and blending, continuous ±180° tilt, and a spin demo.
 
-There are now 10 modes. Existing NVS IDs 0–7 are unchanged. See the [Pixel Flow plan](docs/pixel%20flow%20plan%20claude%20draft.md) and [Full-motion water plan](docs/pixel%20flow%20plan%20codex.md).
+There are now 10 modes. Existing NVS IDs 0–7 are unchanged.
 
 ## New in v0.1.3
 
@@ -26,44 +37,39 @@ There are now 10 modes. Existing NVS IDs 0–7 are unchanged. See the [Pixel Flo
 - Set the X/Y/Z axis mapping and signs from a phone. Save them in NVS and apply them to both accelerometer and gyro measurements at every display rotation.
 - The phone page shows gravity, angular velocity, and translation on each axis. The preview offers lay-flat, spin, stop-spin, and four-direction jolt controls.
 
-This implements the motion foundation and water modes of the [6DOF plan](docs/MOTION-PLAN.md). Space, Level, Balance, and the planned eye/dice behaviors remain future work.
+This implements the motion foundation and the water modes of the 6DOF plan.
 
 ## Device modes
 
-Every firmware includes all 10 modes. Tap the **onboard BOOT button** to cycle through them. The full display is a play area, without mode labels, numbers, or frames; those values appear on the phone page. On-device text is limited to the Wi-Fi name and IP address during setup, and `IMU NOT FOUND` when the sensor is missing.
+Every firmware includes five modes. Tap the **onboard BOOT button** to cycle through them. The full display is a play area, without mode labels, numbers, or frames; those values appear on the phone page. On-device text is limited to the Wi-Fi name and IP address during setup, and `IMU NOT FOUND` when the sensor is missing.
 
 | Mode | How to play |
 | --- | --- |
-| **Liquid (`water`)** | Classic water follows tilt; shake to make waves. Square pixels and a pale surface. |
-| **Inertia water (`water-inertia`)** | Jolt the toy to send water in the opposite direction. Adds linear motion without extra rotation forces. |
-| **Swirl water (`water-swirl`)** | Spin around the screen to swirl the water. It keeps moving after you stop. Adds rotation without extra jolt forces. |
-| **Full-motion water (`water-full`)** | Tilt, jolt, and spin together. Water responds to all three forces, without a separate shake button. |
+| **Liquid (`water`)** | Water follows tilt; shake to make waves. Square pixels and a pale surface. |
+| **Slosh water (`water-slosh`)** | Same look as Liquid, but it sloshes like real water when you move or rock the toy side to side: measured translation and rotation, no wall drag. Shake still makes waves. |
 | **Pixel Flow (`pixel-flow`)** | LED-style water drops. Tilt to flow, jolt to surge, and shake to splash. |
-| Tilt maze | Roll the ball around walls to the goal. |
-| Snow globe | Shake the snow into the air and let it fall under gravity. |
-| Orbit pong | Tilt to move the paddle around the perimeter and catch the ball. |
-| Pocket eyes | Cartoon eyes follow your tilt. |
-| Shake & roll | Shake to roll the dice. |
+| **Pocket eyes (`pet`)** | Cartoon eyes follow your tilt. |
+| **Robot eyes (`robot`)** | Robot eyes that blink, glance around, and follow your tilt. Pick a mood on the phone: normal, happy, angry, sad, sleepy, surprised, suspicious, or in love; *Play all moods* (`auto`) shows each one for 3.5 s in turn. A shake makes them surprised for a moment. |
 
 ### FLIP/PIC water
 
-The fluid simulation uses a FLIP/PIC solver on a MAC grid, adapted from Matthias Müller's [Ten Minute Physics #18](https://matthias-research.github.io/pages/tenMinutePhysics/18-flip.html) under the MIT license. Two implementations share the equations and constants:
+The fluid simulation uses a FLIP/PIC solver on a MAC grid, adapted from Matthias Müller's [Ten Minute Physics #18](https://matthias-research.github.io/pages/tenMinutePhysics/18-flip.html) under the MIT license. The ESP32-C3 and C6 have no floating-point unit, so the solver runs in Q16 fixed point: every per-particle and per-cell step is integer, and float math is left only for per-frame setup. Two implementations give bit-identical results:
 
 - `firmware/tilt_toy/flip_fluid.h`: C++ with fixed storage for up to 400 cells and 900 particles, about 32 KB including the pixel grid. No runtime allocation.
-- `web/fluid.js`: JavaScript for the web preview.
+- `web/fluid.js`: JavaScript for the web preview, mirroring each integer operation. A test runs 300 mixed-force steps in both and requires every value to match.
 
-The four FLIP water modes support 10–90% fill and share a renderer; Full-motion water has its own palette. BOOT order: Liquid → Inertia water → Swirl water → Full-motion water → Pixel Flow → Maze → Snow → Pong → Eyes → Dice. Original NVS IDs 0–5 keep their meanings; Inertia water is 6, Swirl water 7, Full-motion water 8, and Pixel Flow 9.
+Liquid, Slosh water, and Pixel Flow support 10–90% fill. BOOT order: Liquid → Slosh water → Pixel Flow → Pocket eyes → Robot eyes. NVS key `toyMode` stores 0 Liquid, 1 Pixel Flow, 2 Pocket eyes, 3 Robot eyes, 4 Slosh water; `robotMood` stores the chosen mood. Firmware from before the removal saved a ten-mode index under `mode`; the first boot converts it, keeping Pixel Flow and Pocket eyes and starting removed modes on Liquid.
 
-Both implementations use a fixed 25 ms step, a circular vessel for GC9A01, linked-cell neighbor lookup, and gravity from the detected sensor's motion filter. Inertia water adds only translation; Swirl water adds only rotation around the screen axis. Grid dimensions depend on the display; the round display uses 20×20.
+Both implementations use a fixed 25 ms step (at most two per frame, so a late frame cannot snowball), a circular vessel for GC9A01, linked-cell neighbor lookup, and gravity from the detected sensor's motion filter. Liquid uses tilt only; Slosh water adds the frame's translation and the Euler, Coriolis, and centrifugal forces of turning about the screen axis. Grid dimensions depend on the display; the round display uses 20×20.
 
 Measure solver time on each physical board using **Solver** on the phone page, or `simMs` from `/api/status`. If it exceeds roughly 25 ms, reduce the grid size or fill level to avoid stuttering. The license is in [web/licenses/ten-minute-physics.txt](web/licenses/ten-minute-physics.txt) and at `/license` on the device.
 
 ### Pixel Flow
 
-Pixel Flow does not use FLIP. Each drop occupies a grid cell and keeps its own Q8 fixed-point velocity. At 30 Hz, drops deepest along gravity move first. Collisions deflect them 45° downhill; resting drops flow sideways to level the surface. Up to three drops move from the highest to the lowest surface point per step, so the surface follows the actual tilt angle instead of only eight grid directions. Forces match Inertia water: gravity and jolts, without swirl.
+Pixel Flow does not use FLIP. Each drop occupies a grid cell and keeps its own Q8 fixed-point velocity. At 30 Hz, drops deepest along gravity move first. Collisions deflect them 45° downhill; resting drops flow sideways to level the surface. Up to three drops move from the highest to the lowest surface point per step, so the surface follows the actual tilt angle instead of only eight grid directions. Forces are gravity plus jolts (translation past a 0.4 m/s² deadband); rotation is not used.
 
 - `firmware/tilt_toy/pixel_flow.h` (`PixelDrops`) and `web/pixel-flow.js` use integer arithmetic and produce bit-for-bit identical results, checked by C++/JS parity tests. Fixed storage supports up to 2,048 cells / 1,900 drops, about 31 KB plus 2 KB in the sketch for the previously sent frame.
-- Grids: 240×240 TFT uses 6 px pitch (5 px drop + 1 px gap), 40×40 cells; Mini TFT uses 4 px pitch, 20×40 / 40×20; OLED uses 2 px pitch, 64×32. Square TFT vessels have rounded corners; GC9A01 is circular; OLED is rectangular.
+- Grids match the Liquid water pixels on every display: 240×240 TFT uses 7 px pitch (6 px drop + 1 px gap), 33×33 cells; Mini TFT uses 3 px pitch, 25×52 / 52×25; OLED uses 3 px pitch, 41×20. Square TFT vessels have rounded corners; GC9A01 is circular; OLED is rectangular.
 - Shading distinguishes surface, fast spray, and four body depths, with slowly changing highlights. Small gaps within a water mass render as water.
 - TFT rendering bypasses the framebuffer and writes only changed drops. OLED, Wi-Fi screens, and `IMU NOT FOUND` retain the existing rendering path. OLED frames remain at 50 ms because the display shares I²C with the sensor.
 - `/api/status` reports this mode's `simMs` and `particles` while it is active.
@@ -102,7 +108,7 @@ Each board/display pair has its own merged binary: **18 images, 4 MB flash**. Th
 | CS / DC / RST | 27 / 26 / 25 | 10 / 3 / 1 | 18 / 19 / 20 |
 | Onboard BOOT: no extra wiring | 0 | 9 | 9 |
 
-After startup, tap BOOT to change modes or hold it for 2 seconds to toggle Wi-Fi. RST restarts the toy. Release BOOT at power-on or reset for normal startup; holding it then enters flashing mode. See [ESP32-C6 boot mode selection](https://docs.espressif.com/projects/esptool/en/latest/esp32c6/advanced-topics/boot-mode-selection.html).
+After startup, tap BOOT to change modes. Hold it and let go after 2 seconds to toggle Wi-Fi, or after 5 seconds to start axis setup; while you hold, the screen says which one you will get. RST restarts the toy. Release BOOT at power-on or reset for normal startup; holding it then enters flashing mode. See [ESP32-C6 boot mode selection](https://docs.espressif.com/projects/esptool/en/latest/esp32c6/advanced-topics/boot-mode-selection.html).
 
 Full wiring, backlight power guidance, and a hardware test checklist are in [docs/HARDWARE.md](docs/HARDWARE.md).
 
@@ -129,13 +135,13 @@ If the port is missing, close Serial Monitor, hold BOOT while plugging in USB, r
 
 The installation dialog shows the current step, elapsed time, firmware download progress, and writing progress starting at 0%. Open **Show installation log** to see the loader output. If it waits for the bootloader without a new update for 30 seconds, it shows BOOT/RST instructions. A firmware download with no new data for 30 seconds fails with a retry message; serial operations use esptool's command timeouts.
 
-The preview works without a board. Sliders simulate tilt and pitch; controls let you shake, adjust fill, show the FLIP grid, and drag to stir water. Swirl water offers lay-flat, spin, and stop-spin controls; Inertia water offers four-direction jolts. Pixel Flow supports dragging and jolts. Full-motion water supports ±180° tilt, spin, lay-flat, jolts, and a spin demo. Controls follow the selected mode.
+The preview works without a board. Sliders simulate tilt and pitch; controls let you shake, adjust fill, show the FLIP grid, and drag to stir water. Slosh water and Pixel Flow offer four-direction jolts; Slosh water also turns the vessel at a hand-like rate when you move the tilt sliders. Pixel Flow supports dragging. Controls follow the selected mode.
 
 ## Configure from your phone
 
-1. After startup, hold the onboard BOOT button for 2 seconds to enable Wi-Fi.
+1. After startup, hold the onboard BOOT button for 2 seconds, then let go, to enable Wi-Fi.
 2. Join `TiltToy-xxxx` with password `tilttoy32`, then open `http://192.168.4.1`.
-3. Live values update every second: mode, roll/pitch, FPS, Maze/Pong score, water solver time and particles, and free heap.
+3. Live values update every second: mode, roll/pitch, FPS, water solver time and particles, and free heap.
 4. Set mode, fill, sensitivity, and display rotation, then save. TFT profiles support inversion; ST7789 supports SPI mode selection. Settings persist in NVS.
 5. Turn off Wi-Fi to keep playing, or let it close after 3 minutes.
 
@@ -143,12 +149,12 @@ The device page shows the board name and detected sensor name/address. Keep the 
 
 | Endpoint | Purpose |
 | --- | --- |
-| `GET /api/status` | Version, `board`, `boardName`, `chipFamily`, profile, mode, settings, `imu`, `sensor`, `sensorAddress` (decimal), `gyro`, roll/pitch, `fps`, `simMs`, `score`, `particles`, `freeHeap`, `axisX/Y/Z`, X/Y/Z arrays `gravity`, `omega`, `linear`, `yaw`, `stillMs`, `fifoResets` |
+| `GET /api/status` | Version, `board`, `boardName`, `chipFamily`, profile, mode, `mood`, settings, `imu`, `sensor`, `sensorAddress` (decimal), `gyro`, roll/pitch, `fps`, `simMs`, `particles`, `freeHeap`, `axisX/Y/Z`, X/Y/Z arrays `gravity`, `omega`, `linear`, `yaw`, `stillMs`, `fifoResets` |
 | `POST /api/config` | `mode`, `fill`, `sensitivity`, `rotation`, `invert`, `spiMode`, `axisX`, `axisY`, `axisZ` (±1=X, ±2=Y, ±3=Z) |
 | `POST /api/shake` · `/api/calibrate` · `/api/close` | Shake, calibrate gyro, close Wi-Fi |
 | `GET /license` | FLIP solver MIT license |
 
-Accepted mode IDs: `water`, `water-inertia`, `water-swirl`, `water-full`, `pixel-flow`, `maze`, `snow`, `pong`, `pet`, `dice`.
+Accepted mode IDs: `water`, `water-slosh`, `pixel-flow`, `pet`, `robot`. Accepted `mood` IDs: `auto`, `normal`, `happy`, `angry`, `sad`, `tired`, `surprised`, `suspicious`, `love`.
 
 ## Local development
 
@@ -161,7 +167,7 @@ npm run build
 npm run dev
 ```
 
-Open `http://localhost:4173`. The app starts in English unless this browser has saved Thai as its language.
+Open `http://localhost:4173`. `npm run dev` serves the live files in `web/`, so the preview shows edits on reload; the USB installer bundle and the Arduino IDE sketches come from `npm run build`. The app starts in English unless this browser has saved Thai as its language.
 
 ### Rebuild firmware
 
@@ -178,11 +184,11 @@ npm test
 npm run build
 ```
 
-`npm run firmware` builds all 18 images. Select a board or display: `npm run firmware -- esp32-c3-supermini` builds six display profiles; `npm run firmware -- tft-240x240-gc9a01` builds three boards; `npm run firmware -- esp32-30pin oled-128x64` builds one image. Set `ARDUINO_CLI`, `ARDUINO_DATA_DIR`, or `ESPTOOL` for tools installed elsewhere.
+`npm run firmware` builds all 18 images. Select a board or display: `npm run firmware -- esp32-c3-supermini` builds six display profiles; `npm run firmware -- tft-240x240-gc9a01` builds three boards; `npm run firmware -- esp32-30pin oled-128x64` builds one image, the quickest way to try a change on a board. Boards build in parallel: up to three at once on a machine with 12 or more CPU threads; `FIRMWARE_BOARD_CONCURRENCY` and `FIRMWARE_JOBS` (compiler jobs per board) override this. On Windows, excluding `work\` and `%LOCALAPPDATA%\Arduino15` from Microsoft Defender real-time scanning can shorten builds a lot. Set `ARDUINO_CLI`, `ARDUINO_DATA_DIR`, or `ESPTOOL` for tools installed elsewhere.
 
 The script:
 
-1. Stages `tilt_toy.ino`, `config.h`, `flip_fluid.h`, `motion_sensor.h`, `motion_state.h`, `pixel_flow.h`, and `toy_modes.h`.
+1. Stages `tilt_toy.ino`, `config.h`, `flip_fluid.h`, `motion_sensor.h`, `motion_state.h`, `pixel_flow.h`, `toy_modes.h`, and `robot_eyes.h`.
 2. Compiles with the board FQBN: `esp32:esp32:esp32`, `esp32c3`, or `esp32c6`, DIO, 4 MB flash, and `huge_app` (3 MB app, no OTA). C3/C6 enable USB CDC.
 3. Merges bootloader at 0x1000 for ESP32 or 0 for C3/C6, partitions at 0x8000, boot_app0 at 0xe000, and app at 0x10000 into one image flashed at 0. ESP32 images include leading padding.
 4. Writes manifests with binary SHA-256 and `sourceSha256` for the staged firmware sources.
@@ -195,7 +201,7 @@ The sensor driver uses `Wire` directly; no additional sensor library is needed. 
 
 ## Repository layout
 
-- `firmware/tilt_toy/`: sketch, IMU, 10 modes, FLIP and Pixel Flow solvers, Wi-Fi UI, NVS.
+- `firmware/tilt_toy/`: sketch, IMU, 5 modes, FLIP and Pixel Flow solvers, robot eyes, Wi-Fi UI, NVS.
 - `web/`: installer, preview, English/Thai UI copy in `i18n.js`, profile contract, firmware artifacts, and licenses.
 - `scripts/`: web build, firmware build/merge, and local server.
 - `tests/`: profiles, wiring, binary chip/header, partitions, checksums, source hashes, and motion/simulation parity.

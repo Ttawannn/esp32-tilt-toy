@@ -32,6 +32,36 @@ class MotionState {
     axes[0] = x; axes[1] = y; axes[2] = z; rotation = turn;
     reset(); return true;
   }
+  // Axis map from two still poses, each the average specific force in the sensor's own axes:
+  // screen facing up, then standing on its bottom edge. out[] is for setAxes(); false if the
+  // poses are not far enough apart. The axes are measured as seen on the display, so turn
+  // (the display rotation) is undone before they are stored.
+  static bool axesFromPoses(MotionVector flat, MotionVector upright, int turn, int out[3]) {
+    const float lf = length(flat), lu = length(upright);
+    if (lf < 1 || lu < 1) return false;
+    // Up is out of the screen when flat, and toward the top edge when upright.
+    const MotionVector z{-flat.x/lf, -flat.y/lf, -flat.z/lf};
+    MotionVector y{-upright.x/lu, -upright.y/lu, -upright.z/lu};
+    const float along = y.x*z.x + y.y*z.y + y.z*z.z;
+    y = {y.x-along*z.x, y.y-along*z.y, y.z-along*z.z};
+    const float ly = length(y);
+    if (ly < .7f) return false;  // the poses are less than about 45° apart
+    y = {y.x/ly, y.y/ly, y.z/ly};
+    const MotionVector x{y.y*z.z-y.z*z.y, y.z*z.x-y.x*z.z, y.x*z.y-y.y*z.x};
+    MotionVector nx = x, ny = y;
+    if (turn == 1) { nx = y; ny = {-x.x, -x.y, -x.z}; }
+    else if (turn == 2) { nx = {-x.x, -x.y, -x.z}; ny = {-y.x, -y.y, -y.z}; }
+    else if (turn == 3) { nx = {-y.x, -y.y, -y.z}; ny = x; }
+    const MotionVector native[3] = {nx, ny, z};
+    for (int i = 0; i < 3; i++) {
+      const float c[3] = {native[i].x, native[i].y, native[i].z};
+      int best = 0;
+      for (int k = 1; k < 3; k++) if (fabsf(c[k]) > fabsf(c[best])) best = k;
+      if (fabsf(c[best]) < .7f) return false;  // mounted at an angle between two axes
+      out[i] = (best+1) * (c[best] < 0 ? -1 : 1);
+    }
+    return validAxes(out[0], out[1], out[2]);
+  }
   void reset() {
     q[0] = 1; q[1] = q[2] = q[3] = 0;
     ready = false; gravity = {0, 1, 0}; omega = {}; linear = {}; bias = {};
@@ -48,7 +78,10 @@ class MotionState {
   }
   void update(const MotionSample &sample, float dt = .01f) {
     if (!std::isfinite(dt) || dt <= 0 || dt > .05f) return;
-    MotionVector a = map(sample.ax, sample.ay, sample.az), w = map(sample.gx, sample.gy, sample.gz);
+    // Accelerometers report specific force: +1 g pointing up at rest. Gravity (down) is its opposite.
+    const MotionVector f = map(sample.ax, sample.ay, sample.az);
+    MotionVector w = map(sample.gx, sample.gy, sample.gz);
+    const MotionVector a{-f.x, -f.y, -f.z};
     if (!std::isfinite(length(a)) || !std::isfinite(length(w))) return;
     float magnitude = length(a);
     if (!ready) {
@@ -82,7 +115,8 @@ class MotionState {
     q[2] += (qw*wy-qx*wz+qz*wx)*half;
     q[3] += (qw*wz+qx*wy-qy*wx)*half;
     normalize(); estimateGravity();
-    linear = {a.x-G*gravity.x, a.y-G*gravity.y, a.z-G*gravity.z};
+    // Translation: specific force plus gravity.
+    linear = {G*gravity.x-a.x, G*gravity.y-a.y, G*gravity.z-a.z};
     roll = atan2f(gravity.x, gravity.y)*Degrees;
     pitch = atan2f(gravity.z, hypotf(gravity.x, gravity.y))*Degrees;
     yaw = atan2f(2*(q[0]*q[3]+q[1]*q[2]), 1-2*(q[2]*q[2]+q[3]*q[3]))*Degrees;

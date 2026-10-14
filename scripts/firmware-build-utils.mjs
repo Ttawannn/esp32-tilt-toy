@@ -12,7 +12,7 @@ function integer(value, fallback, name, minimum = 1) {
 
 export function buildConcurrency(env, boardCount, cpuCount) {
   const parallelBoards = Math.min(boardCount, integer(env.FIRMWARE_BOARD_CONCURRENCY,
-    Math.min(2, Math.max(1, Math.floor(cpuCount / 4))), 'FIRMWARE_BOARD_CONCURRENCY'));
+    Math.min(3, Math.max(1, Math.floor(cpuCount / 4))), 'FIRMWARE_BOARD_CONCURRENCY'));
   const compileJobs = integer(env.FIRMWARE_JOBS,
     Math.min(12, Math.max(1, Math.floor(cpuCount / parallelBoards))), 'FIRMWARE_JOBS', 0);
   return { parallelBoards, compileJobs };

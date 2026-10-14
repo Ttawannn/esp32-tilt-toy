@@ -16,7 +16,8 @@ async function directory(t) {
 }
 
 test('automatic build concurrency shares CPU capacity across boards', () => {
-  assert.deepEqual(buildConcurrency({}, 3, 16), { parallelBoards: 2, compileJobs: 8 });
+  assert.deepEqual(buildConcurrency({}, 3, 16), { parallelBoards: 3, compileJobs: 5 });
+  assert.deepEqual(buildConcurrency({}, 3, 8), { parallelBoards: 2, compileJobs: 4 });
   assert.deepEqual(buildConcurrency({}, 1, 16), { parallelBoards: 1, compileJobs: 12 });
   assert.deepEqual(buildConcurrency({}, 3, 2), { parallelBoards: 1, compileJobs: 2 });
 });

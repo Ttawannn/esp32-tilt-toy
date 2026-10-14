@@ -4,14 +4,16 @@ import { spawnSync } from 'node:child_process';
 import { mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { MotionState, validAxes, GRAVITY } from '../web/motion.js';
-import { FlipFluid, FULL_WATER_FLIP, fullWaterColor, pixelWater } from '../web/fluid.js';
+import { FlipFluid, pixelWater } from '../web/fluid.js';
 import { waterForces } from '../web/water-modes.js';
 
+// Samples are specific force, as a real accelerometer reports: +1 g pointing up at rest.
 const sample = (ax=0,ay=0,az=GRAVITY,gx=0,gy=0,gz=0) => ({ax,ay,az,gx,gy,gz});
 const close = (a,b,tolerance=1e-4) => assert.ok(Math.abs(a-b)<tolerance,`${a} != ${b}`);
 test('fusion initializes every gravity direction and separates translation from gravity',()=>{
   for(const [x,y,z] of [[0,0,1],[0,0,-1],[1,0,0],[0,1,0],[0,-1,0],[.3,.4,Math.sqrt(.75)]]){
-    const m=new MotionState();for(let i=0;i<200;i++)m.update(sample(x*GRAVITY,y*GRAVITY,z*GRAVITY));
+    // Gravity points opposite the specific force.
+    const m=new MotionState();for(let i=0;i<200;i++)m.update(sample(-x*GRAVITY,-y*GRAVITY,-z*GRAVITY));
     close(m.gravity.x,x);close(m.gravity.y,y);close(m.gravity.z,z);close(Math.hypot(...Object.values(m.linear)),0);
     close(Math.hypot(...m.q),1);assert.ok(m.stillMs>=1900);
   }
@@ -20,10 +22,10 @@ test('fusion initializes every gravity direction and separates translation from 
   close(m.consumeFrame().omegaDot,0);
 });
 test('constant gyro integrates yaw and rotating gravity without treating it as a shake',()=>{
-  const m=new MotionState();for(let i=0;i<100;i++)m.update(sample(0,0,GRAVITY,0,0,1));
+  const m=new MotionState();for(let i=0;i<100;i++)m.update(sample(0,0,-GRAVITY,0,0,1));
   close(m.yaw,180/Math.PI,.01);close(m.gravity.z,1);assert.equal(m.shake,false);
-  const tilt=new MotionState();tilt.update(sample(0,GRAVITY,0));
-  for(let i=1;i<=200;i++){const t=i*.01;tilt.update(sample(GRAVITY*Math.sin(t),GRAVITY*Math.cos(t),0,0,0,1));}
+  const tilt=new MotionState();tilt.update(sample(0,-GRAVITY,0));
+  for(let i=1;i<=200;i++){const t=i*.01;tilt.update(sample(-GRAVITY*Math.sin(t),-GRAVITY*Math.cos(t),0,0,0,1));}
   close(tilt.roll,2*180/Math.PI,.5);
   assert.ok(Math.abs(tilt.omegaDot)<=40);
 });
@@ -39,22 +41,25 @@ test('noise, freefall and invalid input stay finite; stationary bias converges',
   assert.ok(m.bias.z>.019);const before=[...m.q];m.update(sample(NaN));m.update(sample(),Infinity);assert.deepEqual(m.q,before);
   for(let i=0;i<100;i++)m.update(sample(0,0,0));assert.ok(m.q.every(Number.isFinite));
 });
-test('liquid reacts opposite a jolt and spins opposite starting rotation, retaining motion after stopping',()=>{
+test('liquid follows the applied force and stays in the vessel under strong, changing forces',()=>{
   const left=new FlipFluid(20,20,true,50),right=new FlipFluid(20,20,true,50);
   left.advance(.025,-5,0);right.advance(.025,5,0);
   const average=f=>Array.from(f.vx.subarray(0,f.count)).reduce((a,b)=>a+b,0)/f.count;
   assert.ok(average(left)<0);assert.ok(average(right)>0);
+  // Slosh water (frictionless walls): starting to turn leaves the water behind, so it turns the other way
+  // in the toy's frame; stopping the turn takes most of that back, and the water keeps moving afterwards.
   const f=new FlipFluid(20,20,true,50),momentum=()=>{
     let value=0;for(let p=0;p<f.count;p++)value+=(f.x[p]-f.cx)*f.vy[p]-(f.y[p]-f.cy)*f.vx[p];return value/f.count;
   };
-  f.advance(.025,0,0,3,40,.9,.15);assert.ok(momentum()<-.01);
-  for(let i=0;i<80;i++)f.advance(.025,0,0,3,0,.9,.15);
-  f.advance(.025,0,0,0,-40,.9,.15);assert.ok(momentum()>.01);
-  for(let i=0;i<40;i++)f.advance(.025,0,0,0,0,.9,.15);
+  f.advance(.025,0,0,3,40);assert.ok(momentum()<-.01);
+  for(let i=0;i<80;i++)f.advance(.025,0,0,3,0);
+  const turning=momentum();assert.ok(turning<-.05);
+  f.advance(.025,0,0,0,-40);assert.ok(Math.abs(momentum())<Math.abs(turning)/2);
+  for(let i=0;i<40;i++)f.advance(.025,0,0,0,0);
   assert.ok(Math.abs(momentum())>.001);
   for(const round of [false,true])for(const fill of [10,50,90]){
     const stress=new FlipFluid(20,20,round,fill);
-    for(let i=0;i<100;i++)stress.advance(.05,Math.sin(i)*25,Math.cos(i)*25,i%2?100:-100,i%2?1000:-1000,.9,.15);
+    for(let i=0;i<100;i++){if(i%17===0)stress.impulse(Math.sin(i),Math.cos(i));stress.advance(.05,Math.sin(i)*25,Math.cos(i)*25,i%2?100:-100,i%2?1000:-1000);}
     for(let p=0;p<stress.count;p++){
       assert.ok([stress.x[p],stress.y[p],stress.vx[p],stress.vy[p]].every(Number.isFinite));
       if(round)assert.ok(Math.hypot(stress.x[p]-stress.cx,stress.y[p]-stress.cy)<=stress.vesselRadius-.8*stress.h+1e-6);
@@ -64,13 +69,13 @@ test('liquid reacts opposite a jolt and spins opposite starting rotation, retain
 });
 const compiler=process.env.CXX||'g++',msvc=/(?:^|[/\\])cl(?:\.exe)?$/i.test(compiler);
 const probe=spawnSync(compiler,msvc?[]:['--version'],{windowsHide:true});
-test('C++/JS fusion, forces and full-water palette/raster agree; C++ survives 1000 mixed-force steps',{skip:probe.error?'Set CXX to g++ / clang++ / cl':false},async()=>{
+test('C++/JS fusion, forces and fixed-point water agree; C++ survives 1000 mixed-force steps',{skip:probe.error?'Set CXX to g++ / clang++ / cl':false},async()=>{
   const dir=resolve('work','state-parity');await mkdir(dir,{recursive:true});const exe=resolve(dir,process.platform==='win32'?'parity.exe':'parity');
   const src=resolve('tests/motion/state_parity.cpp'),includes=resolve('tests/motion');
   const args=msvc?['/nologo','/std:c++17','/EHsc','/W4',`/I${includes}`,src,`/Fe:${exe}`,`/Fo:${resolve(dir,'parity.obj')}`]:['-std=c++17','-Wall','-Wextra','-Werror',`-I${includes}`,src,'-o',exe];
   const build=spawnSync(compiler,args,{cwd:dir,windowsHide:true,encoding:'utf8'});assert.equal(build.status,0,build.stdout+build.stderr);
   const input=[],expected=[],motion=new MotionState(),fluid=new FlipFluid(8,8,true,50);
-  for(const [id,mode]of [[0,'water'],[6,'water-inertia'],[7,'water-swirl'],[8,'water-full'],[9,'pixel-flow']]){
+  for(const [id,mode]of [[0,'water'],[1,'pixel-flow'],[2,'pet'],[3,'robot'],[4,'water-slosh']]){
     input.push(`W ${id} .3 .4 .5 12 -8 3 2 10`);
     expected.push(Object.values(waterForces(mode,{x:.3,y:.4,z:.5},{x:12,y:-8,z:3},2,10)));
   }
@@ -83,21 +88,36 @@ test('C++/JS fusion, forces and full-water palette/raster agree; C++ survives 10
     // Contact/grid decisions can diverge over long trajectories with float vs double math.
     // Check the new forces from the same initial state; stress tests cover long-run bounds.
     input.push('R');fluid.reset(50);
-    const ax=Math.sin(i*.1)*2,ay=1,omega=i<25?1.5:0,dot=i===0?25:i===25?-25:0;
-    input.push(`F .025 ${ax} ${ay} ${omega} ${dot} .15`);fluid.advance(.025,ax,ay,omega,dot,.9,.15);
+    const ax=Math.sin(i*.1)*2,ay=1;
+    input.push(`F .025 ${ax} ${ay}`);fluid.advance(.025,ax,ay);
     const values=[fluid.count];for(let p=0;p<fluid.count;p++)values.push(fluid.x[p],fluid.y[p],fluid.vx[p],fluid.vy[p]);expected.push(values);
   }
-  input.push('S');expected.push([FULL_WATER_FLIP,fullWaterColor(false,0,0),fullWaterColor(false,1,0),fullWaterColor(true,0,0)]);
   for(let i=0;i<20;i++){
     input.push('R');fluid.reset(50);
-    const gravity={x:Math.sin(i*.2),y:Math.cos(i*.2),z:0},linear={x:Math.sin(i*.4)*12,y:Math.cos(i*.3)*8,z:0},omega=i%2?3:-3,dot=i%3?40:-40;
-    input.push(`U .025 ${Object.values(gravity).join(' ')} ${Object.values(linear).join(' ')} ${omega} ${dot}`);
-    const f=waterForces('water-full',gravity,linear,omega,dot);
-    fluid.advance(.025,f.ax,f.ay,f.omega,f.omegaDot,FULL_WATER_FLIP,f.wallDrag);
+    const gravity={x:Math.sin(i*.2),y:Math.cos(i*.2),z:0};
+    input.push(`U .025 ${Object.values(gravity).join(' ')}`);
+    const f=waterForces('water',gravity);
+    fluid.advance(.025,f.ax,f.ay);
     const values=[fluid.count];for(let p=0;p<fluid.count;p++)values.push(fluid.x[p],fluid.y[p],fluid.vx[p],fluid.vy[p]);
-    values.push(...pixelWater(fluid,10,10,fluid.h,fluid.h,6*fluid.h/10,6*fluid.h/10,gravity.x,gravity.y,undefined,true));
+    values.push(...pixelWater(fluid,10,10,fluid.h,fluid.h,6*fluid.h/10,6*fluid.h/10,gravity.x,gravity.y));
     expected.push(values);
   }
+  // Fixed point: 300 consecutive steps (varied dt, forces and turning, shakes) and the raster match bit for bit.
+  const f32=Math.fround,exact=(width,height,round,fill,cols,rows)=>{
+    const run=new FlipFluid(width,height,round,fill),dts=[.025,.03,.05,.012];
+    input.push(`L ${width} ${height} ${round?1:0} ${fill} 300`);
+    for(let s=0;s<300;s++){
+      const v=[dts[s%4],Math.sin(s*.05)*4,Math.cos(s*.05)*4,Math.sin(s*.021)*6,Math.cos(s*.033)*30].map(f32),shake=s%50===25?1:0;
+      input.push([...v,shake].join(' '));
+      if(shake)run.impulse(v[1],v[2]);
+      run.advance(...v);
+    }
+    const view=[run.h,run.h,run.h*(run.nx-2)/cols,run.h*(run.ny-2)/rows,.6,.8].map(f32),cells=new Uint8Array(cols*rows);
+    input.push(`${cols} ${rows} ${view.join(' ')}`);
+    assert.ok(run.rasterize(cols,rows,...view,cells));
+    expected.push([run.count,run.restDensity,...Array.from({length:run.count},(_,p)=>[run.qx[p],run.qy[p],run.qvx[p],run.qvy[p]]).flat(),...cells]);
+  };
+  exact(20,20,true,60,33,33);exact(18,18,false,40,33,33);exact(10,18,false,75,19,39);exact(19,10,false,50,40,20);
   input.push('B');expected.push([1]);
   const run=spawnSync(exe,[],{input:input.join('\n')+'\n',windowsHide:true,encoding:'utf8'});assert.equal(run.status,0,run.stderr);
   const lines=run.stdout.trim().split(/\r?\n/);assert.equal(lines.length,expected.length);

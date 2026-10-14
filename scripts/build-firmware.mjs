@@ -26,7 +26,8 @@ const motionSource = (await readFile(join(root, 'firmware', 'tilt_toy', 'motion_
 const stateSource = (await readFile(join(root, 'firmware', 'tilt_toy', 'motion_state.h'), 'utf8')).replace(/\r\n/g, '\n');
 const modesSource = (await readFile(join(root, 'firmware', 'tilt_toy', 'toy_modes.h'), 'utf8')).replace(/\r\n/g, '\n');
 const pixelSource = (await readFile(join(root, 'firmware', 'tilt_toy', 'pixel_flow.h'), 'utf8')).replace(/\r\n/g, '\n');
-const sourceSha256 = createHash('sha256').update(sketchSource+'\n'+configSource+'\n'+fluidSource+'\n'+motionSource+'\n'+stateSource+'\n'+modesSource+'\n'+pixelSource).digest('hex');
+const robotSource = (await readFile(join(root, 'firmware', 'tilt_toy', 'robot_eyes.h'), 'utf8')).replace(/\r\n/g, '\n');
+const sourceSha256 = createHash('sha256').update(sketchSource+'\n'+configSource+'\n'+fluidSource+'\n'+motionSource+'\n'+stateSource+'\n'+modesSource+'\n'+pixelSource+'\n'+robotSource).digest('hex');
 
 function run(command, args, logPath) {
   return new Promise((yes,no) => {
@@ -72,6 +73,7 @@ await parallelBuilds(selectedBoards, parallelBoards, async board => {
     await writeIfChanged(join(staging, 'motion_state.h'), stateSource);
     await writeIfChanged(join(staging, 'toy_modes.h'), modesSource);
     await writeIfChanged(join(staging, 'pixel_flow.h'), pixelSource);
+    await writeIfChanged(join(staging, 'robot_eyes.h'), robotSource);
     for(const p of selectedProfiles) {
       console.log(`Compiling ${p.id} for ${board.name} / 4MB…`);
       const output=join(boardWork,p.id); await mkdir(output,{recursive:true});

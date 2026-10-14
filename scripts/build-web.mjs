@@ -1,6 +1,10 @@
-import { cp, mkdir, readFile, readdir, rm } from 'node:fs/promises';
+import { cp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { build } from 'esbuild';
+import { boards } from '../web/boards.js';
+import { profiles, VERSION } from '../web/profiles.js';
+import { sketchPath } from '../web/arduino.js';
+import { readSources, singleSketch } from './arduino-sketch.mjs';
 const root = resolve(import.meta.dirname, '..');
 const out = resolve(root, 'dist');
 // Check browser imports before replacing the files served by localhost.
@@ -11,6 +15,10 @@ if (out !== resolve(root, 'dist')) throw new Error('Invalid output path');
 await rm(out, { recursive: true, force: true });
 await mkdir(resolve(out, 'assets'), { recursive: true });
 await cp(resolve(root, 'web'), out, { recursive: true });
+// Arduino IDE sketches, generated from the same firmware sources as the release images.
+const sources = await readSources();
+await mkdir(resolve(out, 'arduino'), { recursive: true });
+for (const board of boards) for (const profile of profiles) await writeFile(resolve(out, sketchPath(board, profile)), singleSketch(sources, board, profile, VERSION));
 let flashAdapterResolved = false;
 await build({
   entryPoints: [resolve(root, 'web/installer.js')], bundle: true, minify: true,

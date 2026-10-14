@@ -2,6 +2,8 @@ import { displayChoices, findProfile, findSensor, modes, sensors, validateReleas
 import { boards, findBoard, releasePath, validateFirmwareImage } from './boards.js';
 import { isLiquidMode } from './water-modes.js';
 import { ToyPreview } from './preview.js';
+import { MOODS } from './robot-eyes.js';
+import { CORE, ideSettings, libraries, sketchName, sketchPath } from './arduino.js';
 import { WiringGraph } from './wiring.js';
 import { getLanguage, initLanguage, localizedError, onLanguageChange, t } from './i18n.js';
 initLanguage();
@@ -13,12 +15,13 @@ let orientation=saved.orientation==='landscape'?'landscape':'portrait';
 let sensorId=findSensor(saved.sensor).id;
 let board=findBoard(saved.board);
 let currentMode=modes.some(m=>m.id===saved.mode)?saved.mode:'water';
+let mood=MOODS.includes(saved.mood)?saved.mood:'auto';
 let fill=Number.isFinite(saved.fill)?Math.min(90,Math.max(10,Math.round(saved.fill))):50;
 let profile=findProfile(choice,driver,orientation), generation=0, installerReady=false, releaseReady=false;
 const supported=window.isSecureContext && 'serial' in navigator;
 const preview=new ToyPreview($('toy-canvas'));preview.fill=fill;
 const wiring=new WiringGraph($('wiring'));
-function remember(){try{localStorage.setItem('tilt-toy-selection',JSON.stringify({board:board.id,choice,driver,orientation,sensor:sensorId,mode:currentMode,fill}));}catch{}}
+function remember(){try{localStorage.setItem('tilt-toy-selection',JSON.stringify({board:board.id,choice,driver,orientation,sensor:sensorId,mode:currentMode,mood,fill}));}catch{}}
 function syncFlash(){ $('flash-button').disabled=!(supported&&installerReady&&releaseReady); }
 let releaseMessage={key:'release.loading',values:{}};
 let browserMessageKey=!supported?(window.isSecureContext?'browser.desktop':'browser.secure'):'browser.ready';
@@ -28,6 +31,8 @@ function refreshCopy(){
   for(const mode of modes){const button=document.querySelector(`[data-mode="${mode.id}"]`);button.querySelector('.mode-name').textContent=mode.name;button.querySelector('small').hidden=getLanguage()==='en';}
   const mode=modes.find(m=>m.id===currentMode);
   $('mode-readout').textContent=mode.name.toUpperCase();
+  updateArduino();
+  for(const option of $('mood').options)option.textContent=t(`mood.${option.value}`);
   $('mode-description').textContent=`${mode.detail} · ${t('preview.web')}`;
   $('release-message').textContent=t(releaseMessage.key,releaseMessage.values);
   $('browser-message').textContent=t(browserMessageKey);
@@ -60,39 +65,44 @@ function chooseDisplay(){
   $('preview-panel-label').textContent=`${profile.width} × ${profile.height} / ${profile.driver}`;
   $('device').dataset.shape=profile.shape;$('device').dataset.format=profile.width<profile.height?'portrait':profile.width>profile.height?'wide':'square';
   preview.setProfile(profile);wiring.setProfile(profile,sensorId,board);
+  updateArduino();
   $('panel-source').href=profile.source;verifyRelease(profile,board,++generation);
 }
-function chooseMode(id){const wasFull=currentMode==='water-full';currentMode=id;remember();preview.setMode(id);document.querySelectorAll('[data-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.mode===id)));const m=modes.find(m=>m.id===id);$('mode-readout').textContent=m.name.toUpperCase();$('mode-description').textContent=`${m.detail} · ${t('preview.web')}`;$('fluid-controls').hidden=!isLiquidMode(id);$('spin-controls').hidden=id!=='water-swirl';$('jolt-controls').hidden=!['water-inertia','pixel-flow'].includes(id);$('fluid-grid').closest('label').hidden=id==='pixel-flow';$('shake').hidden=['water-inertia','water-swirl','water-full'].includes(id);$('spin').value=0;$('spin-value').textContent='0°/s';if(wasFull||id==='water-full')configureFullControls(id);}
-
-// WaterFull controls are separate from the two existing motion-water panels.
-function configureFullControls(id){
-  const full=id==='water-full';$('water-full-controls').hidden=!full;
-  $('tilt').min=full?-180:-60;$('tilt').max=full?180:60;
-  $('full-spin').value=0;$('full-spin-value').textContent='0°/s';$('full-demo').disabled=false;$('full-stop-demo').disabled=true;
-  if(!full){
-    preview.setTilt(Math.max(-60,Math.min(60,preview.roll)),preview.pitch);
-    $('tilt').value=preview.roll;$('tilt-value').textContent=Math.round(preview.roll)+'°';
-    $('roll-readout').textContent=(preview.roll>=0?'+':'')+Math.round(preview.roll)+'°';
-    $('pitch').value=preview.pitch;$('pitch-readout').textContent=(preview.pitch>=0?'+':'')+Math.round(preview.pitch)+'°';
-    $('device').style.transform=`rotate(${preview.roll*.12}deg)`;
-  }
+// Arduino IDE: the generated sketch for the chosen board and display, and its Tools settings.
+let sketchText=null,sketchFor='';
+function updateArduino(){
+  const path=sketchPath(board,profile);
+  if(sketchFor!==path){sketchFor=path;sketchText=null;$('arduino-code').textContent='';$('arduino-status').textContent='';}
+  $('arduino-download').href='./'+path;$('arduino-download').download=sketchName(board,profile)+'.ino';
+  $('arduino-core-url').textContent=CORE.url;$('arduino-core').textContent=`${CORE.name} ${CORE.version}`;
+  $('arduino-libraries').replaceChildren(...libraries(profile).map(([name,version])=>{const item=document.createElement('li');item.textContent=`${name} ${version}`;return item;}));
+  $('arduino-settings').replaceChildren(...ideSettings(board).map(([key,value])=>{
+    const row=document.createElement('tr'),label=document.createElement('td'),setting=document.createElement('td'),meaning=document.createElement('small');
+    label.textContent=t(`arduino.setting.${key}`);setting.textContent=value;meaning.textContent=t(`arduino.meaning.${key}`);label.append(meaning);row.append(label,setting);return row;
+  }));
 }
-preview.onFullMotion=state=>{
-  if(currentMode!=='water-full')return;
-  const roll=Math.round(state.roll),pitch=Math.round(state.pitch),target=Math.round(state.targetRoll);
-  $('tilt').value=target;$('tilt-value').textContent=target+'°';$('pitch').value=Math.round(state.targetPitch);
-  $('roll-readout').textContent=(roll>=0?'+':'')+roll+'°';$('pitch-readout').textContent=(pitch>=0?'+':'')+pitch+'°';
-  $('device').style.transform=`rotate(${state.roll*.12}deg)`;
-  $('full-spin').value=state.spin;$('full-spin-value').textContent=Math.round(state.spin)+'°/s';
-  $('full-demo').disabled=state.demo;$('full-stop-demo').disabled=!state.demo;
-};
-$('full-spin').addEventListener('input',()=>preview.setFullSpin(Number($('full-spin').value)));
-$('full-stop-spin').addEventListener('click',()=>preview.setFullSpin(0));
-$('full-flat').addEventListener('click',()=>preview.setTilt(preview.roll,90));
-$('full-demo').addEventListener('click',()=>preview.startFullDemo());
-$('full-stop-demo').addEventListener('click',()=>preview.stopFullDemo());
-document.querySelectorAll('[data-full-jolt]').forEach(button=>button.addEventListener('click',()=>preview.jolt(...button.dataset.fullJolt.split(',').map(Number))));
-document.addEventListener('visibilitychange',()=>{if(document.hidden&&currentMode==='water-full')preview.pauseFullMotion();});
+async function loadSketch(){
+  const path=sketchFor;
+  if(sketchText===null){const response=await fetch('./'+path);if(!response.ok)throw Error(t('arduino.loadFailed'));const text=await response.text();if(path!==sketchFor)return null;sketchText=text;}
+  return sketchText;
+}
+// The Clipboard API can be unavailable (permissions, embedded browsers); fall back to a selected textarea.
+function copyText(text){
+  const fallback=()=>{const area=document.createElement('textarea');area.value=text;area.setAttribute('readonly','');area.style.cssText='position:fixed;top:0;opacity:0';document.body.append(area);area.select();const copied=document.execCommand('copy');area.remove();if(!copied)throw Error('copy');};
+  return navigator.clipboard?.writeText?navigator.clipboard.writeText(text).catch(fallback):Promise.resolve().then(fallback);
+}
+$('arduino-copy').addEventListener('click',async()=>{
+  try{$('arduino-status').textContent=t('arduino.loading');const text=await loadSketch();if(text===null)return;await copyText(text);$('arduino-status').textContent=t('arduino.copied');}
+  catch{$('arduino-status').textContent=t('arduino.copyFailed');}
+});
+// Fetch the sketch when the section opens, so Copy runs while the click still counts as a user action.
+$('arduino-ide').addEventListener('toggle',event=>{if(event.target.open)loadSketch().catch(()=>{});});
+document.querySelector('.arduino-view').addEventListener('toggle',async event=>{
+  if(!event.target.open||$('arduino-code').textContent)return;
+  try{$('arduino-code').textContent=t('arduino.loading');const text=await loadSketch();if(text!==null)$('arduino-code').textContent=text;}
+  catch(error){$('arduino-code').textContent=error.message;}
+});
+function chooseMode(id){currentMode=id;remember();preview.setMode(id);document.querySelectorAll('[data-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.mode===id)));const m=modes.find(m=>m.id===id);$('mode-readout').textContent=m.name.toUpperCase();$('mode-description').textContent=`${m.detail} · ${t('preview.web')}`;$('fluid-controls').hidden=!isLiquidMode(id);$('jolt-controls').hidden=!['water-slosh','pixel-flow'].includes(id);$('fluid-grid').closest('label').hidden=id==='pixel-flow';$('shake').hidden=id==='pet';$('mood-controls').hidden=id!=='robot';}
 for(const d of displayChoices){const b=document.createElement('button');b.className='display-card';b.dataset.display=d.id;b.setAttribute('aria-pressed','false');b.innerHTML=`<span class="mini-screen ${d.shape}" aria-hidden="true"></span><span><strong>${d.title}</strong><small>${d.subtitle}</small></span>`;b.addEventListener('click',()=>{choice=d.id;chooseDisplay();});$('displays').append(b);}
 for(const m of modes){const b=document.createElement('button');b.className='mode-button';b.dataset.mode=m.id;b.setAttribute('aria-pressed','false');b.innerHTML=`<span class="glyph" aria-hidden="true">${m.glyph}</span><span class="mode-name">${m.name}</span><small>${m.english}</small>`;b.addEventListener('click',()=>chooseMode(m.id));$('modes').append(b);}
 $('driver').addEventListener('change',()=>{driver=$('driver').value;chooseDisplay();});
@@ -104,14 +114,14 @@ $('sensor').value=sensorId;
 $('sensor').addEventListener('change',()=>{sensorId=findSensor($('sensor').value).id;remember();wiring.setProfile(profile,sensorId,board);});
 $('tilt').addEventListener('input',()=>{const value=Number($('tilt').value);preview.setTilt(value,preview.pitch);$('tilt-value').textContent=value+'°';$('roll-readout').textContent=(value>=0?'+':'')+value+'°';$('device').style.transform=`rotate(${value*.12}deg)`;});
 $('pitch').addEventListener('input',()=>{const value=Number($('pitch').value);preview.setTilt(preview.roll,value);$('pitch-readout').textContent=(value>=0?'+':'')+value+'°';});
-$('spin').addEventListener('input',()=>{preview.spin=Number($('spin').value);$('spin-value').textContent=preview.spin+'°/s';});
-$('stop-spin').addEventListener('click',()=>{preview.spin=0;$('spin').value=0;$('spin-value').textContent='0°/s';});
-$('flat').addEventListener('click',()=>{preview.setTilt(preview.roll,90);$('pitch').value=90;$('pitch-readout').textContent='+90°';});
 document.querySelectorAll('[data-jolt]').forEach(button=>button.addEventListener('click',()=>preview.jolt(...button.dataset.jolt.split(',').map(Number))));
 $('shake').addEventListener('click',()=>preview.shake());
+$('mood').addEventListener('change',()=>{preview.setMood($('mood').value);mood=$('mood').value;remember();});
 $('fill').value=fill;$('fill-value').textContent=fill+'%';
 $('fill').addEventListener('input',()=>{fill=Number($('fill').value);$('fill-value').textContent=fill+'%';preview.setFill(fill);remember();});
 $('fluid-grid').addEventListener('change',()=>{preview.showGrid=$('fluid-grid').checked;});
+for(const id of MOODS){const option=document.createElement('option');option.value=id;$('mood').append(option);}
+$('mood').value=mood;preview.setMood(mood);
 chooseMode(currentMode);chooseDisplay();
 refreshCopy();
 onLanguageChange(()=>{refreshCopy();wiring.setLanguage();});

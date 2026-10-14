@@ -19,15 +19,10 @@ export const displayChoices = [
 ];
 export const modes = [
   { id: 'water', get name() { return t('mode.water'); }, english: 'Liquid', get detail() { return t('detail.water'); }, glyph: '≈' },
-  { id: 'water-inertia', get name() { return t('mode.water-inertia'); }, english: 'Inertia water', get detail() { return t('detail.water-inertia'); }, glyph: '↝' },
-  { id: 'water-swirl', get name() { return t('mode.water-swirl'); }, english: 'Swirl water', get detail() { return t('detail.water-swirl'); }, glyph: '◎' },
-  { id: 'water-full', get name() { return t('mode.water-full'); }, english: 'Full-motion water', get detail() { return t('detail.water-full'); }, glyph: '≋' },
+  { id: 'water-slosh', get name() { return t('mode.water-slosh'); }, english: 'Slosh water', get detail() { return t('detail.water-slosh'); }, glyph: '∿' },
   { id: 'pixel-flow', get name() { return t('mode.pixel-flow'); }, english: 'Pixel Flow', get detail() { return t('detail.pixel-flow'); }, glyph: '▦' },
-  { id: 'maze', get name() { return t('mode.maze'); }, english: 'Tilt maze', get detail() { return t('detail.maze'); }, glyph: '⊙' },
-  { id: 'snow', get name() { return t('mode.snow'); }, english: 'Snow globe', get detail() { return t('detail.snow'); }, glyph: '✳' },
-  { id: 'pong', get name() { return t('mode.pong'); }, english: 'Orbit pong', get detail() { return t('detail.pong'); }, glyph: '◒' },
   { id: 'pet', get name() { return t('mode.pet'); }, english: 'Pocket eyes', get detail() { return t('detail.pet'); }, glyph: '••' },
-  { id: 'dice', get name() { return t('mode.dice'); }, english: 'Shake & roll', get detail() { return t('detail.dice'); }, glyph: '⚄' }
+  { id: 'robot', get name() { return t('mode.robot'); }, english: 'Robot eyes', get detail() { return t('detail.robot'); }, glyph: '▬▬' }
 ];
 export function findProfile(choice, driver = 'GC9A01', orientation = 'portrait') {
   const id = choice === 'tft-240x240' ? (driver === 'ST7789' ? 'tft-240x240-st7789' : 'tft-240x240-gc9a01') : choice === 'tft-80x160' && orientation === 'landscape' ? 'tft-80x160-landscape' : choice;
