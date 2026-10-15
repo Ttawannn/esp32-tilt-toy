@@ -3,6 +3,7 @@
 #include <vector>
 #include "flip_fluid.h"
 #include "toy_modes.h"
+#include "themes.h"
 using std::min;
 using std::max;
 constexpr float PI = 3.14159265358979323846f;
@@ -26,7 +27,7 @@ FakePanel *scene = &panel;
 FlipFluid fluid;
 MotionState motion;
 bool gradientWater = false, imuReady = true, apActive = false, screenOverlay = false, waterScreenValid = false, pixelScreenValid = true;
-int activeMode = Water;
+int activeMode = Water, theme = ThemeOcean;
 float sensitivity = 1, roll = 0, simulationMs = 0;
 uint8_t shownWater[FlipFluid::MaxPixelSide*FlipFluid::MaxPixelSide]{};
 uint16_t ink(uint16_t color) { return DISPLAY_PROFILE == 4 ? !!color : color; }

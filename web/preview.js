@@ -4,8 +4,7 @@ import { MotionState, GRAVITY } from './motion.js';
 import { isFlipMode, isLiquidMode, waterForces } from './water-modes.js';
 import { PixelFlow, pixelLayout, forceToQ8, STEP as PIXEL_STEP } from './pixel-flow.js';
 import { RobotEyes } from './robot-eyes.js';
-// Pixel Flow shades: 0 empty, 1 surface, 2 spray, 3-6 body from just below the surface to deep.
-const PIXEL_COLORS=['','#8ee8ff','#c8f4ff','#2bb8f0','#1a9fe0','#1288cc','#0c70b4'];
+import { findTheme } from './themes.js';
 
 // Slosh water only: the tilt sliders turn a simulated toy at a real rate, with a matching 100 Hz gyro.
 // A hand speeds up and slows down smoothly: a critically damped spring with limited angular acceleration
@@ -47,7 +46,7 @@ export class TiltInput {
 }
 
 export class ToyPreview {
-  constructor(canvas){this.canvas=canvas;this.ctx=canvas.getContext('2d');this.roll=0;this.pitch=0;this.fill=50;this.showGrid=false;this.mode='water';this.mono=false;this.motion=new MotionState();this.robot=new RobotEyes();this.reset();this.last=performance.now();this.running=true;this.bindStir();requestAnimationFrame(t=>this.frame(t));}
+  constructor(canvas){this.canvas=canvas;this.ctx=canvas.getContext('2d');this.roll=0;this.pitch=0;this.fill=50;this.showGrid=false;this.mode='water';this.mono=false;this.theme=findTheme('ocean');this.motion=new MotionState();this.robot=new RobotEyes();this.reset();this.last=performance.now();this.running=true;this.bindStir();requestAnimationFrame(t=>this.frame(t));}
   reset(){this.motion.reset();this.motionTime=0;this.kick={x:0,y:0};this.tilt=this.mode==='water-slosh'?new TiltInput(this.roll,this.pitch):null;if(this.tilt){this.motion.update(this.tilt.sample(0));this.motion.consumeFrame();}this.robot.reset(performance.now());this.layout=fluidLayout(this.canvas.width,this.canvas.height,!!this.round);this.fluid=new FlipFluid(this.layout.nx,this.layout.ny,!!this.round,this.fill);
     const v=this.pixelView=pixelLayout(this.canvas.width,this.canvas.height,!!this.round,this.mono);this.pixelForce=[0,64];this.pixelClock=0;this.pixelFrame=0;this.drops=new PixelFlow(v.cols,v.rows,v.shape,this.fill,1+Math.floor(Math.random()*0x7ffffffe));
   }
@@ -72,6 +71,8 @@ export class ToyPreview {
   setMode(mode){this.mode=mode;this.reset();}
   setFill(value){this.fill=value;this.fluid.reset(value);this.drops.reset(value,...this.pixelForce,1+Math.floor(Math.random()*0x7ffffffe));}
   setMood(mood){this.robot.mood=mood;}
+  // Colours of the water, Pixel Flow and the robot eyes, as in firmware/tilt_toy/themes.h.
+  setTheme(id){this.theme=findTheme(id);}
   // Water and slosh water: 'classic' two-tone or 'gradient' depth shades in the Pixel Flow palette.
   setWaterColor(look){this.waterColor=look==='gradient'?'gradient':'classic';}
   shake(){this.robot.react(performance.now());this.fluid.impulse(Math.sin(this.roll*Math.PI/180),Math.cos(this.roll*Math.PI/180));this.drops.shake(...this.pixelForce);}
@@ -93,7 +94,7 @@ export class ToyPreview {
       this.pixelClock=Math.min(2*PIXEL_STEP,this.pixelClock+dt);
       while(this.pixelClock>=PIXEL_STEP-1e-9){f.step(ax,ay);this.pixelClock-=PIXEL_STEP;}
       const look=f.shade(ax,ay,this.pixelFrame++),left=v.x-cx,top=v.y-cy,size=v.pitch-1;
-      for(let k=0;k<v.cols*v.rows;k++)if(look[k]){c.fillStyle=this.mono?white:PIXEL_COLORS[look[k]];c.fillRect(left+(k%v.cols)*v.pitch,top+Math.floor(k/v.cols)*v.pitch,size,size);}
+      for(let k=0;k<v.cols*v.rows;k++)if(look[k]){c.fillStyle=this.mono?white:this.theme.shades[look[k]];c.fillRect(left+(k%v.cols)*v.pitch,top+Math.floor(k/v.cols)*v.pitch,size,size);}
     } else if(isFlipMode(this.mode)){
       // Water takes the sliders directly; slosh water reads the simulated IMU like the firmware does.
       const f=this.fluid,l=this.layout,planar=Math.cos(this.pitch*Math.PI/180),slosh=this.mode==='water-slosh',input=slosh?this.updateMotion(dt):null;
@@ -107,11 +108,11 @@ export class ToyPreview {
       if(this.pixels?.length!==cols*rows)this.pixels=new Uint8Array(cols*rows);
       pixelWater(f,cols,rows,f.h+ox/sx,f.h+oy/sy,cell/sx,cell/sy,g.x,g.y,this.pixels);
       const shades=this.waterColor==='gradient'?f.shade(cols,rows,g.x,g.y,this.pixels):null;
-      for(let j=0;j<rows;j++)for(let i=0;i<cols;i++){const k=j*cols+i,v=this.pixels[k];if(v===1||v===2){c.fillStyle=this.mono?white:shades?PIXEL_COLORS[shades[k]]:v===2?'#9ee6fb':'#1fa2e0';c.fillRect(left+ox+i*cell,top+oy+j*cell,cell-1,cell-1);}}
+      for(let j=0;j<rows;j++)for(let i=0;i<cols;i++){const k=j*cols+i,v=this.pixels[k];if(v===1||v===2){c.fillStyle=this.mono?white:shades?this.theme.shades[shades[k]]:v===2?this.theme.top:this.theme.body;c.fillRect(left+ox+i*cell,top+oy+j*cell,cell-1,cell-1);}}
       c.restore();
     } else if(this.mode==='robot'){
       const clamp=v=>Math.max(-1,Math.min(1,v));
-      this.robot.draw(c,w,h,t*1000,dt,clamp(gx),clamp(-Math.sin(this.pitch*Math.PI/180)),this.mono?white:'#3cdcff',this.mono?white:'#ff468c',this.mono?'#060b08':'#041419');
+      this.robot.draw(c,w,h,t*1000,dt,clamp(gx),clamp(-Math.sin(this.pitch*Math.PI/180)),this.mono?white:this.theme.eye,this.mono?white:'#ff468c',this.mono?'#060b08':'#041419');
     } else {
       const blink=t%4.5>4.32;c.fillStyle=white;for(const side of[-1,1]){const x=side*r*.43;if(blink)c.fillRect(x-r*.26,-1,r*.52,2);else{c.beginPath();c.roundRect(x-r*.28,-r*.4,r*.56,r*.8,Math.max(2,r*.22));c.fill();c.fillStyle='#041419';circle(x+gx*r*.09,-Math.sin(this.pitch*Math.PI/180)*r*.12,r*.14);c.fillStyle=white;}}
     }

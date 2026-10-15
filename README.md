@@ -49,7 +49,7 @@ Every firmware includes five modes. Tap the **onboard BOOT button** to cycle thr
 | **Slosh water (`water-slosh`)** | Same look as Liquid, but it sloshes like real water when you move or rock the toy side to side: measured translation and rotation, no wall drag. Shake still makes waves. |
 | **Pixel Flow (`pixel-flow`)** | LED-style water drops. Tilt to flow, jolt to surge, and shake to splash. |
 | **Pocket eyes (`pet`)** | Cartoon eyes follow your tilt. |
-| **Robot eyes (`robot`)** | Robot eyes that blink, glance around, and follow your tilt. Pick a mood on the phone: normal, happy, angry, sad, sleepy, surprised, suspicious, or in love; *Play all moods* (`auto`) shows each one for 3.5 s in turn. A shake makes them surprised for a moment. |
+| **Robot eyes (`robot`)** | Robot eyes that blink, glance around, and follow your tilt. Pick a mood on the phone: normal, happy, angry, sad, sleepy, surprised, suspicious, or in love; *Play all moods* (`auto`) shows each one for 3.5 s in turn. A shake makes them dizzy: spinning spirals for about 2 s (longer if you keep shaking), then back to the mood. |
 
 ### FLIP/PIC water
 
@@ -58,7 +58,7 @@ The fluid simulation uses a FLIP/PIC solver on a MAC grid, adapted from Matthias
 - `firmware/tilt_toy/flip_fluid.h`: C++ with fixed storage for up to 400 cells and 900 particles, about 32 KB including the pixel grid. No runtime allocation.
 - `web/fluid.js`: JavaScript for the web preview, mirroring each integer operation. A test runs 300 mixed-force steps in both and requires every value to match.
 
-Liquid, Slosh water, and Pixel Flow support 10–90% fill. BOOT order: Liquid → Slosh water → Pixel Flow → Pocket eyes → Robot eyes. NVS key `toyMode` stores 0 Liquid, 1 Pixel Flow, 2 Pocket eyes, 3 Robot eyes, 4 Slosh water; `robotMood` stores the chosen mood and `waterGradient` the water colour. Firmware from before the removal saved a ten-mode index under `mode`; the first boot converts it, keeping Pixel Flow and Pocket eyes and starting removed modes on Liquid.
+Liquid, Slosh water, and Pixel Flow support 10–90% fill. BOOT order: Liquid → Slosh water → Pixel Flow → Pocket eyes → Robot eyes. NVS key `toyMode` stores 0 Liquid, 1 Pixel Flow, 2 Pocket eyes, 3 Robot eyes, 4 Slosh water; `robotMood` stores the chosen mood, `waterGradient` the water colour and `theme` the colour theme. Firmware from before the removal saved a ten-mode index under `mode`; the first boot converts it, keeping Pixel Flow and Pocket eyes and starting removed modes on Liquid.
 
 Both implementations use a fixed 25 ms step (at most two per frame, so a late frame cannot snowball), a circular vessel for GC9A01, linked-cell neighbor lookup, and gravity from the detected sensor's motion filter. Liquid uses tilt only; Slosh water adds the frame's translation and the Euler, Coriolis, and centrifugal forces of turning about the screen axis. Grid dimensions depend on the display; the round display uses 20×20.
 
@@ -148,12 +148,12 @@ The device page shows the board name and detected sensor name/address. Keep the 
 
 | Endpoint | Purpose |
 | --- | --- |
-| `GET /api/status` | Version, `board`, `boardName`, `chipFamily`, profile, mode, `mood`, `waterColor`, settings, `imu`, `sensor`, `sensorAddress` (decimal), `gyro`, roll/pitch, `fps`, `simMs`, `particles`, `freeHeap`, `axisX/Y/Z`, X/Y/Z arrays `gravity`, `omega`, `linear`, `yaw`, `stillMs`, `fifoResets` |
+| `GET /api/status` | Version, `board`, `boardName`, `chipFamily`, profile, mode, `mood`, `waterColor`, `theme`, settings, `imu`, `sensor`, `sensorAddress` (decimal), `gyro`, roll/pitch, `fps`, `simMs`, `particles`, `freeHeap`, `axisX/Y/Z`, X/Y/Z arrays `gravity`, `omega`, `linear`, `yaw`, `stillMs`, `fifoResets` |
 | `POST /api/config` | `mode`, `fill`, `sensitivity`, `rotation`, `invert`, `spiMode`, `axisX`, `axisY`, `axisZ` (±1=X, ±2=Y, ±3=Z) |
 | `POST /api/shake` · `/api/calibrate` · `/api/close` | Shake, calibrate gyro, close Wi-Fi |
 | `GET /license` | FLIP solver MIT license |
 
-Accepted mode IDs: `water`, `water-slosh`, `pixel-flow`, `pet`, `robot`. Accepted `mood` IDs: `auto`, `normal`, `happy`, `angry`, `sad`, `tired`, `surprised`, `suspicious`, `love`. Accepted `waterColor`: `classic` (two-tone) or `gradient` (Liquid and Slosh water shaded by depth in the Pixel Flow palette, without its shimmer; a pixel changes shade only when its depth moves past its band by a whole pixel, so ripples do not flicker the water below).
+Accepted mode IDs: `water`, `water-slosh`, `pixel-flow`, `pet`, `robot`. Accepted `mood` IDs: `auto`, `normal`, `happy`, `angry`, `sad`, `tired`, `surprised`, `suspicious`, `love`. Accepted `waterColor`: `classic` (two-tone) or `gradient` (Liquid and Slosh water shaded by depth in the Pixel Flow palette, without its shimmer; a pixel changes shade only when its depth moves past its band by a whole pixel, so ripples do not flicker the water below). Accepted `theme`: `ocean` (the original blue), `lava`, `slime`, `grape`, `candy`, `aurora`; it colours Liquid, Slosh water, Pixel Flow and Robot eyes, and the web preview offers the same swatches.
 
 ## Local development
 

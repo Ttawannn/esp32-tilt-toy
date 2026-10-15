@@ -6,6 +6,7 @@ import { MOODS } from './robot-eyes.js';
 import { CORE, ideSettings, libraries, sketchName, sketchPath } from './arduino.js';
 import { WiringGraph, previewModule } from './wiring.js';
 import { modeIcons } from './icons.js';
+import { THEMES, findTheme } from './themes.js';
 import { getLanguage, initLanguage, localizedError, onLanguageChange, t } from './i18n.js';
 initLanguage();
 const $ = id => document.getElementById(id);
@@ -17,12 +18,13 @@ let board=findBoard(saved.board);
 let currentMode=modes.some(m=>m.id===saved.mode)?saved.mode:'water';
 let mood=MOODS.includes(saved.mood)?saved.mood:'auto';
 let waterColor=saved.waterColor==='gradient'?'gradient':'classic';
+let theme=findTheme(saved.theme).id;
 let fill=Number.isFinite(saved.fill)?Math.min(90,Math.max(10,Math.round(saved.fill))):50;
 let profile=findProfile(choice,orientation), generation=0, installerReady=false, releaseReady=false;
 const supported=window.isSecureContext && 'serial' in navigator;
 const preview=new ToyPreview($('toy-canvas'));preview.fill=fill;
 const wiring=new WiringGraph($('wiring'));
-function remember(){try{localStorage.setItem('tilt-toy-selection',JSON.stringify({board:board.id,choice,orientation,sensor:sensorId,mode:currentMode,mood,waterColor,fill}));}catch{}}
+function remember(){try{localStorage.setItem('tilt-toy-selection',JSON.stringify({board:board.id,choice,orientation,sensor:sensorId,mode:currentMode,mood,waterColor,theme,fill}));}catch{}}
 // The preview shows the selected module at a size that fits the stage, with the canvas on its screen.
 let module=null;
 function showModule(){
@@ -47,6 +49,7 @@ function refreshCopy(){
   $('mode-readout').textContent=mode.name.toUpperCase();
   updateArduino();
   for(const option of $('mood').options)option.textContent=t(`mood.${option.value}`);
+  document.querySelectorAll('[data-theme-id]').forEach(b=>{const name=t(`theme.${b.dataset.themeId}`);b.title=name;b.setAttribute('aria-label',name);});
   $('mode-description').textContent=`${mode.detail} · ${t('preview.web')}`;
   $('release-message').textContent=t(releaseMessage.key,releaseMessage.values);
   $('browser-message').textContent=t(browserMessageKey);
@@ -116,7 +119,7 @@ document.querySelector('.arduino-view').addEventListener('toggle',async event=>{
   try{$('arduino-code').textContent=t('arduino.loading');const text=await loadSketch();if(text!==null)$('arduino-code').textContent=text;}
   catch(error){$('arduino-code').textContent=error.message;}
 });
-function chooseMode(id){currentMode=id;remember();preview.setMode(id);document.querySelectorAll('[data-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.mode===id)));const m=modes.find(m=>m.id===id);$('mode-readout').textContent=m.name.toUpperCase();$('mode-description').textContent=`${m.detail} · ${t('preview.web')}`;$('fluid-controls').hidden=!isLiquidMode(id);$('jolt-controls').hidden=!['water-slosh','pixel-flow'].includes(id);$('fluid-grid').closest('label').hidden=id==='pixel-flow';$('shake').hidden=id==='pet';$('mood-controls').hidden=id!=='robot';$('water-color-controls').hidden=!isFlipMode(id);}
+function chooseMode(id){currentMode=id;remember();preview.setMode(id);document.querySelectorAll('[data-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.mode===id)));const m=modes.find(m=>m.id===id);$('mode-readout').textContent=m.name.toUpperCase();$('mode-description').textContent=`${m.detail} · ${t('preview.web')}`;$('fluid-controls').hidden=!isLiquidMode(id);$('jolt-controls').hidden=!['water-slosh','pixel-flow'].includes(id);$('fluid-grid').closest('label').hidden=id==='pixel-flow';$('shake').hidden=id==='pet';$('mood-controls').hidden=id!=='robot';$('water-color-controls').hidden=!isFlipMode(id);$('theme-controls').hidden=id==='pet';}
 for(const d of displayChoices){const b=document.createElement('button');b.className='display-card';b.dataset.display=d.id;b.setAttribute('aria-pressed','false');b.innerHTML=`<span class="mini-screen ${d.shape}" aria-hidden="true"></span><span><strong>${d.title}</strong><small>${d.subtitle}</small></span>`;b.addEventListener('click',()=>{choice=d.id;chooseDisplay();});$('displays').append(b);}
 for(const m of modes){const b=document.createElement('button');b.className='mode-button';b.dataset.mode=m.id;b.setAttribute('aria-pressed','false');b.innerHTML=`<span class="glyph" aria-hidden="true">${modeIcons[m.id]}</span><span class="mode-name">${m.name}</span><small>${m.english}</small>`;b.addEventListener('click',()=>chooseMode(m.id));$('modes').append(b);}
 $('orientation').addEventListener('change',()=>{orientation=$('orientation').value;chooseDisplay();});
@@ -135,8 +138,11 @@ document.querySelectorAll('[data-water-color]').forEach(b=>b.addEventListener('c
 $('fill').value=fill;$('fill-value').textContent=fill+'%';
 $('fill').addEventListener('input',()=>{fill=Number($('fill').value);$('fill-value').textContent=fill+'%';preview.setFill(fill);remember();});
 $('fluid-grid').addEventListener('change',()=>{preview.showGrid=$('fluid-grid').checked;});
+// Theme swatches: each shows the theme's water from surface to deep.
+function chooseTheme(id){theme=id;preview.setTheme(id);document.querySelectorAll('[data-theme-id]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.themeId===id)));}
+for(const th of THEMES){const b=document.createElement('button');b.type='button';b.className='theme-swatch';b.dataset.themeId=th.id;b.style.background=`linear-gradient(180deg,${th.shades[1]} 0 22%,${th.shades[3]} 22%,${th.shades[5]} 70%,${th.shades[6]})`;b.innerHTML=`<span class="swatch-eye" style="background:${th.eye}"></span>`;b.addEventListener('click',()=>{chooseTheme(th.id);remember();});$('themes').append(b);}
 for(const id of MOODS){const option=document.createElement('option');option.value=id;$('mood').append(option);}
-$('mood').value=mood;preview.setMood(mood);chooseWaterColor(waterColor);
+$('mood').value=mood;preview.setMood(mood);chooseWaterColor(waterColor);chooseTheme(theme);
 chooseMode(currentMode);chooseDisplay();
 refreshCopy();
 onLanguageChange(()=>{refreshCopy();wiring.setLanguage();});

@@ -73,14 +73,16 @@ test('preview water runs the tilt-only solver; switching modes resets the liquid
   }finally{globalThis.requestAnimationFrame=previous;}
 });
 
-test('robot eyes: auto plays every mood in turn, a shake surprises briefly, a chosen mood holds',()=>{
+test('robot eyes: auto plays every mood in turn, a shake makes them dizzy for a moment, a chosen mood holds',()=>{
   const ctx=new Proxy({},{get:()=>()=>{}}),eyes=new RobotEyes();
   assert.deepEqual(MOODS,['auto','normal','happy','angry','sad','tired','surprised','suspicious','love']);
   eyes.reset(0);const seen=new Set();
   for(let now=0;now<3500*9;now+=50){eyes.draw(ctx,240,240,now,.05,0,0,'#fff','#f00');seen.add(eyes.shown(now));}
   assert.deepEqual([...seen].sort(),MOODS.slice(1).sort(),'auto shows all eight moods');
-  eyes.mood='angry';eyes.react(50000);assert.equal(eyes.shown(50500),'surprised');assert.equal(eyes.shown(51300),'angry');
-  for(let now=51300;now<60000;now+=50)eyes.draw(ctx,240,240,now,.05,1,-1,'#fff','#f00');
+  eyes.mood='angry';eyes.react(50000);assert.equal(eyes.shown(50500),'dizzy');eyes.draw(ctx,240,240,50500,.05,0,0,'#fff','#f00');
+  eyes.react(51500);assert.equal(eyes.shown(53000),'dizzy','shaking again keeps them dizzy');assert.equal(eyes.dizzyStart,50000);
+  assert.equal(eyes.shown(53800),'angry');
+  for(let now=53800;now<60000;now+=50)eyes.draw(ctx,240,240,now,.05,1,-1,'#fff','#f00');
   assert.equal(eyes.shown(60000),'angry');
   for(const key of ['width','height','lid','inner','outer','smile'])assert.ok(Math.abs(eyes.current[0][key]-eyeShape('angry',0)[key])<1e-3,`settles on angry ${key}`);
   assert.notDeepEqual(eyeShape('suspicious',0),eyeShape('suspicious',1),'suspicious squints one eye');

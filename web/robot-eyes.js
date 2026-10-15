@@ -1,7 +1,7 @@
 // Robot eyes for the web preview. Mirrors RobotEyes in firmware/tilt_toy/robot_eyes.h:
 // the same moods, shapes, timing and drawing order, on a Canvas 2D context.
 export const MOODS=['auto','normal','happy','angry','sad','tired','surprised','suspicious','love'];
-const AUTO_MS=3500,SURPRISE_MS=1200,BLINK_MS=180;
+const AUTO_MS=3500,DIZZY_MS=2200,BLINK_MS=180;
 // Fractions of the base eye: size, a flat top lid, lids slanting toward the nose (inner) or cheek (outer), and a smile.
 export function eyeShape(mood,side){
   switch(mood){
@@ -20,11 +20,12 @@ export class RobotEyes {
   reset(now){
     this.current=[eyeShape('normal',0),eyeShape('normal',1)];
     this.gazeX=this.gazeY=this.glanceX=this.glanceY=0;
-    this.autoMood=1;this.nextAuto=now+AUTO_MS;this.surpriseUntil=-1;
+    this.autoMood=1;this.nextAuto=now+AUTO_MS;this.dizzyStart=this.dizzyUntil=-1;
     this.nextBlink=now+1500;this.blinkStart=-1e9;this.nextGlance=now+1000;
   }
-  react(now){this.surpriseUntil=now+SURPRISE_MS;}
-  shown(now){return now<this.surpriseUntil?'surprised':this.mood==='auto'?MOODS[this.autoMood]:this.mood;}
+  // Shake reaction: spinning dizzy eyes, then back to the mood. Shaking again keeps them dizzy.
+  react(now){if(now>=this.dizzyUntil)this.dizzyStart=now;this.dizzyUntil=now+DIZZY_MS;}
+  shown(now){return now<this.dizzyUntil?'dizzy':this.mood==='auto'?MOODS[this.autoMood]:this.mood;}
   // now in ms; lookX/lookY in -1..1 move the gaze toward the tilt. Draws centred on (0, 0).
   draw(c,width,height,now,dt,lookX,lookY,eyeColor,heartColor,background='#000'){
     if(this.mood==='auto'&&now>=this.nextAuto){this.autoMood=this.autoMood%(MOODS.length-1)+1;this.nextAuto=now+AUTO_MS;}
@@ -35,6 +36,13 @@ export class RobotEyes {
     this.gazeX+=(clamp(lookX+this.glanceX)-this.gazeX)*glide;this.gazeY+=(clamp(lookY+this.glanceY)-this.gazeY)*glide;
     const since=now-this.blinkStart,blink=since<BLINK_MS?Math.max(.08,Math.abs(since-BLINK_MS/2)/(BLINK_MS/2)):1;
     const size=Math.min(width,height),baseW=size*.34,baseH=size*.42;
+    if(face==='dizzy'){
+      // The spirals grow in, spin the two eyes opposite ways while the head wobbles, and shrink away.
+      const amount=Math.max(.3,Math.min(1,(now-this.dizzyStart)/150,(this.dizzyUntil-now)/300)),spin=now*.009;
+      const wobbleX=Math.cos(now*.008)*size*.03,wobbleY=Math.sin(now*.008)*size*.03;
+      for(let side=0;side<2;side++)spiral(c,(side?1:-1)*size*.25+wobbleX,wobbleY,Math.min(baseW,baseH)*.5*amount,side?-spin:spin,side?-1:1,eyeColor);
+      return;
+    }
     for(let side=0;side<2;side++){
       const eye=this.current[side],sign=side?1:-1;
       const cx=sign*size*.25+this.gazeX*size*.08,cy=this.gazeY*size*.08,ew=baseW*eye.width,eh=Math.max(2,baseH*eye.height*blink);
@@ -50,6 +58,13 @@ export class RobotEyes {
       if(eye.smile>.01){c.beginPath();c.roundRect(left-2,top+eh-eye.smile*eh,ew+4,eh,(ew+4)/2);c.fill();}
     }
   }
+}
+// A thick spiral of about two and a half turns from the centre out; direction -1 mirrors it.
+function spiral(c,cx,cy,radius,turn,direction,color){
+  const end=2.6*Math.PI*2,dot=Math.max(1,radius*.11);
+  c.strokeStyle=color;c.lineWidth=dot*2;c.lineCap='round';c.lineJoin='round';c.beginPath();
+  for(let a=0;a<=end;a+=.08){const r=radius*a/end,angle=direction*a+turn;a?c.lineTo(cx+Math.cos(angle)*r,cy+Math.sin(angle)*r):c.moveTo(cx,cy);}
+  c.stroke();
 }
 function triangle(c,x0,y0,x1,y1,x2,y2){c.beginPath();c.moveTo(x0,y0);c.lineTo(x1,y1);c.lineTo(x2,y2);c.closePath();c.fill();}
 // Two lobes and a point, as wide as the eye.

@@ -47,7 +47,7 @@
 | **น้ำกระฉอก (water-slosh)** | หน้าตาเหมือนน้ำปกติ แต่กระฉอกไปมาเหมือนน้ำจริงเมื่อขยับหรือโยกเครื่องซ้ายขวา ใช้แรงขยับและการหมุนที่วัดได้ ไม่มีแรงลากที่ผนัง เขย่าแล้วยังเกิดคลื่นได้ |
 | **น้ำพิกเซล (pixel-flow)** | น้ำเม็ดละเอียดแบบจอ LED เอียงให้ไหล กระตุกให้ซัด เขย่าให้กระเซ็น |
 | **ตาการ์ตูน (pet)** | ตาการ์ตูนมองตามทิศที่เอียง |
-| **ตาหุ่นยนต์ (robot)** | ตาหุ่นยนต์กะพริบ กลอกตา และมองตามการเอียง เลือกอารมณ์บนมือถือได้ 8 แบบ (ปกติ ดีใจ โกรธ เศร้า ง่วง ตกใจ สงสัย หลงรัก) หรือ *เล่นวนทุกอารมณ์* (`auto`) แสดงทีละอารมณ์ 3.5 วินาที เขย่าแล้วตกใจครู่หนึ่ง |
+| **ตาหุ่นยนต์ (robot)** | ตาหุ่นยนต์กะพริบ กลอกตา และมองตามการเอียง เลือกอารมณ์บนมือถือได้ 8 แบบ (ปกติ ดีใจ โกรธ เศร้า ง่วง ตกใจ สงสัย หลงรัก) หรือ *เล่นวนทุกอารมณ์* (`auto`) แสดงทีละอารมณ์ 3.5 วินาที เขย่าแล้วตาลายเป็นก้นหอยหมุนราว 2 วินาที (เขย่าต่อก็ลายต่อ) แล้วกลับไปอารมณ์เดิม |
 
 ### โหมดน้ำ (FLIP/PIC)
 
@@ -146,12 +146,12 @@
 
 | Endpoint | หน้าที่ |
 | --- | --- |
-| `GET /api/status` | version, `board`, `boardName`, `chipFamily`, profile, โหมด, `mood`, `waterColor`, ค่าตั้ง, `imu`, `sensor`, `sensorAddress` (เลขฐานสิบ), `gyro`, roll/pitch, `fps`, `simMs`, `particles`, `freeHeap`, `axisX/Y/Z`, `gravity`, `omega`, `linear` (array X/Y/Z), `yaw`, `stillMs`, `fifoResets` |
+| `GET /api/status` | version, `board`, `boardName`, `chipFamily`, profile, โหมด, `mood`, `waterColor`, `theme`, ค่าตั้ง, `imu`, `sensor`, `sensorAddress` (เลขฐานสิบ), `gyro`, roll/pitch, `fps`, `simMs`, `particles`, `freeHeap`, `axisX/Y/Z`, `gravity`, `omega`, `linear` (array X/Y/Z), `yaw`, `stillMs`, `fifoResets` |
 | `POST /api/config` | `mode`, `fill`, `sensitivity`, `rotation`, `invert`, `spiMode`, `axisX`, `axisY`, `axisZ` (±1=X, ±2=Y, ±3=Z) |
 | `POST /api/shake` · `/api/calibrate` · `/api/close` | เขย่า, คาลิเบรต gyro, ปิด Wi-Fi |
 | `GET /license` | ข้อความ MIT license ของ FLIP solver |
 
-`mode` รับ `water`, `water-slosh`, `pixel-flow`, `pet`, `robot` และ `mood` รับ `auto`, `normal`, `happy`, `angry`, `sad`, `tired`, `surprised`, `suspicious`, `love` และ `waterColor` รับ `classic` (สองสีแบบเดิม) หรือ `gradient` (น้ำปกติและน้ำกระฉอกไล่เฉดตามความลึกด้วยชุดสีของน้ำพิกเซล ไม่มีการกระพริบ เม็ดน้ำจะเปลี่ยนเฉดเมื่อความลึกเลยช่วงของเฉดนั้นเกินหนึ่งเม็ด ผิวน้ำกระเพื่อมจึงไม่ทำให้น้ำด้านล่างกระพริบ เก็บใน NVS key `waterGradient`)
+`mode` รับ `water`, `water-slosh`, `pixel-flow`, `pet`, `robot` และ `mood` รับ `auto`, `normal`, `happy`, `angry`, `sad`, `tired`, `surprised`, `suspicious`, `love` และ `waterColor` รับ `classic` (สองสีแบบเดิม) หรือ `gradient` (น้ำปกติและน้ำกระฉอกไล่เฉดตามความลึกด้วยชุดสีของน้ำพิกเซล ไม่มีการกระพริบ เม็ดน้ำจะเปลี่ยนเฉดเมื่อความลึกเลยช่วงของเฉดนั้นเกินหนึ่งเม็ด ผิวน้ำกระเพื่อมจึงไม่ทำให้น้ำด้านล่างกระพริบ เก็บใน NVS key `waterGradient`) และ `theme` รับ `ocean` (ฟ้าแบบเดิม), `lava`, `slime`, `grape`, `candy`, `aurora` ใช้กับน้ำปกติ น้ำกระฉอก น้ำพิกเซล และตาหุ่นยนต์ เก็บใน NVS key `theme` หน้าเว็บพรีวิวมีให้เลือกธีมเดียวกัน
 
 ## พัฒนาบนเครื่อง
 

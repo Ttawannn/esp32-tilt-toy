@@ -7,7 +7,7 @@ import { CORE, DISPLAY_HEADERS, displayLibrary, ideSettings, libraries, sketchNa
 
 const root = resolve(import.meta.dirname, '..');
 // In #include order: each header is placed where the sketch includes it.
-export const HEADERS = ['config.h', 'motion_sensor.h', 'motion_state.h', 'flip_fluid.h', 'pixel_flow.h', 'toy_modes.h', 'robot_eyes.h'];
+export const HEADERS = ['config.h', 'motion_sensor.h', 'motion_state.h', 'flip_fluid.h', 'pixel_flow.h', 'toy_modes.h', 'robot_eyes.h', 'themes.h'];
 const SETTING_LABELS = { board: 'Board', cdc: 'USB CDC On Boot', flashSize: 'Flash Size', flashMode: 'Flash Mode', partition: 'Partition Scheme', uploadSpeed: 'Upload Speed', port: 'Port' };
 
 export async function readSources() {
