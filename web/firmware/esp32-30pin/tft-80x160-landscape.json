@@ -6,8 +6,8 @@
   "chipFamily": "ESP32",
   "flashSize": "4MB",
   "controller": "ST7735S",
-  "size": 1159408,
-  "sha256": "57cf4a30f57c17a7333537ebe333df860abc8384a19a3b91ba5d121b6add64ad",
+  "size": 1160560,
+  "sha256": "4869475ecb2b621a8aa4376fdf2272b419da9bfc3274a043a6ef7ab3a9f2073c",
   "hardwareTested": false,
   "build": {
     "core": "esp32:esp32@3.3.11",
@@ -16,7 +16,7 @@
     "bootloaderOffset": 4096,
     "displayProfile": 5,
     "initialRotation": 1,
-    "sourceSha256": "4081a989db680bc116372234c03f9fc5de6243ab68fd3da81ceef7d79295c27e"
+    "sourceSha256": "25c88b019af9439e06446ca2906b28632ce47f83f915e18ab2ed163114222f8b"
   },
   "new_install_prompt_erase": true,
   "new_install_improv_wait_time": 0,
