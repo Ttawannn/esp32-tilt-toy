@@ -102,7 +102,7 @@ test('C++/JS fusion, forces and fixed-point water agree; C++ survives 1000 mixed
     values.push(...pixelWater(fluid,10,10,fluid.h,fluid.h,6*fluid.h/10,6*fluid.h/10,gravity.x,gravity.y));
     expected.push(values);
   }
-  // Fixed point: 300 consecutive steps (varied dt, forces and turning, shakes) and the raster match bit for bit.
+  // Fixed point: 300 consecutive steps (varied dt, forces and turning, shakes), the raster and its depth shades match bit for bit.
   const f32=Math.fround,exact=(width,height,round,fill,cols,rows)=>{
     const run=new FlipFluid(width,height,round,fill),dts=[.025,.03,.05,.012];
     input.push(`L ${width} ${height} ${round?1:0} ${fill} 300`);
@@ -115,7 +115,7 @@ test('C++/JS fusion, forces and fixed-point water agree; C++ survives 1000 mixed
     const view=[run.h,run.h,run.h*(run.nx-2)/cols,run.h*(run.ny-2)/rows,.6,.8].map(f32),cells=new Uint8Array(cols*rows);
     input.push(`${cols} ${rows} ${view.join(' ')}`);
     assert.ok(run.rasterize(cols,rows,...view,cells));
-    expected.push([run.count,run.restDensity,...Array.from({length:run.count},(_,p)=>[run.qx[p],run.qy[p],run.qvx[p],run.qvy[p]]).flat(),...cells]);
+    expected.push([run.count,run.restDensity,...Array.from({length:run.count},(_,p)=>[run.qx[p],run.qy[p],run.qvx[p],run.qvy[p]]).flat(),...cells,...run.shade(cols,rows,view[4],view[5],cells).subarray(0,cols*rows)]);
   };
   exact(20,20,true,60,33,33);exact(18,18,false,40,33,33);exact(10,18,false,75,19,39);exact(19,10,false,50,40,20);
   input.push('B');expected.push([1]);

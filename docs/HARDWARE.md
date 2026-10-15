@@ -59,7 +59,6 @@ USB ของ C6 ใช้ GPIO12/13 ซึ่งต่างจาก C3 เว
 | --- | --- | --- |
 | ST7735 80×160 / 160×80 | `initR(INITR_MINI160x80)`; rotation 0 สำหรับแนวตั้ง / 1 สำหรับแนวนอน | ชนิด panel/FPC, offset, RGB order, inversion |
 | GMT130 ST7789 240×240 | driver CS = `-1`; `init(240, 240, SPI_MODE3)` | รุ่นแรกเริ่ม Mode3; เลือก Mode0 ในหน้าเครื่องได้ ต้องตรวจโมดูลจริง |
-| ST7789 240×240 มี CS | driver CS = 18; `init(240, 240, SPI_MODE0)` | controller, CS wiring, offset, inversion |
 | GC9A01 240×240 วงกลม | `begin(...)`; rotation 0 | โมดูลตรงชิป, RGB order, inversion, mask พื้นที่วงกลม |
 | SSD1306 128×64 I²C | driver 128×64; reset `-1` สำหรับโมดูล auto-reset | scan `0x3C`/`0x3D`, ความสามารถไฟเลี้ยง, ชิปไม่ใช่ SH1106 |
 
@@ -69,7 +68,7 @@ USB ของ C6 ใช้ GPIO12/13 ซึ่งต่างจาก C3 เว
 
 Adafruit ST7735 driver ใช้ offset `(24, 0)` สำหรับ `INITR_MINI160x80` และ `(26, 1)` สำหรับ `INITR_MINI160x80_PLUGIN` โดย plugin มี semantics inversion ต่างกัน จึงต้องตรวจรุ่น panel เมื่อภาพเลื่อน สีผิด หรือพื้นที่ขอบหาย `setRotation(0)` ให้พื้นที่ 80×160 และ rotation 1/3 สลับเป็น 160×80 [source ST7735 driver](https://github.com/adafruit/Adafruit-ST7735-Library/blob/master/Adafruit_ST7735.cpp)
 
-### GMT130 และ TFT ST7789 240×240
+### GMT130 240×240
 
 GMT130-V1.0 ของ Goldenmorning ใช้ ST7789 และ header 7 ขา `GND, VCC, SCK, SDA, RES, DC, BLK` โดยไม่มี CS ให้ต่อ ขา **SDA ของจอนี้คือ SPI MOSI** ให้ต่อ GPIO7 ห้ามนำไปแชร์กับ I²C SDA ของ GY-521 [ข้อมูลโมดูลจากผู้ผลิต](https://goldenmorninglcd.com/tft-display-module/1.3-inch-240x240-st7789-gmt130-v1.0/)
 

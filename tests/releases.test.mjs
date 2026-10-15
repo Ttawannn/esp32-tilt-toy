@@ -12,13 +12,13 @@ const releaseRoot = process.env.FIRMWARE_OUTPUT_DIR
   : new URL('../web/firmware/', import.meta.url);
 const releaseBoards = process.env.FIRMWARE_BOARD ? boards.filter(board => board.id === process.env.FIRMWARE_BOARD) : boards;
 assert.ok(releaseBoards.length > 0, 'FIRMWARE_BOARD must name a known board');
-test('round and square TFT 240×240 have distinct drivers',()=>{
-  assert.equal(findProfile('tft-240x240','GC9A01').id,'tft-240x240-gc9a01');
-  assert.equal(findProfile('tft-240x240','ST7789').id,'tft-240x240-st7789');
+test('TFT 240×240 is the round GC9A01 and GMT130 is the only square ST7789',()=>{
+  assert.equal(findProfile('tft-240x240').id,'tft-240x240-gc9a01');
+  assert.deepEqual(profiles.filter(p=>p.driver==='ST7789').map(p=>[p.id,p.hasCs]),[['gmt130-240x240',false]]);
 });
 test('Mini TFT orientation selects dimensions and the matching firmware preset',()=>{
-  const portrait=findProfile('tft-80x160','GC9A01','portrait');
-  const landscape=findProfile('tft-80x160','GC9A01','landscape');
+  const portrait=findProfile('tft-80x160','portrait');
+  const landscape=findProfile('tft-80x160','landscape');
   assert.equal(portrait.id,'tft-80x160');
   assert.equal(landscape.id,'tft-80x160-landscape');
   assert.deepEqual([portrait.width,portrait.height,portrait.defaultRotation],[80,160,0]);
@@ -26,7 +26,7 @@ test('Mini TFT orientation selects dimensions and the matching firmware preset',
   assert.notEqual(portrait.firmwareId,landscape.firmwareId);
   assert.equal(portrait.driver,landscape.driver);
   assert.deepEqual(wiringFor(portrait),wiringFor(landscape));
-  assert.equal(findProfile('tft-240x240','GC9A01','landscape').id,'tft-240x240-gc9a01');
+  assert.equal(findProfile('tft-240x240','landscape').id,'tft-240x240-gc9a01');
 });
 test('GMT130 no-CS and shared I²C wiring match firmware',()=>{
   for (const board of boards) {

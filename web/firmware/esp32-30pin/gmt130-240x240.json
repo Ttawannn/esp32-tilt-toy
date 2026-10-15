@@ -6,8 +6,8 @@
   "chipFamily": "ESP32",
   "flashSize": "4MB",
   "controller": "ST7789",
-  "size": 1153552,
-  "sha256": "be426ce30ec26b19e68b6b150dc8fa0595cf6807395feb312e7117a5a34f3842",
+  "size": 1159088,
+  "sha256": "33551cb55fc3d7bdb79549866986565ff58bf4ef9c4fc1a5329d62c7e1c4d121",
   "hardwareTested": false,
   "build": {
     "core": "esp32:esp32@3.3.11",
@@ -16,7 +16,7 @@
     "bootloaderOffset": 4096,
     "displayProfile": 1,
     "initialRotation": 0,
-    "sourceSha256": "d0a54d086a56c95007d887bf27f5e115d5954eda9ac22c278c538b90c343b66a"
+    "sourceSha256": "4081a989db680bc116372234c03f9fc5de6243ab68fd3da81ceef7d79295c27e"
   },
   "new_install_prompt_erase": true,
   "new_install_improv_wait_time": 0,

@@ -19,7 +19,7 @@ test('TFT water updates match a complete raster, erase old water and recover aft
   await mkdir(dir, { recursive: true });
   const src = resolve(dir, 'water-render.cpp');
   await writeFile(src, harness.replace('/* SKETCH_RENDERER */', renderer));
-  for (const profile of [0, 1, 2, 3, 4, 5]) {
+  for (const profile of [0, 1, 3, 4, 5]) {
     const exe = resolve(dir, process.platform === 'win32' ? `render-${profile}.exe` : `render-${profile}`);
     const includes = [resolve('tests/motion'), resolve('firmware/tilt_toy')];
     const args = msvc

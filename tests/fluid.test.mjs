@@ -34,3 +34,18 @@ test('surface follows tilt and round vessels mark pixels outside the glass', () 
     if (at(i, j) === 2) assert.ok([at(i - 1, j - 1), at(i - 1, j), at(i - 1, j + 1)].includes(0), 'a surface pixel has air on its upper (left) side');
   }
 });
+
+test('gradient shades deepen below the surface and a one-pixel ripple leaves the body colours still', () => {
+  // One column, gravity down: rows 0-1 air, row 2 surface, rows 3-11 water.
+  const fluid = new FlipFluid(18, 18, false, 50), rows = 12, column = top => Uint8Array.from({ length: rows }, (_, j) => j < top ? 0 : j === top ? 2 : 1);
+  const still = Array.from(fluid.shade(1, rows, 0, 1, column(2)).subarray(0, rows));
+  assert.deepEqual(still, [0, 0, 1, 3, 3, 4, 4, 5, 5, 6, 6, 6]);
+  // The surface dips one pixel and comes back: no body pixel changes shade.
+  const dipped = Array.from(fluid.shade(1, rows, 0, 1, column(3)).subarray(0, rows));
+  assert.deepEqual(dipped.slice(4), still.slice(4));
+  assert.equal(dipped[3], 1);
+  assert.deepEqual(Array.from(fluid.shade(1, rows, 0, 1, column(2)).subarray(0, rows)), still);
+  // A fresh raster of the dipped column would shift every band; a two-pixel drop does move them.
+  assert.notDeepEqual(Array.from(new FlipFluid(18, 18, false, 50).shade(1, rows, 0, 1, column(3)).subarray(0, rows)).slice(4), still.slice(4));
+  assert.notDeepEqual(Array.from(fluid.shade(1, rows, 0, 1, column(4)).subarray(0, rows)).slice(5), still.slice(5));
+});

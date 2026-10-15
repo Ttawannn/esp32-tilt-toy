@@ -58,7 +58,7 @@ The fluid simulation uses a FLIP/PIC solver on a MAC grid, adapted from Matthias
 - `firmware/tilt_toy/flip_fluid.h`: C++ with fixed storage for up to 400 cells and 900 particles, about 32 KB including the pixel grid. No runtime allocation.
 - `web/fluid.js`: JavaScript for the web preview, mirroring each integer operation. A test runs 300 mixed-force steps in both and requires every value to match.
 
-Liquid, Slosh water, and Pixel Flow support 10–90% fill. BOOT order: Liquid → Slosh water → Pixel Flow → Pocket eyes → Robot eyes. NVS key `toyMode` stores 0 Liquid, 1 Pixel Flow, 2 Pocket eyes, 3 Robot eyes, 4 Slosh water; `robotMood` stores the chosen mood. Firmware from before the removal saved a ten-mode index under `mode`; the first boot converts it, keeping Pixel Flow and Pocket eyes and starting removed modes on Liquid.
+Liquid, Slosh water, and Pixel Flow support 10–90% fill. BOOT order: Liquid → Slosh water → Pixel Flow → Pocket eyes → Robot eyes. NVS key `toyMode` stores 0 Liquid, 1 Pixel Flow, 2 Pocket eyes, 3 Robot eyes, 4 Slosh water; `robotMood` stores the chosen mood and `waterGradient` the water colour. Firmware from before the removal saved a ten-mode index under `mode`; the first boot converts it, keeping Pixel Flow and Pocket eyes and starting removed modes on Liquid.
 
 Both implementations use a fixed 25 ms step (at most two per frame, so a late frame cannot snowball), a circular vessel for GC9A01, linked-cell neighbor lookup, and gravity from the detected sensor's motion filter. Liquid uses tilt only; Slosh water adds the frame's translation and the Euler, Coriolis, and centrifugal forces of turning about the screen axis. Grid dimensions depend on the display; the round display uses 20×20.
 
@@ -92,12 +92,11 @@ Choose the **Board model** before the display. The web app changes the GPIO diag
 | Mini TFT 160×80, landscape | Same ST7735S module, SPI, rotation 1 | `tft-80x160-landscape` |
 | GMT130 240×240 | ST7789, 7 pins without CS, SPI Mode 3 | `gmt130-240x240` |
 | Round TFT 240×240 | GC9A01, SPI | `tft-240x240-gc9a01` |
-| Square TFT 240×240 | ST7789, with CS | `tft-240x240-st7789` |
 | OLED 128×64 | SSD1306, I²C 0x3C/0x3D | `oled-128x64` |
 
 Select **TFT 80×160 → Display orientation → Portrait / Landscape**. The preview and flash image follow the selection, which is remembered after reload. Installing the other Mini TFT orientation applies the new profile's rotation even if NVS holds an old value. Later phone changes remain saved across boots; select display rotation and save on the device page.
 
-Each board/display pair has its own merged binary: **18 images, 4 MB flash**. The web app verifies chip, board, display, and checksum before enabling flashing. All manifests specify `hardwareTested: false`: physical board/display testing and FPS, power, and battery-life measurements are still pending. SH1106 displays and ST7735 modules with different offsets require additional profiles.
+Each board/display pair has its own merged binary: **15 images, 4 MB flash**. The web app verifies chip, board, display, and checksum before enabling flashing. All manifests specify `hardwareTested: false`: physical board/display testing and FPS, power, and battery-life measurements are still pending. SH1106 displays and ST7735 modules with different offsets require additional profiles.
 
 ## Wiring at a glance
 
@@ -149,12 +148,12 @@ The device page shows the board name and detected sensor name/address. Keep the 
 
 | Endpoint | Purpose |
 | --- | --- |
-| `GET /api/status` | Version, `board`, `boardName`, `chipFamily`, profile, mode, `mood`, settings, `imu`, `sensor`, `sensorAddress` (decimal), `gyro`, roll/pitch, `fps`, `simMs`, `particles`, `freeHeap`, `axisX/Y/Z`, X/Y/Z arrays `gravity`, `omega`, `linear`, `yaw`, `stillMs`, `fifoResets` |
+| `GET /api/status` | Version, `board`, `boardName`, `chipFamily`, profile, mode, `mood`, `waterColor`, settings, `imu`, `sensor`, `sensorAddress` (decimal), `gyro`, roll/pitch, `fps`, `simMs`, `particles`, `freeHeap`, `axisX/Y/Z`, X/Y/Z arrays `gravity`, `omega`, `linear`, `yaw`, `stillMs`, `fifoResets` |
 | `POST /api/config` | `mode`, `fill`, `sensitivity`, `rotation`, `invert`, `spiMode`, `axisX`, `axisY`, `axisZ` (±1=X, ±2=Y, ±3=Z) |
 | `POST /api/shake` · `/api/calibrate` · `/api/close` | Shake, calibrate gyro, close Wi-Fi |
 | `GET /license` | FLIP solver MIT license |
 
-Accepted mode IDs: `water`, `water-slosh`, `pixel-flow`, `pet`, `robot`. Accepted `mood` IDs: `auto`, `normal`, `happy`, `angry`, `sad`, `tired`, `surprised`, `suspicious`, `love`.
+Accepted mode IDs: `water`, `water-slosh`, `pixel-flow`, `pet`, `robot`. Accepted `mood` IDs: `auto`, `normal`, `happy`, `angry`, `sad`, `tired`, `surprised`, `suspicious`, `love`. Accepted `waterColor`: `classic` (two-tone) or `gradient` (Liquid and Slosh water shaded by depth in the Pixel Flow palette, without its shimmer; a pixel changes shade only when its depth moves past its band by a whole pixel, so ripples do not flicker the water below).
 
 ## Local development
 
@@ -184,7 +183,7 @@ npm test
 npm run build
 ```
 
-`npm run firmware` builds all 18 images. Select a board or display: `npm run firmware -- esp32-c3-supermini` builds six display profiles; `npm run firmware -- tft-240x240-gc9a01` builds three boards; `npm run firmware -- esp32-30pin oled-128x64` builds one image, the quickest way to try a change on a board. Boards build in parallel: up to three at once on a machine with 12 or more CPU threads; `FIRMWARE_BOARD_CONCURRENCY` and `FIRMWARE_JOBS` (compiler jobs per board) override this. On Windows, excluding `work\` and `%LOCALAPPDATA%\Arduino15` from Microsoft Defender real-time scanning can shorten builds a lot. Set `ARDUINO_CLI`, `ARDUINO_DATA_DIR`, or `ESPTOOL` for tools installed elsewhere.
+`npm run firmware` builds all 15 images. Select a board or display: `npm run firmware -- esp32-c3-supermini` builds five display profiles; `npm run firmware -- tft-240x240-gc9a01` builds three boards; `npm run firmware -- esp32-30pin oled-128x64` builds one image, the quickest way to try a change on a board. Boards build in parallel: up to three at once on a machine with 12 or more CPU threads; `FIRMWARE_BOARD_CONCURRENCY` and `FIRMWARE_JOBS` (compiler jobs per board) override this. On Windows, excluding `work\` and `%LOCALAPPDATA%\Arduino15` from Microsoft Defender real-time scanning can shorten builds a lot. Set `ARDUINO_CLI`, `ARDUINO_DATA_DIR`, or `ESPTOOL` for tools installed elsewhere.
 
 The script:
 

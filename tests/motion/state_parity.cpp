@@ -110,6 +110,8 @@ int main() {
       std::cout << run.count << ' ' << run.restDensity;
       for (int p=0;p<run.count;p++) std::cout << ' ' << run.qx[p] << ' ' << run.qy[p] << ' ' << run.qvx[p] << ' ' << run.qvy[p];
       for (int p=0;p<cols*rows;p++) std::cout << ' ' << (int)run.pixels[p];
+      run.shade(cols,rows,gx,gy);
+      for (int p=0;p<cols*rows;p++) std::cout << ' ' << (int)run.look[p];
       std::cout << '\n';
     }
   }

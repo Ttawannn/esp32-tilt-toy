@@ -90,12 +90,11 @@
 | TFT 160×80 แนวนอน | จอเดียวกัน, rotation 1 | `tft-80x160-landscape` |
 | GMT130 240×240 | ST7789, 7 ขา ไม่มี CS | `gmt130-240x240` |
 | TFT กลม 240×240 | GC9A01 | `tft-240x240-gc9a01` |
-| TFT เหลี่ยม 240×240 | ST7789, มี CS | `tft-240x240-st7789` |
 | OLED 128×64 | SSD1306, I²C 0x3C/0x3D | `oled-128x64` |
 
 เลือก **TFT 80×160 → แนวของจอ → แนวตั้ง / แนวนอน** ในเว็บ installer ภาพ preview และไฟล์แฟลชเปลี่ยนตามแนวที่เลือก เว็บจำตัวเลือกหลัง reload เมื่อติดตั้งโปรไฟล์ Mini TFT คนละแนว firmware จะใช้ rotation ของโปรไฟล์ใหม่นั้น แม้มีค่าเดิมใน NVS เมื่อบูตครั้งต่อไปยังคงค่าที่เปลี่ยนจากมือถือได้ โดยเลือก **แนวจอ / หมุนภาพ** แล้วกดบันทึก
 
-แต่ละคู่บอร์ดและโปรไฟล์จอมี merged binary แยกกัน รวม **18 ชุด / Flash 4MB** เว็บตรวจรุ่นชิป บอร์ด จอ และ checksum ก่อนเปิดปุ่มแฟลช ทุก manifest ระบุ `hardwareTested: false` เพราะยังไม่ได้ทดลองกับบอร์ดและจอจริง และยังไม่มีผลวัด FPS กระแสไฟ หรืออายุแบตเตอรี่ ส่วนจอ SH1106 และ ST7735 ที่ใช้ offsets ต่างจาก Mini160×80 ต้องเพิ่มโปรไฟล์ใหม่
+แต่ละคู่บอร์ดและโปรไฟล์จอมี merged binary แยกกัน รวม **15 ชุด / Flash 4MB** เว็บตรวจรุ่นชิป บอร์ด จอ และ checksum ก่อนเปิดปุ่มแฟลช ทุก manifest ระบุ `hardwareTested: false` เพราะยังไม่ได้ทดลองกับบอร์ดและจอจริง และยังไม่มีผลวัด FPS กระแสไฟ หรืออายุแบตเตอรี่ ส่วนจอ SH1106 และ ST7735 ที่ใช้ offsets ต่างจาก Mini160×80 ต้องเพิ่มโปรไฟล์ใหม่
 
 ## ต่อสาย (ย่อ)
 
@@ -147,12 +146,12 @@
 
 | Endpoint | หน้าที่ |
 | --- | --- |
-| `GET /api/status` | version, `board`, `boardName`, `chipFamily`, profile, โหมด, `mood`, ค่าตั้ง, `imu`, `sensor`, `sensorAddress` (เลขฐานสิบ), `gyro`, roll/pitch, `fps`, `simMs`, `particles`, `freeHeap`, `axisX/Y/Z`, `gravity`, `omega`, `linear` (array X/Y/Z), `yaw`, `stillMs`, `fifoResets` |
+| `GET /api/status` | version, `board`, `boardName`, `chipFamily`, profile, โหมด, `mood`, `waterColor`, ค่าตั้ง, `imu`, `sensor`, `sensorAddress` (เลขฐานสิบ), `gyro`, roll/pitch, `fps`, `simMs`, `particles`, `freeHeap`, `axisX/Y/Z`, `gravity`, `omega`, `linear` (array X/Y/Z), `yaw`, `stillMs`, `fifoResets` |
 | `POST /api/config` | `mode`, `fill`, `sensitivity`, `rotation`, `invert`, `spiMode`, `axisX`, `axisY`, `axisZ` (±1=X, ±2=Y, ±3=Z) |
 | `POST /api/shake` · `/api/calibrate` · `/api/close` | เขย่า, คาลิเบรต gyro, ปิด Wi-Fi |
 | `GET /license` | ข้อความ MIT license ของ FLIP solver |
 
-`mode` รับ `water`, `water-slosh`, `pixel-flow`, `pet`, `robot` และ `mood` รับ `auto`, `normal`, `happy`, `angry`, `sad`, `tired`, `surprised`, `suspicious`, `love`
+`mode` รับ `water`, `water-slosh`, `pixel-flow`, `pet`, `robot` และ `mood` รับ `auto`, `normal`, `happy`, `angry`, `sad`, `tired`, `surprised`, `suspicious`, `love` และ `waterColor` รับ `classic` (สองสีแบบเดิม) หรือ `gradient` (น้ำปกติและน้ำกระฉอกไล่เฉดตามความลึกด้วยชุดสีของน้ำพิกเซล ไม่มีการกระพริบ เม็ดน้ำจะเปลี่ยนเฉดเมื่อความลึกเลยช่วงของเฉดนั้นเกินหนึ่งเม็ด ผิวน้ำกระเพื่อมจึงไม่ทำให้น้ำด้านล่างกระพริบ เก็บใน NVS key `waterGradient`)
 
 ## พัฒนาบนเครื่อง
 
@@ -182,7 +181,7 @@ npm test
 npm run build
 ```
 
-`npm run firmware` build ครบ 18 ชุด เลือกบอร์ดหรือจอเฉพาะได้ เช่น `npm run firmware -- esp32-c3-supermini` (6 แบบจอ), `npm run firmware -- tft-240x240-gc9a01` (3 บอร์ด) หรือ `npm run firmware -- esp32-30pin oled-128x64` (1 ชุด เร็วที่สุดเมื่อจะลองบนบอร์ด) บอร์ดต่าง ๆ build พร้อมกันได้สูงสุด 3 บอร์ดเมื่อเครื่องมี CPU 12 thread ขึ้นไป ปรับได้ด้วย `FIRMWARE_BOARD_CONCURRENCY` และ `FIRMWARE_JOBS` (จำนวน compiler ต่อบอร์ด) บน Windows ถ้ายกเว้นโฟลเดอร์ `work\` และ `%LOCALAPPDATA%\Arduino15` จากการสแกนแบบ real-time ของ Microsoft Defender จะ build เร็วขึ้นมาก ถ้า toolchain อยู่ที่อื่น ให้ตั้ง environment `ARDUINO_CLI`, `ARDUINO_DATA_DIR` หรือ `ESPTOOL`
+`npm run firmware` build ครบ 15 ชุด เลือกบอร์ดหรือจอเฉพาะได้ เช่น `npm run firmware -- esp32-c3-supermini` (5 แบบจอ), `npm run firmware -- tft-240x240-gc9a01` (3 บอร์ด) หรือ `npm run firmware -- esp32-30pin oled-128x64` (1 ชุด เร็วที่สุดเมื่อจะลองบนบอร์ด) บอร์ดต่าง ๆ build พร้อมกันได้สูงสุด 3 บอร์ดเมื่อเครื่องมี CPU 12 thread ขึ้นไป ปรับได้ด้วย `FIRMWARE_BOARD_CONCURRENCY` และ `FIRMWARE_JOBS` (จำนวน compiler ต่อบอร์ด) บน Windows ถ้ายกเว้นโฟลเดอร์ `work\` และ `%LOCALAPPDATA%\Arduino15` จากการสแกนแบบ real-time ของ Microsoft Defender จะ build เร็วขึ้นมาก ถ้า toolchain อยู่ที่อื่น ให้ตั้ง environment `ARDUINO_CLI`, `ARDUINO_DATA_DIR` หรือ `ESPTOOL`
 
 script จะทำตามลำดับนี้
 

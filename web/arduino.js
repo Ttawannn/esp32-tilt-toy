@@ -9,8 +9,8 @@ const DISPLAY_LIBRARIES = {
   ssd1306: ['Adafruit SSD1306', '2.5.17', 'Adafruit_SSD1306.h']
 };
 export const DISPLAY_HEADERS = Object.values(DISPLAY_LIBRARIES).map(([, , header]) => header);
-// DISPLAY_PROFILE in config.h: 0/5 ST7735 Mini, 1 GMT130, 2 ST7789, 3 GC9A01, 4 SSD1306.
-const displayKind = profile => ({ 0: 'st7735', 5: 'st7735', 1: 'st7789', 2: 'st7789', 3: 'gc9a01', 4: 'ssd1306' })[profile.firmwareId];
+// DISPLAY_PROFILE in config.h: 0/5 ST7735 Mini, 1 GMT130 (ST7789), 3 GC9A01, 4 SSD1306.
+const displayKind = profile => ({ 0: 'st7735', 5: 'st7735', 1: 'st7789', 3: 'gc9a01', 4: 'ssd1306' })[profile.firmwareId];
 export function displayLibrary(profile) { const [name, version, header] = DISPLAY_LIBRARIES[displayKind(profile)]; return { name, version, header }; }
 export function libraries(profile) { const display = displayLibrary(profile); return [...BASE_LIBRARIES, [display.name, display.version]]; }
 

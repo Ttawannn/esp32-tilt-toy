@@ -39,7 +39,7 @@ function hole(x, y, r = .8) {
   return `<circle cx="${x}" cy="${y}" r="${r}" fill="#d9b55c"/><circle cx="${x}" cy="${y}" r="${r * .52}" fill="#3a3328"/>`;
 }
 function button(x, y, label, labelY, boot) {
-  return `<rect x="${x - 1.7}" y="${y - 1.7}" width="3.4" height="3.4" rx=".3" fill="#d4d8dc"${boot ? ' stroke="#bef365" stroke-width=".4"' : ''}/><circle cx="${x}" cy="${y}" r="1.05" fill="#2a2d31"/><text x="${x}" y="${labelY}" text-anchor="middle" font-size=".95" class="silk">${label}</text>`;
+  return `<rect x="${x - 1.7}" y="${y - 1.7}" width="3.4" height="3.4" rx=".3" fill="#d4d8dc"${boot ? ' stroke="#7a9cff" stroke-width=".4"' : ''}/><circle cx="${x}" cy="${y}" r="1.05" fill="#2a2d31"/><text x="${x}" y="${labelY}" text-anchor="middle" font-size=".95" class="silk">${label}</text>`;
 }
 function boardArt(board, geometry) {
   const { classic, mm } = geometry, W = geometry.width / mm, L = geometry.length / mm;
@@ -72,7 +72,6 @@ function boardArt(board, geometry) {
 const moduleSpecs = {
   st7735: { width: 30, height: 24.2, header: 2.3, pcb: '#1d5aa6', mounts: [[2.8, 2.8], [27.2, 2.8], [2.8, 21.4], [27.2, 21.4]] },
   gmt130: { width: 27.5, height: 39, header: 2.3, pcb: '#1d5aa6', mounts: [[2.6, 2.6], [24.9, 2.6], [2.6, 36.4], [24.9, 36.4]] },
-  st7789: { width: 27.5, height: 39, header: 2.3, pcb: '#1d5aa6', mounts: [[2.6, 2.6], [24.9, 2.6], [2.6, 36.4], [24.9, 36.4]] },
   gc9a01: { width: 36, height: 45.5, header: 43.3, bottom: true, pcb: '#1d5aa6', mounts: [[5.2, 39.4], [30.8, 39.4]] },
   oled: { width: 27.3, height: 27.8, header: 1.9, pcb: '#18191b', mounts: [[2, 2], [25.3, 2], [2, 25.8], [25.3, 25.8]] },
   // Sensor artwork starts with a left header; BMI160 rotates it to the top, with interrupts below.
@@ -92,18 +91,50 @@ function moduleGeometry(kind, count, scale, cx, anchor) {
 }
 function screenContent(x, y, width, height, mono) {
   if (mono) return `<text x="${x + width / 2}" y="${y + height * .62}" text-anchor="middle" font-size="${height * .42}" fill="#b7e2e8" font-family="monospace">≈ ≈ ≈</text>`;
-  return `<path d="M${x} ${y + height * .62} Q${x + width * .3} ${y + height * .42} ${x + width * .5} ${y + height * .63} T${x + width} ${y + height * .58} V${y + height} H${x} Z" fill="#b5df90" opacity=".9"/>`;
+  return `<path d="M${x} ${y + height * .62} Q${x + width * .3} ${y + height * .42} ${x + width * .5} ${y + height * .63} T${x + width} ${y + height * .58} V${y + height} H${x} Z" fill="#2bb8f0" opacity=".9"/>`;
 }
-function moduleArt(kind, slots, geometry, caption) {
-  const { spec } = geometry, W = spec.width, H = spec.height, cx = W / 2;
+// Active screen area of each display module in mm: x, y, width, height.
+const screenAreas = { st7735: [4.1, 8.1, 21.7, 10.8], gmt130: [2.05, 6.6, 23.4, 23.4], gc9a01: [2.2, 2.2, 31.6, 31.6], oled: [2.3, 6.5, 22.7, 11.4] };
+// PCB, mounting holes and screen glass in mm. Without a picture the active area stays dark for a live canvas.
+function moduleBody(kind, spec, picture) {
+  const W = spec.width, H = spec.height, cx = W / 2, glass = (x, y, w, h, mono) => picture ? screenContent(x, y, w, h, mono) : '';
   let art = kind === 'gc9a01'
     ? `<circle cx="18" cy="18" r="18" fill="${spec.pcb}"/><rect x="3" y="24" width="30" height="21.5" rx="1.6" fill="${spec.pcb}"/>`
     : `<rect width="${W}" height="${H}" rx=".8" fill="${spec.pcb}"/>`;
-  for (const [x, y] of spec.mounts) art += `<circle cx="${x}" cy="${y}" r="${kind === 'oled' ? 1.2 : spec.column !== undefined ? 1.75 : 1.45}" fill="#f6f8f3" stroke="#d9dee4" stroke-width=".35"/>`;
-  if (kind === 'st7735') art += `<rect x="-.6" y="8.4" width="3.2" height="9.6" rx=".4" fill="#2f3a33"/><rect x="2.4" y="7.3" width="26.2" height="12.4" rx=".3" fill="#0f1418" stroke="#5b7896" stroke-width=".2"/><rect x="4.1" y="8.1" width="21.7" height="10.8" fill="#141b20"/>${screenContent(4.1, 8.1, 21.7, 10.8)}<text x="${cx}" y="22.9" text-anchor="middle" font-size="1.55" class="silk">0.96"80x160(RGB)IPS</text>`;
-  if (kind === 'gmt130' || kind === 'st7789') art += `<rect x="1" y="5.6" width="25.5" height="27.2" rx=".3" fill="#0f1418" stroke="#5b7896" stroke-width=".2"/><rect x="2.05" y="6.6" width="23.4" height="23.4" fill="#141b20"/>${screenContent(2.05, 6.6, 23.4, 23.4)}<rect x="2" y="30.4" width="23.5" height="3.6" fill="#25282b"/><text x="${cx}" y="36.4" text-anchor="middle" font-size="1.4" class="silk">${kind === 'gmt130' ? 'GMT130-V1.0' : '1.3" ST7789'}</text><text x="${cx}" y="38.2" text-anchor="middle" font-size="1.4" class="silk">IPS 240*240</text>`;
-  if (kind === 'gc9a01') art += `<circle cx="18" cy="18" r="16.6" fill="#0f1418" stroke="#5b7896" stroke-width=".2"/><clipPath id="round-screen"><circle cx="18" cy="18" r="15.8"/></clipPath><g clip-path="url(#round-screen)"><circle cx="18" cy="18" r="15.8" fill="#141b20"/>${screenContent(2.2, 2.2, 31.6, 31.6)}</g><rect x="11" y="33.2" width="14" height="2.2" rx=".4" fill="#25282b"/>`;
-  if (kind === 'oled') art += `<rect x=".5" y="5" width="26.3" height="18" rx=".3" fill="#0b0d10" stroke="#3a3f46" stroke-width=".2"/><rect x="2.3" y="6.5" width="22.7" height="11.4" fill="#05070a"/>${screenContent(2.3, 6.5, 22.7, 11.4, true)}<rect x="9" y="22.6" width="9.3" height="5.2" fill="#e6b740"/>`;
+  for (const [x, y] of spec.mounts) art += `<circle cx="${x}" cy="${y}" r="${kind === 'oled' ? 1.2 : spec.column !== undefined ? 1.75 : 1.45}" fill="#0b0d12" stroke="#d9dee4" stroke-width=".35"/>`;
+  if (kind === 'st7735') art += `<rect x="-.6" y="8.4" width="3.2" height="9.6" rx=".4" fill="#2f3a33"/><rect x="2.4" y="7.3" width="26.2" height="12.4" rx=".3" fill="#0f1418" stroke="#5b7896" stroke-width=".2"/><rect x="4.1" y="8.1" width="21.7" height="10.8" fill="#141b20"/>${glass(4.1, 8.1, 21.7, 10.8)}<text x="${cx}" y="22.9" text-anchor="middle" font-size="1.55" class="silk">0.96"80x160(RGB)IPS</text>`;
+  if (kind === 'gmt130') art += `<rect x="1" y="5.6" width="25.5" height="27.2" rx=".3" fill="#0f1418" stroke="#5b7896" stroke-width=".2"/><rect x="2.05" y="6.6" width="23.4" height="23.4" fill="#141b20"/>${glass(2.05, 6.6, 23.4, 23.4)}<rect x="2" y="30.4" width="23.5" height="3.6" fill="#25282b"/><text x="${cx}" y="36.4" text-anchor="middle" font-size="1.4" class="silk">GMT130-V1.0</text><text x="${cx}" y="38.2" text-anchor="middle" font-size="1.4" class="silk">IPS 240*240</text>`;
+  if (kind === 'gc9a01') art += `<circle cx="18" cy="18" r="16.6" fill="#0f1418" stroke="#5b7896" stroke-width=".2"/>${picture ? `<clipPath id="round-screen"><circle cx="18" cy="18" r="15.8"/></clipPath><g clip-path="url(#round-screen)"><circle cx="18" cy="18" r="15.8" fill="#141b20"/>${glass(2.2, 2.2, 31.6, 31.6)}</g>` : '<circle cx="18" cy="18" r="15.8" fill="#141b20"/>'}<rect x="11" y="33.2" width="14" height="2.2" rx=".4" fill="#25282b"/>`;
+  if (kind === 'oled') art += `<rect x=".5" y="5" width="26.3" height="18" rx=".3" fill="#0b0d10" stroke="#3a3f46" stroke-width=".2"/><rect x="2.3" y="6.5" width="22.7" height="11.4" fill="#05070a"/>${glass(2.3, 6.5, 22.7, 11.4, true)}<rect x="9" y="22.6" width="9.3" height="5.2" fill="#e6b740"/>`;
+  return art;
+}
+// Header holes along the top or bottom edge, labelled as printed on the module.
+function headerRow(spec, labels) {
+  const cx = spec.width / 2, labelY = spec.bottom ? spec.header - 1.45 : spec.header + 2.25;
+  return labels.map((label, index) => {
+    const x = cx + (index - (labels.length - 1) / 2) * 2.54;
+    return hole(x, spec.header, .75) + `<text x="${x}" y="${labelY}" text-anchor="middle" font-size="1.05" class="silk">${label}</text>`;
+  }).join('');
+}
+// The selected display module for the preview, with the live canvas placed over its active area.
+// Portrait profiles of a landscape module turn the whole board a quarter turn, header to the right.
+// Returns the SVG markup, its size in mm and the screen box as fractions of that size.
+export function previewModule(profile) {
+  const kind = profile.art, spec = moduleSpecs[kind], pad = 1;
+  let art = moduleBody(kind, spec, false) + headerRow(spec, headerSlots(profile.header).map(slot => slot.label));
+  let [x, y, w, h] = screenAreas[kind], W = spec.width, H = spec.height;
+  const turned = (profile.width < profile.height) !== (w < h);
+  if (turned) { art = `<g transform="translate(${H} 0) rotate(90)">${art}</g>`; [x, y, w, h, W, H] = [H - y - h, x, h, w, H, W]; }
+  const width = W + pad * 2, height = H + pad * 2;
+  return {
+    svg: `<svg viewBox="${-pad} ${-pad} ${width} ${height}" xmlns="http://www.w3.org/2000/svg">${art}</svg>`,
+    width, height,
+    screen: { left: (x + pad) / width, top: (y + pad) / height, width: w / width, height: h / height, round: kind === 'gc9a01' }
+  };
+}
+function moduleArt(kind, slots, geometry, caption) {
+  const { spec } = geometry, W = spec.width, H = spec.height, cx = W / 2;
+  let art = moduleBody(kind, spec, true);
   const part = (x, y, w, h, fill = '#d8d2b8') => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx=".15" fill="${fill}"/>`;
   if (kind === 'mpu6050') art += `${part(6.6, 1.4, 3.2, 2.6, '#1e2124')}${part(6.2, 5.2, 1.6, .9)}${part(10.6, 5.2, 1.6, .9)}${part(6.2, 14.2, 1.6, .9)}${part(10.6, 14.2, 1.6, .9)}
     <rect x="6.2" y="7.3" width="4.2" height="4.2" fill="#1e2124" stroke="#3a3f46" stroke-width=".15"/><text x="8.3" y="9.2" text-anchor="middle" font-size=".55" fill="#b9bec4">MPU-6050</text><text x="8.3" y="10.1" text-anchor="middle" font-size=".5" fill="#8d939b">INVENSENSE</text>
@@ -120,13 +151,7 @@ function moduleArt(kind, slots, geometry, caption) {
   if (spec.column !== undefined) {
     pinRow(spec.column, slots.map(slot => slot.label), 1);
     if (spec.extraColumn !== undefined) pinRow(spec.extraColumn, geometry.extra || [], -1);
-  } else {
-    const labelY = spec.bottom ? spec.header - 1.45 : spec.header + 2.25;
-    slots.forEach(({ label }, index) => {
-      const x = cx + (index - (slots.length - 1) / 2) * 2.54;
-      art += hole(x, spec.header, .75) + `<text x="${x}" y="${labelY}" text-anchor="middle" font-size="1.05" class="silk">${label}</text>`;
-    });
-  }
+  } else art += headerRow(spec, slots.map(slot => slot.label));
   const group = svgElement('g', { 'aria-hidden': 'true' });
   const body = svgElement('g', { transform: `translate(${round(geometry.left)} ${round(geometry.top)}) scale(${geometry.scale})${geometry.rotation ? ` translate(${H} 0) rotate(${geometry.rotation})` : ''}` });
   body.innerHTML = art;
@@ -204,7 +229,7 @@ export class WiringGraph {
     this.svg.setAttribute('aria-label', t('wiring.diagram', { board: board.name }));
     const defs = svgElement('defs');
     const pattern = svgElement('pattern', { id: 'wiring-dots', width: 20, height: 20, patternUnits: 'userSpaceOnUse' });
-    pattern.append(svgElement('circle', { cx: 1, cy: 1, r: 1, fill: '#dce3d6' }));
+    pattern.append(svgElement('circle', { cx: 1, cy: 1, r: 1, fill: '#232a39' }));
     defs.append(pattern);
     this.svg.append(defs, svgElement('rect', { width: 920, height: 720, fill: 'url(#wiring-dots)' }));
     const boardGeo = boardGeometry(board);

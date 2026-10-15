@@ -10,7 +10,7 @@ test('board selection preserves the C6 default and gives every chip its own rele
   assert.equal(findBoard('unknown'), defaultBoard);
   assert.equal(findBoard(undefined), defaultBoard);
   const paths = boards.flatMap(board => profiles.map(profile => releasePath(profile, board)));
-  assert.equal(new Set(paths).size, 18);
+  assert.equal(new Set(paths).size, 15);
   assert.equal(releasePath(profiles[0]), profiles[0].id);
 });
 

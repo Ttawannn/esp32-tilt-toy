@@ -72,6 +72,8 @@ export class ToyPreview {
   setMode(mode){this.mode=mode;this.reset();}
   setFill(value){this.fill=value;this.fluid.reset(value);this.drops.reset(value,...this.pixelForce,1+Math.floor(Math.random()*0x7ffffffe));}
   setMood(mood){this.robot.mood=mood;}
+  // Water and slosh water: 'classic' two-tone or 'gradient' depth shades in the Pixel Flow palette.
+  setWaterColor(look){this.waterColor=look==='gradient'?'gradient':'classic';}
   shake(){this.robot.react(performance.now());this.fluid.impulse(Math.sin(this.roll*Math.PI/180),Math.cos(this.roll*Math.PI/180));this.drops.shake(...this.pixelForce);}
   bindStir(){const canvas=this.canvas;let previous=null;
     const point=e=>{const box=canvas.getBoundingClientRect(),l=this.layout,f=this.fluid,px=(e.clientX-box.left)*canvas.width/box.width,py=(e.clientY-box.top)*canvas.height/box.height;return {px,py,x:f.h+(px-l.x)/l.width*(f.nx-2)*f.h,y:f.h+(py-l.y)/l.height*(f.ny-2)*f.h,time:e.timeStamp};};
@@ -104,7 +106,8 @@ export class ToyPreview {
       if(this.showGrid){c.strokeStyle=this.mono?'#365343':'#184051';c.lineWidth=1;for(let i=0;i<=f.nx-2;i++){const x=left+i*f.h*sx;c.beginPath();c.moveTo(x,top);c.lineTo(x,top+l.height);c.stroke();}for(let j=0;j<=f.ny-2;j++){const y=top+j*f.h*sy;c.beginPath();c.moveTo(left,y);c.lineTo(left+l.width,y);c.stroke();}}
       if(this.pixels?.length!==cols*rows)this.pixels=new Uint8Array(cols*rows);
       pixelWater(f,cols,rows,f.h+ox/sx,f.h+oy/sy,cell/sx,cell/sy,g.x,g.y,this.pixels);
-      for(let j=0;j<rows;j++)for(let i=0;i<cols;i++){const v=this.pixels[j*cols+i];if(v===1||v===2){c.fillStyle=this.mono?white:v===2?'#9ee6fb':'#1fa2e0';c.fillRect(left+ox+i*cell,top+oy+j*cell,cell-1,cell-1);}}
+      const shades=this.waterColor==='gradient'?f.shade(cols,rows,g.x,g.y,this.pixels):null;
+      for(let j=0;j<rows;j++)for(let i=0;i<cols;i++){const k=j*cols+i,v=this.pixels[k];if(v===1||v===2){c.fillStyle=this.mono?white:shades?PIXEL_COLORS[shades[k]]:v===2?'#9ee6fb':'#1fa2e0';c.fillRect(left+ox+i*cell,top+oy+j*cell,cell-1,cell-1);}}
       c.restore();
     } else if(this.mode==='robot'){
       const clamp=v=>Math.max(-1,Math.min(1,v));

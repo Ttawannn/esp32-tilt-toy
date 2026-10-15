@@ -11,6 +11,9 @@ export const messages = {
   'preview.pitch': ['Pitch', 'ก้ม / เงย'],
   'preview.shake': ['↝ Shake', '↝ เขย่า'],
   'preview.mood': ['Mood', 'อารมณ์'],
+  'preview.waterColor': ['Water colour', 'สีน้ำ'],
+  'water.classic': ['Two-tone', 'สองสีแบบเดิม'],
+  'water.gradient': ['Depth gradient', 'ไล่เฉดตามความลึก'],
   'mood.auto': ['Play all moods', 'เล่นวนทุกอารมณ์'],
   'mood.normal': ['Normal', 'ปกติ'],
   'mood.happy': ['Happy', 'ดีใจ'],
@@ -41,9 +44,6 @@ export const messages = {
   'installer.orientation': ['Display orientation', 'แนวของจอ'],
   'installer.portrait': ['Portrait — 80 × 160', 'แนวตั้ง — 80 × 160'],
   'installer.landscape': ['Landscape — 160 × 80', 'แนวนอน — 160 × 80'],
-  'installer.driver': ['240 × 240 TFT controller', 'ชิปของ TFT 240 × 240'],
-  'installer.round': ['GC9A01 — Round', 'GC9A01 — จอกลม'],
-  'installer.square': ['ST7789 — Square, with CS', 'ST7789 — จอเหลี่ยม มี CS'],
   'installer.sensor': ['Sensor module', 'โมดูลเซนเซอร์'],
   'installer.sensorHint': ['Firmware detects a BMI160 / MPU6050 at startup. This selection changes the wiring diagram.', 'เฟิร์มแวร์ตรวจ BMI160 / MPU6050 อัตโนมัติเมื่อเปิดเครื่อง · ตัวเลือกนี้ใช้แสดงผังต่อสาย'],
   'installer.flashTitle': ['Flash it. Start playing.', 'แฟลช แล้วเริ่มเล่น'],
@@ -110,7 +110,6 @@ export const messages = {
   'profile.tft-80x160': ['Portrait 80×160 · Change rotation from your phone.', 'แนวตั้ง 80×160 • เปลี่ยนแนวเพิ่มเติมจากมือถือได้'],
   'profile.tft-80x160-landscape': ['Landscape 160×80 · Same 80×160 module and wiring.', 'แนวนอน 160×80 • ใช้จอ 80×160 และสายต่อชุดเดิม'],
   'profile.gmt130-240x240': ['GMT130-V1.0 · 7 pins, no CS · SPI Mode 3', 'GMT130-V1.0 • รุ่น 7 ขา ไม่มี CS • SPI Mode 3'],
-  'profile.tft-240x240-st7789': ['Square ST7789 · Module with a CS pin', 'จอเหลี่ยม ST7789 • รุ่นที่มีขา CS'],
   'profile.tft-240x240-gc9a01': ['Round GC9A01 · Circular display area', 'จอกลม GC9A01 • พื้นที่แสดงผลทรงวงกลม'],
   'profile.oled-128x64': ['0.96-inch OLED · Monochrome · Address 0x3C / 0x3D', 'OLED 0.96 นิ้ว • สีเดียว • address 0x3C / 0x3D'],
   'sensor.mpu6050': ['AD0 → GND selects 0x68; connect to 3V3 for 0x69 · Accelerometer and gyro', 'AD0 → GND เลือก 0x68; ต่อ 3V3 เลือก 0x69 · มี accelerometer และ gyro'],
@@ -235,7 +234,7 @@ export function translatePage(root = document) {
     });
   }
   const button = root.getElementById('language-toggle');
-  button.textContent = language === 'en' ? 'ภาษาไทย' : 'English';
+  button.innerHTML = `<span lang="en"${language === 'en' ? ' data-on' : ''}>EN</span><span lang="th"${language === 'th' ? ' data-on' : ''}>ไทย</span>`;
   button.lang = language === 'en' ? 'th' : 'en';
   button.setAttribute('aria-label', language === 'en' ? 'Switch to Thai' : 'เปลี่ยนเป็นภาษาอังกฤษ');
 }

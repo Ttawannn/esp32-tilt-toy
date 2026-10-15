@@ -15,7 +15,6 @@
 | --- | --- | --- | --- |
 | TFT 80×160 / 160×80 | จอสี่เหลี่ยมขนาดเล็ก เลือกแนวตั้งหรือแนวนอนก่อนแฟลช | ST7735S Mini 160×80, SPI | RGB565; แยกโปรไฟล์ rotation 0 / 1 และเปลี่ยนจากมือถือได้ |
 | GMT130 240×240 | GMT130-V1.0 1.3 นิ้ว | ST7789, SPI, 7 ขา ไม่มี CS บน header | RGB565 สี่เหลี่ยม |
-| TFT 240×240 | จอสี่เหลี่ยมทั่วไปที่ใช้ ST7789 | ST7789, SPI, มี CS | RGB565 สี่เหลี่ยม |
 | Round TFT 240×240 | ตัวเลือกเพิ่มเติมสำหรับจอกลม | GC9A01/GC9A01A, SPI | RGB565 พร้อมพื้นที่เล่นวงกลม |
 | OLED 128×64 | OLED 0.96 นิ้ว 4 ขา | SSD1306, I²C | สีเดียว 1 บิตต่อพิกเซล |
 
@@ -111,7 +110,7 @@ manifest ใช้ `chipFamily` ตามบอร์ดและ merged binary 
 
 ### ระยะ C — Firmware artifacts และ CI
 
-- [x] Script build ครบ ST7735, ST7789 no-CS, ST7789 CS, GC9A01 และ SSD1306
+- [x] Script build ครบ ST7735, ST7789 no-CS (GMT130), GC9A01 และ SSD1306
 - [x] Merge จาก layout ของ Arduino-ESP32 รุ่นที่ตรึงไว้ และตรวจ chip ID/bootloader offset/partition header ของ binary สำหรับ ESP32, C3 และ C6
 - [x] Export binary, manifest, SHA-256, profile ID, version และ source SHA-256 ที่สอดคล้องกัน
 - [x] ตรวจว่า manifest ทุกไฟล์ชี้ไปยัง binary ที่มีอยู่ และขนาด image อยู่ใน flash 4MB

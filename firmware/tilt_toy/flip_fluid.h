@@ -41,6 +41,9 @@ class FlipFluid {
   // 0 empty, 1 water, 2 surface (open toward -gravity), 3 outside the vessel.
   static constexpr int MaxPixelSide = 64;
   uint8_t pixels[MaxPixelSide * MaxPixelSide]{};
+  // Gradient look, mirrored by shade() in web/fluid.js: the Pixel Flow palette indices
+  // 0 none, 1 surface, 3-6 body from just below the surface to deep.
+  uint8_t look[MaxPixelSide * MaxPixelSide]{};
 
   float posX(int p) const { return qx[p] * (h / One); }
   float posY(int p) const { return qy[p] * (h / One); }
@@ -77,6 +80,7 @@ class FlipFluid {
 
   bool configure(int width, int height, bool circular, float fill = 50) {
     if (width < 4 || height < 4 || width * height > MaxCells) return false;
+    lookCols = lookRows = 0;
     nx = width; ny = height; round = circular; span = small(nx, ny) - 2;
     h = 1.0f / span; radius = .32f * h; cx = nx * h * .5f; cy = ny * h * .5f; vesselRadius = span * h * .5f;
     centerX = nx * Half; centerY = ny * Half; vessel = span * Half; rim = vessel - RimInset;
@@ -333,12 +337,40 @@ class FlipFluid {
     }
     return true;
   }
+  // Shades the last rasterize() by depth: two pixels per shade, counted toward -gravity.
+  // A body pixel keeps its shade until its depth moves a whole pixel past that shade's band,
+  // so a surface rippling by one pixel leaves the colours below it still.
+  const uint8_t *shade(int cols, int rows, float gx, float gy) {
+    if (cols < 1 || rows < 1 || cols > MaxPixelSide || rows > MaxPixelSide) return look;
+    if (cols != lookCols || rows != lookRows) { memset(look, 0, sizeof(look)); lookCols = cols; lookRows = rows; }
+    const float length = sqrtf(gx*gx+gy*gy), ux = length > 1e-3f ? -gx/length : 0, uy = length > 1e-3f ? -gy/length : -1;
+    static const int8_t around[8][2] = {{-1,-1},{0,-1},{1,-1},{-1,0},{1,0},{-1,1},{0,1},{1,1}};
+    int dx = 0, dy = -1; float best = -2;
+    for (auto &o : around) {
+      const float d = (o[0]*ux+o[1]*uy)/sqrtf((float)(o[0]*o[0]+o[1]*o[1]));
+      if (d > best) { best = d; dx = o[0]; dy = o[1]; }
+    }
+    for (int j = 0; j < rows; j++) for (int i = 0; i < cols; i++) {
+      const int c = j*cols+i, value = pixels[c];
+      if (value != 1) { look[c] = value == 2 ? 1 : 0; continue; }
+      int depth = 0;
+      for (int a = i+dx, b = j+dy; depth < 8 && a >= 0 && a < cols && b >= 0 && b < rows; a += dx, b += dy) {
+        const int above = pixels[b*cols+a];
+        if (above != 1 && above != 2) break;
+        depth++;
+      }
+      const int was = look[c] - 3;
+      if (was >= 0 && was <= 3 && depth >= 2*was && (was == 3 || depth <= 2*was+3)) continue;
+      look[c] = (uint8_t)(3 + small(3, (depth > 0 ? depth-1 : 0) / 2));
+    }
+    return look;
+  }
 
  private:
   // Particle radius .32 cell; separation keeps centres two radii apart.
   static constexpr int32_t Radius = 20972, Gap = 2 * Radius;
   // Rim .8 cell inside the vessel, top speed .65 cell per step, damping .996, FLIP share .9.
   static constexpr int32_t RimInset = 52429, MaxSpeed = 42598, Damping = 65274, Flip = 58982;
-  int span = 18;
+  int span = 18, lookCols = 0, lookRows = 0;
   int32_t centerX = 0, centerY = 0, vessel = 0, rim = 0, compensation = 0;
 };

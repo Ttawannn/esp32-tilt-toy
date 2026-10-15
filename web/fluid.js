@@ -47,6 +47,8 @@ export class FlipFluid {
     this.kind=new Uint8Array(cells);this.head=new Int16Array(cells);this.next=new Int16Array(900);
     for(const name of ['qx','qy','qvx','qvy'])this[name]=new Int32Array(900);
     this.pixels=new Uint8Array(64*64);
+    // Gradient look: Pixel Flow palette indices 0 none, 1 surface, 3-6 body from just below the surface to deep.
+    this.look=new Uint8Array(64*64);this.lookCols=this.lookRows=0;
     for(let i=0;i<nx;i++)for(let j=0;j<ny;j++) {
       const dx=(2*i+1)*HALF-this.centerX,dy=(2*j+1)*HALF-this.centerY;
       this.kind[i*ny+j]=(i===0||j===0||i===nx-1||j===ny-1||round&&dx*dx+dy*dy>this.vessel*this.vessel)?SOLID:AIR;
@@ -267,6 +269,30 @@ export class FlipFluid {
       for(const[dx,dy]of up){const a=i+dx,b=j+dy;if(a>=0&&a<cols&&b>=0&&b<rows&&cells[b*cols+a]===0){cells[j*cols+i]=2;break;}}
     }
     return true;
+  }
+  // Shades the last rasterize() by depth: two pixels per shade, counted toward -gravity.
+  // A body pixel keeps its shade until its depth moves a whole pixel past that shade's band,
+  // so a surface rippling by one pixel leaves the colours below it still. Same as the C++ shade().
+  shade(cols,rows,gx,gy,cells=this.pixels,look=this.look) {
+    if(cols<1||rows<1||cols>64||rows>64)return look;
+    if(cols!==this.lookCols||rows!==this.lookRows){look.fill(0);this.lookCols=cols;this.lookRows=rows;}
+    gx=f(gx);gy=f(gy);
+    const length=f(Math.sqrt(f(f(gx*gx)+f(gy*gy)))),ux=length>f(1e-3)?f(-gx/length):0,uy=length>f(1e-3)?f(-gy/length):-1;
+    let dx=0,dy=-1,best=-2;
+    for(const[ox,oy]of[[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]]){
+      const d=f(f(f(ox*ux)+f(oy*uy))/f(Math.sqrt(ox*ox+oy*oy)));
+      if(d>best){best=d;dx=ox;dy=oy;}
+    }
+    for(let j=0;j<rows;j++)for(let i=0;i<cols;i++){
+      const c=j*cols+i,value=cells[c];
+      if(value!==1){look[c]=value===2?1:0;continue;}
+      let depth=0;
+      for(let a=i+dx,b=j+dy;depth<8&&a>=0&&a<cols&&b>=0&&b<rows;a+=dx,b+=dy){const above=cells[b*cols+a];if(above!==1&&above!==2)break;depth++;}
+      const was=look[c]-3;
+      if(was>=0&&was<=3&&depth>=2*was&&(was===3||depth<=2*was+3))continue;
+      look[c]=3+Math.min(3,Math.floor((depth>0?depth-1:0)/2));
+    }
+    return look;
   }
 }
 
