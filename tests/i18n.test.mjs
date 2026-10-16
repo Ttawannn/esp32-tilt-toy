@@ -37,7 +37,7 @@ test('changing language preserves every board/display/sensor wire and firmware c
     assert.match(boards[0].note, /รุ่น/);
     setLanguage('en');
     assert.deepEqual(contract(), english);
-    assert.equal(modes[0].name, 'Liquid');
+    assert.equal(modes[0].name, 'Slosh water');
     assert.doesNotMatch(profiles[0].note, /[ก-๙]/);
   } finally { setLanguage('en'); }
 });

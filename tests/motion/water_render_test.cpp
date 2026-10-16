@@ -28,7 +28,7 @@ FakePanel *scene = &panel;
 FlipFluid fluid;
 MotionState motion;
 bool gradientWater = false, imuReady = true, apActive = false, screenOverlay = false, waterScreenValid = false, pixelScreenValid = true;
-int activeMode = Water, theme = ThemeOcean;
+int activeMode = WaterSlosh, theme = ThemeOcean;
 Puddle puddle;
 float sensitivity = 1, roll = 0, simulationMs = 0, fillPercent = 50;
 uint8_t shownWater[FlipFluid::MaxPixels]{};
@@ -63,7 +63,7 @@ int main() {
   bool erased = false;
   // Two passes in each colour look: two-tone, then the depth gradient.
   for (int pass = 0; pass < 4; pass++) {
-    gradientWater = pass >= 2; activeMode = Water; waterScreenValid = false;
+    gradientWater = pass >= 2; activeMode = WaterSlosh; waterScreenValid = false;
     assert(drawWaterDirect(.025f));
     assert(!pixelScreenValid); checkRaster();
     panel.writes = panel.transferred = 0;

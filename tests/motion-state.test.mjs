@@ -76,7 +76,7 @@ test('C++/JS fusion, forces and fixed-point water agree; C++ survives 1000 mixed
   const args=msvc?['/nologo','/std:c++17','/EHsc','/W4',`/I${includes}`,src,`/Fe:${exe}`,`/Fo:${resolve(dir,'parity.obj')}`]:['-std=c++17','-Wall','-Wextra','-Werror',`-I${includes}`,src,'-o',exe];
   const build=spawnSync(compiler,args,{cwd:dir,windowsHide:true,encoding:'utf8'});assert.equal(build.status,0,build.stdout+build.stderr);
   const input=[],expected=[],motion=new MotionState(),fluid=new FlipFluid(8,8,true,50);
-  for(const [id,mode]of [[0,'water'],[1,'pixel-flow'],[2,'pet'],[3,'robot'],[4,'water-slosh']]){
+  for(const [id,mode]of [[0,'water-slosh'],[1,'pixel-flow'],[2,'robot']]){
     input.push(`W ${id} .3 .4 .5 12 -8 3 2 10`);
     expected.push(Object.values(waterForces(mode,{x:.3,y:.4,z:.5},{x:12,y:-8,z:3},2,10)));
   }
@@ -97,7 +97,7 @@ test('C++/JS fusion, forces and fixed-point water agree; C++ survives 1000 mixed
     input.push('R');fluid.reset(50);
     const gravity={x:Math.sin(i*.2),y:Math.cos(i*.2),z:0};
     input.push(`U .025 ${Object.values(gravity).join(' ')}`);
-    const f=waterForces('water',gravity);
+    const f=waterForces('water-slosh',gravity,{x:0,y:0,z:0});
     fluid.advance(.025,f.ax,f.ay);
     const values=[fluid.count];for(let p=0;p<fluid.count;p++)values.push(fluid.x[p],fluid.y[p],fluid.vx[p],fluid.vy[p]);
     values.push(...pixelWater(fluid,10,10,fluid.h,fluid.h,6*fluid.h/10,6*fluid.h/10,gravity.x,gravity.y));

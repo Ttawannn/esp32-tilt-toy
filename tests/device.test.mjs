@@ -13,7 +13,7 @@ test('phone controls display each detected sensor and offer calibration only whi
       if (!elements.has(id)) elements.set(id, { value: '', textContent: '', hidden: false, dataset: {}, options: [] });
       return elements.get(id);
     };
-    let state = { board: board.id, boardName: board.name, chipFamily: board.chipFamily, profile: 'oled-128x64', version: '0.1.2', mode: 'water', fill: 50, sensitivity: 1, rotation: 0, invert: false, spiMode: 0, imu: true, sensor, sensorAddress, gyro, roll: 12, pitch: -5, fps: 20, simMs: 5, particles: 100, freeHeap: 180000, axisX: 1, axisY: 2, axisZ: 3, gravity: [0,.98,-.1], omega: [0,0,1.5], linear: [2,0,0] };
+    let state = { board: board.id, boardName: board.name, chipFamily: board.chipFamily, profile: 'oled-128x64', version: '0.1.2', mode: 'water-slosh', fill: 50, sensitivity: 1, rotation: 0, invert: false, spiMode: 0, imu: true, sensor, sensorAddress, gyro, roll: 12, pitch: -5, fps: 20, simMs: 5, particles: 100, freeHeap: 180000, axisX: 1, axisY: 2, axisZ: 3, gravity: [0,.98,-.1], omega: [0,0,1.5], linear: [2,0,0] };
     let poll;
     const requests = [];
     runInNewContext(script, {
@@ -41,13 +41,15 @@ test('phone controls display each detected sensor and offer calibration only whi
       assert.equal(requests.at(-1)[0], '/api/calibrate');
       assert.equal(requests.at(-1)[1].method, 'POST');
     }
-    for (const [mode,name] of [['water','น้ำปกติ'],['water-slosh','น้ำกระฉอก'],['pixel-flow','น้ำพิกเซล'],['pet','ตาการ์ตูน'],['robot','ตาหุ่นยนต์ · ดีใจ']]) {
+    for (const [mode,name] of [['water-slosh','น้ำกระฉอก'],['pixel-flow','น้ำพิกเซล'],['robot','ตาหุ่นยนต์ · ดีใจ']]) {
       state={...state,mode,mood:'happy'};await poll();
       assert.equal(get('vMode').textContent,name);
-      const liquid=['water','water-slosh','pixel-flow'].includes(mode);
+      const liquid=mode!=='robot';
       assert.equal(get('sSim').hidden,!liquid);assert.equal(get('sParticles').hidden,!liquid);
-      assert.equal(get('shake').hidden,mode==='pet');
+      assert.equal(get('shake').hidden,false,'every mode reacts to a shake');
       assert.equal(get('moodWrap').hidden,mode!=='robot');
+      assert.equal(get('waterColorWrap').hidden,mode!=='water-slosh');
+      assert.equal(get('themeWrap').hidden,false);
       get('mode').value=mode;await get('save').onclick();
       assert.equal(requests.at(-1)[1].body.get('mode'),mode);
     }

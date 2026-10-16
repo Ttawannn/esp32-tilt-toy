@@ -7,13 +7,15 @@
 #include "../../firmware/tilt_toy/puddle.h"
 
 int main() {
-  assert(Water==0 && PixelFlow==1 && Pet==2 && Robot==3 && WaterSlosh==4 && ModeCount==5);
-  assert(nextToyMode(Water)==WaterSlosh && nextToyMode(WaterSlosh)==PixelFlow && nextToyMode(PixelFlow)==Pet && nextToyMode(Pet)==Robot && nextToyMode(Robot)==Water);
-  assert(isFlipMode(Water) && isFlipMode(WaterSlosh) && !isFlipMode(PixelFlow));
-  assert(isLiquidMode(Water) && isLiquidMode(WaterSlosh) && isLiquidMode(PixelFlow) && !isLiquidMode(Pet) && !isLiquidMode(Robot));
-  // Ten-mode NVS indices: water 0, pet 4, pixel-flow 9; removed modes start as water.
-  assert(modeFromLegacy(0)==Water && modeFromLegacy(4)==Pet && modeFromLegacy(9)==PixelFlow);
-  for (int removed : {1,2,3,5,6,7,8,10,-1}) assert(modeFromLegacy(removed)==Water);
+  assert(WaterSlosh==0 && PixelFlow==1 && Robot==2 && ModeCount==3);
+  assert(nextToyMode(WaterSlosh)==PixelFlow && nextToyMode(PixelFlow)==Robot && nextToyMode(Robot)==WaterSlosh && nextToyMode(-1)==WaterSlosh);
+  assert(isFlipMode(WaterSlosh) && !isFlipMode(PixelFlow) && !isFlipMode(Robot));
+  assert(isLiquidMode(WaterSlosh) && isLiquidMode(PixelFlow) && !isLiquidMode(Robot));
+  // Five-mode "toyMode": water and slosh become slosh water, the pocket eyes become robot eyes.
+  assert(modeFromToyMode(0)==WaterSlosh && modeFromToyMode(1)==PixelFlow && modeFromToyMode(2)==Robot && modeFromToyMode(3)==Robot && modeFromToyMode(4)==WaterSlosh && modeFromToyMode(-1)==WaterSlosh);
+  // Ten-mode "mode": pocket eyes 4, pixel-flow 9; every other mode starts as slosh water.
+  assert(modeFromLegacy(4)==Robot && modeFromLegacy(9)==PixelFlow);
+  for (int removed : {0,1,2,3,5,6,7,8,10,-1}) assert(modeFromLegacy(removed)==WaterSlosh);
   {
     // Sensor X down the screen, Y to the right, so Z points out of the screen.
     // Flat, screen up: up is +Z. Upright on the bottom edge: up is -X.
@@ -48,7 +50,7 @@ int main() {
     else if (kind == 'U') {
       float dt; MotionVector gravity;
       std::cin >> dt >> gravity.x >> gravity.y >> gravity.z;
-      const WaterForces f = waterForces(Water,gravity,MotionVector{});
+      const WaterForces f = waterForces(WaterSlosh,gravity,MotionVector{});
       fluid.advance(dt,f.ax,f.ay);
       assert(fluid.rasterize(10,10,fluid.h,fluid.h,6*fluid.h/10,6*fluid.h/10,gravity.x,gravity.y));
       std::cout << fluid.count;

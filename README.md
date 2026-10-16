@@ -14,13 +14,13 @@ For the Thai documentation, open [README.th.md](README.th.md). The device settin
 
 ## Since v0.1.4
 
-- **Five modes**: Liquid, Slosh water, Pixel Flow, Pocket eyes, and Robot eyes. Inertia, Swirl, and Full-motion water, Tilt maze, Snow globe, Orbit pong, and Shake & roll were removed. A toy saved on a removed mode starts on Liquid.
+- **Three modes**: Slosh water, Pixel Flow, and Robot eyes. Liquid and Pocket eyes were removed, as were Inertia, Swirl, and Full-motion water, Tilt maze, Snow globe, Orbit pong, and Shake & roll. A toy saved on Liquid starts on Slosh water, and one saved on Pocket eyes starts on Robot eyes.
 - **Robot eyes** with eight moods, chosen on the phone, or *Play all moods* to cycle through them. See [Device modes](#device-modes).
-- **Axis setup on the toy**: hold BOOT for 5 seconds (or tap *Auto axis setup* on the phone page). Lay the toy flat with the screen up until the bar fills, then stand it on its bottom edge. It works out which sensor axis points where and saves it, so the module can be mounted in any square orientation.
+- **Axis setup on the toy**: hold BOOT for 5 seconds (or tap *Auto axis setup* on the phone page). Lay the toy flat with the screen up until the bar fills, then stand it on its bottom edge. It works out which sensor axis points where and saves it, so the module can be mounted in any square orientation. The bar fills while the measured gravity stays within about 3° of its recent direction, so an uncalibrated gyro or a slightly off accelerometer scale does not stop it; Serial Monitor prints the held time, direction change, spin and acceleration every second.
 - **Accelerometer sign fixed**: sensors report +1 g pointing up at rest; the motion filter now treats gravity as its opposite. The screen axes on the phone page (X right, Y down, Z into the screen) now match the physical directions. The web preview's simulated sensor follows the same convention.
 - **Arduino IDE sketch**: under the flash button, *Edit the code in Arduino IDE* offers one `.ino` for the selected board and display (download, copy, or view), the Tools settings with what each one does, and the libraries to install. `npm run build` writes all 18 sketches to `dist/arduino/` from `firmware/tilt_toy` with `scripts/arduino-sketch.mjs`: the local headers are inlined, the board and display are fixed by `#define`, and only that display's library is included.
 - **Serial Monitor (115200)**: reset reason at boot, BOOT button and Wi-Fi events, and FPS / solver time every second.
-- **Slosh water**: Liquid that also takes the toy's measured translation and rotation, so moving or rocking it leaves the water behind and it sloshes back. Pixel Flow now uses the same grid as Liquid on every display.
+- **Slosh water**: water that takes the toy's tilt and its measured translation and rotation, so moving or rocking it leaves the water behind and it sloshes back. It is drawn in the depth gradient by default. Pixel Flow uses the same grid on every display.
 - **Fixed-point water**: the FLIP solver runs in integer Q16 so the FPU-less C3/C6 keep up; see [FLIP/PIC water](#flippic-water).
 
 ## New in v0.1.4
@@ -33,7 +33,7 @@ There are now 10 modes. Existing NVS IDs 0–7 are unchanged.
 ## New in v0.1.3
 
 - Read BMI160 / MPU6050 FIFO samples at 100 Hz; increase the gyro range to ±2000°/s to capture rotation while transmitting display frames.
-- Fuse accelerometer and gyro measurements into a quaternion and separate translation from gravity. Liquid uses tilt, Inertia water opposes jolts, and Swirl water adds Euler, Coriolis, and centrifugal forces around the screen axis.
+- Fuse accelerometer and gyro measurements into a quaternion and separate translation from gravity. Slosh water takes tilt, opposes jolts, and adds Euler, Coriolis, and centrifugal forces around the screen axis.
 - Set the X/Y/Z axis mapping and signs from a phone. Save them in NVS and apply them to both accelerometer and gyro measurements at every display rotation.
 - The phone page shows gravity, angular velocity, and translation on each axis. The preview offers lay-flat, spin, stop-spin, and four-direction jolt controls.
 
@@ -41,15 +41,13 @@ This implements the motion foundation and the water modes of the 6DOF plan.
 
 ## Device modes
 
-Every firmware includes five modes. Tap the **onboard BOOT button** to cycle through them. The full display is a play area, without mode labels, numbers, or frames; those values appear on the phone page. On-device text is limited to the Wi-Fi name and IP address during setup, and `IMU NOT FOUND` when the sensor is missing.
+Every firmware includes three modes. Tap the **onboard BOOT button** to cycle through them. The full display is a play area, without mode labels, numbers, or frames; those values appear on the phone page. On-device text is limited to the Wi-Fi name and IP address during setup, and `IMU NOT FOUND` when the sensor is missing.
 
 | Mode | How to play |
 | --- | --- |
-| **Liquid (`water`)** | Water follows tilt; shake to make waves. Square pixels and a pale surface. |
-| **Slosh water (`water-slosh`)** | Same look as Liquid, but it sloshes like real water when you move or rock the toy side to side: measured translation and rotation, no wall drag. Shake still makes waves. |
-| **Lying flat** | Liquid and Slosh water switch to a view from above: after 0.4 s within about 9° of flat, the water spreads from where it was over the whole floor, darker in the middle like a shallow dish. A small tilt drains the high side to bare floor with a light shoreline; standing the toy up past about 17° draws it back into the side view. The tilt is smoothed and shades change only past a margin, so sensor noise does not flicker it. The web preview has a *Lay flat* button. |
+| **Slosh water (`water-slosh`)** | Water follows tilt and sloshes like real water when you move or rock the toy side to side: measured translation and rotation, no wall drag. Shake still makes waves. |
+| **Lying flat** | Slosh water switches to a view from above: after 0.4 s within about 9° of flat, the water spreads from where it was over the whole floor, darker in the middle like a shallow dish. A small tilt drains the high side to bare floor with a light shoreline; standing the toy up past about 17° draws it back into the side view. The tilt is smoothed and shades change only past a margin, so sensor noise does not flicker it. The web preview has a *Lay flat* button. |
 | **Pixel Flow (`pixel-flow`)** | LED-style water drops. Tilt to flow, jolt to surge, and shake to splash. |
-| **Pocket eyes (`pet`)** | Cartoon eyes follow your tilt. |
 | **Robot eyes (`robot`)** | Robot eyes that blink, glance around, and follow your tilt. Pick a mood on the phone: normal, happy, angry, sad, sleepy, surprised, suspicious, or in love; *Play all moods* (`auto`) shows each one for 3.5 s in turn. A shake makes them dizzy: spinning spirals for about 2 s (longer if you keep shaking), then back to the mood. |
 
 ### FLIP/PIC water
@@ -59,9 +57,9 @@ The fluid simulation uses a FLIP/PIC solver on a MAC grid, adapted from Matthias
 - `firmware/tilt_toy/flip_fluid.h`: C++ with fixed storage for up to 400 cells and 900 particles, about 32 KB including the pixel grid. No runtime allocation.
 - `web/fluid.js`: JavaScript for the web preview, mirroring each integer operation. A test runs 300 mixed-force steps in both and requires every value to match.
 
-Liquid, Slosh water, and Pixel Flow support 10–90% fill. BOOT order: Liquid → Slosh water → Pixel Flow → Pocket eyes → Robot eyes. NVS key `toyMode` stores 0 Liquid, 1 Pixel Flow, 2 Pocket eyes, 3 Robot eyes, 4 Slosh water; `robotMood` stores the chosen mood, `waterGradient` the water colour and `theme` the colour theme. Firmware from before the removal saved a ten-mode index under `mode`; the first boot converts it, keeping Pixel Flow and Pocket eyes and starting removed modes on Liquid.
+Slosh water and Pixel Flow support 10–90% fill. BOOT order: Slosh water → Pixel Flow → Robot eyes. NVS key `mode3` stores 0 Slosh water, 1 Pixel Flow, 2 Robot eyes; `robotMood` stores the chosen mood, `waterShade` the water colour (depth gradient unless two-tone was chosen) and `theme` the colour theme. Earlier firmware saved five modes under `toyMode` or ten under `mode`; the first boot converts either, starting Liquid on Slosh water and Pocket eyes on Robot eyes.
 
-Both implementations use a fixed 25 ms step (at most two per frame, so a late frame cannot snowball), a circular vessel for GC9A01, linked-cell neighbor lookup, and gravity from the detected sensor's motion filter. Liquid uses tilt only; Slosh water adds the frame's translation and the Euler, Coriolis, and centrifugal forces of turning about the screen axis. Grid dimensions depend on the display; the round display uses 20×20.
+Both implementations use a fixed 25 ms step (at most two per frame, so a late frame cannot snowball), a circular vessel for GC9A01, linked-cell neighbor lookup, and gravity from the detected sensor's motion filter. Slosh water takes tilt, the frame's translation and the Euler, Coriolis, and centrifugal forces of turning about the screen axis. Grid dimensions depend on the display; the round display uses 20×20.
 
 Measure solver time on each physical board using **Solver** on the phone page, or `simMs` from `/api/status`. If it exceeds roughly 25 ms, reduce the grid size or fill level to avoid stuttering. The license is in [web/licenses/ten-minute-physics.txt](web/licenses/ten-minute-physics.txt) and at `/license` on the device.
 
@@ -70,7 +68,7 @@ Measure solver time on each physical board using **Solver** on the phone page, o
 Pixel Flow does not use FLIP. Each drop occupies a grid cell and keeps its own Q8 fixed-point velocity. At 30 Hz, drops deepest along gravity move first. Collisions deflect them 45° downhill; resting drops flow sideways to level the surface. Up to three drops move from the highest to the lowest surface point per step, so the surface follows the actual tilt angle instead of only eight grid directions. Forces are gravity plus jolts (translation past a 0.4 m/s² deadband); rotation is not used.
 
 - `firmware/tilt_toy/pixel_flow.h` (`PixelDrops`) and `web/pixel-flow.js` use integer arithmetic and produce bit-for-bit identical results, checked by C++/JS parity tests. Fixed storage supports up to 2,048 cells / 1,900 drops, about 31 KB plus 2 KB in the sketch for the previously sent frame.
-- Grids match the Liquid water pixels on every display: 240×240 TFT uses 7 px pitch (6 px drop + 1 px gap), 33×33 cells; Mini TFT uses 3 px pitch, 25×52 / 52×25; OLED uses 3 px pitch, 41×20. Square TFT vessels have rounded corners; GC9A01 is circular; OLED is rectangular.
+- Grids match the Slosh water pixels on every display: 240×240 TFT uses 7 px pitch (6 px drop + 1 px gap), 33×33 cells; Mini TFT uses 3 px pitch, 25×52 / 52×25; OLED uses 3 px pitch, 41×20. Square TFT vessels have rounded corners; GC9A01 is circular; OLED is rectangular.
 - Shading distinguishes surface, fast spray, and four body depths, with slowly changing highlights. Small gaps within a water mass render as water.
 - TFT rendering bypasses the framebuffer and writes only changed drops. OLED, Wi-Fi screens, and `IMU NOT FOUND` retain the existing rendering path. OLED frames remain at 50 ms because the display shares I²C with the sensor.
 - `/api/status` reports this mode's `simMs` and `particles` while it is active.
@@ -154,7 +152,7 @@ The device page shows the board name and detected sensor name/address. Keep the 
 | `POST /api/shake` · `/api/calibrate` · `/api/close` | Shake, calibrate gyro, close Wi-Fi |
 | `GET /license` | FLIP solver MIT license |
 
-Accepted mode IDs: `water`, `water-slosh`, `pixel-flow`, `pet`, `robot`. Accepted `mood` IDs: `auto`, `normal`, `happy`, `angry`, `sad`, `tired`, `surprised`, `suspicious`, `love`. Accepted `waterColor`: `classic` (two-tone) or `gradient` (Liquid and Slosh water shaded by depth in the Pixel Flow palette, without its shimmer; a pixel changes shade only when its depth moves past its band by a whole pixel, so ripples do not flicker the water below). Accepted `theme`: `ocean` (the original blue), `lava`, `slime`, `grape`, `candy`, `aurora`; it colours Liquid, Slosh water, Pixel Flow and Robot eyes, and the web preview offers the same swatches.
+Accepted mode IDs: `water-slosh`, `pixel-flow`, `robot`. Accepted `mood` IDs: `auto`, `normal`, `happy`, `angry`, `sad`, `tired`, `surprised`, `suspicious`, `love`. Accepted `waterColor`: `gradient` (the default: Slosh water shaded by depth in the Pixel Flow palette, without its shimmer; a pixel changes shade only when its depth moves past its band by a whole pixel, so ripples do not flicker the water below) or `classic` (two-tone). Accepted `theme`: `ocean` (the original blue), `lava`, `slime`, `grape`, `candy`, `aurora`; it colours Slosh water, Pixel Flow and Robot eyes, and the web preview offers the same swatches.
 
 ## Local development
 
@@ -201,7 +199,7 @@ The sensor driver uses `Wire` directly; no additional sensor library is needed. 
 
 ## Repository layout
 
-- `firmware/tilt_toy/`: sketch, IMU, 5 modes, FLIP and Pixel Flow solvers, robot eyes, Wi-Fi UI, NVS.
+- `firmware/tilt_toy/`: sketch, IMU, 3 modes, FLIP and Pixel Flow solvers, robot eyes, Wi-Fi UI, NVS.
 - `web/`: installer, preview, English/Thai UI copy in `i18n.js`, profile contract, firmware artifacts, and licenses.
 - `scripts/`: web build, firmware build/merge, and local server.
 - `tests/`: profiles, wiring, binary chip/header, partitions, checksums, source hashes, and motion/simulation parity.

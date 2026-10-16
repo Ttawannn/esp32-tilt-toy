@@ -17,10 +17,8 @@ export const displayChoices = [
   { id: 'oled-128x64', title: 'OLED 128 × 64', subtitle: '0.96” · SSD1306', shape: 'wide' }
 ];
 export const modes = [
-  { id: 'water', get name() { return t('mode.water'); }, english: 'Liquid', get detail() { return t('detail.water'); }, glyph: '≈' },
   { id: 'water-slosh', get name() { return t('mode.water-slosh'); }, english: 'Slosh water', get detail() { return t('detail.water-slosh'); }, glyph: '∿' },
   { id: 'pixel-flow', get name() { return t('mode.pixel-flow'); }, english: 'Pixel Flow', get detail() { return t('detail.pixel-flow'); }, glyph: '▦' },
-  { id: 'pet', get name() { return t('mode.pet'); }, english: 'Pocket eyes', get detail() { return t('detail.pet'); }, glyph: '••' },
   { id: 'robot', get name() { return t('mode.robot'); }, english: 'Robot eyes', get detail() { return t('detail.robot'); }, glyph: '▬▬' }
 ];
 export function findProfile(choice, orientation = 'portrait') {

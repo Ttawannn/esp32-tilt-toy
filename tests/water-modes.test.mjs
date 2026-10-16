@@ -3,20 +3,18 @@ import assert from 'node:assert/strict';
 import { waterForces, isFlipMode, isLiquidMode } from '../web/water-modes.js';
 import { modes } from '../web/profiles.js';
 import { ToyPreview } from '../web/preview.js';
-import { FlipFluid } from '../web/fluid.js';
 import { RobotEyes, MOODS, eyeShape } from '../web/robot-eyes.js';
 
 const gravity={x:.3,y:.4,z:.5},linear={x:12,y:-8,z:3},zero={x:0,y:0,z:0};
-test('five modes: two FLIP waters and pixel-flow are liquids; pet and robot are eyes',()=>{
-  assert.deepEqual(modes.map(m=>m.id),['water','water-slosh','pixel-flow','pet','robot']);
-  assert.deepEqual(modes.filter(m=>isFlipMode(m.id)).map(m=>m.id),['water','water-slosh']);
-  assert.deepEqual(modes.filter(m=>isLiquidMode(m.id)).map(m=>m.id),['water','water-slosh','pixel-flow']);
+test('three modes: slosh water and pixel-flow are liquids, robot eyes are not',()=>{
+  assert.deepEqual(modes.map(m=>m.id),['water-slosh','pixel-flow','robot']);
+  assert.deepEqual(modes.filter(m=>isFlipMode(m.id)).map(m=>m.id),['water-slosh']);
+  assert.deepEqual(modes.filter(m=>isLiquidMode(m.id)).map(m=>m.id),['water-slosh','pixel-flow']);
 });
 
-test('water follows tilt only; pixel-flow also pushes against jolts past a quiet deadband',()=>{
-  const base=waterForces('water',gravity,zero);
+test('pixel-flow follows tilt and pushes against jolts past a quiet deadband',()=>{
+  const base=waterForces('pixel-flow',gravity,zero);
   assert.deepEqual(base,{ax:4*gravity.x,ay:4*gravity.y,omega:0,omegaDot:0});
-  assert.deepEqual(waterForces('water',gravity,linear,2,10),base);
   const pixel=waterForces('pixel-flow',gravity,linear);
   assert.ok(pixel.ax<base.ax&&pixel.ay>base.ay,'a jolt pushes the drops the opposite way');
   assert.deepEqual(waterForces('pixel-flow',gravity,{x:.39,y:-.39,z:9}),base);
@@ -25,7 +23,7 @@ test('water follows tilt only; pixel-flow also pushes against jolts past a quiet
 });
 
 test('slosh water feels real translation and rotation, and ignores hand tremor',()=>{
-  const base=waterForces('water',gravity,zero),slosh=waterForces('water-slosh',gravity,linear,2,10),pixel=waterForces('pixel-flow',gravity,linear,2,10);
+  const base=waterForces('water-slosh',gravity,zero),slosh=waterForces('water-slosh',gravity,linear,2,10),pixel=waterForces('pixel-flow',gravity,linear,2,10);
   assert.ok(slosh.ax<base.ax&&slosh.ay>base.ay,'moving the toy sends the water the other way');
   assert.equal(slosh.ax,pixel.ax);assert.equal(slosh.ay,pixel.ay);
   assert.equal(slosh.omega,2);assert.equal(slosh.omegaDot,10);assert.equal(pixel.omega,0,'pixel-flow does not turn');
@@ -53,23 +51,22 @@ test('slosh preview turns the vessel at a real rate, moves water downhill at onc
     for(let i=0;i<40;i++){run(1);highest=Math.max(highest,meanX());}
     assert.ok(lowest<rest-.02,`a jolt to the right leaves the water behind on the left: ${lowest} vs ${rest}`);
     assert.ok(highest>lowest+.05,'then it sloshes back');
-    p.setMode('water');assert.equal(p.tilt,null,'normal water keeps its tilt-only input');
+    p.setMode('pixel-flow');assert.equal(p.tilt,null,'only slosh water turns the vessel at a hand-like rate');
   }finally{globalThis.requestAnimationFrame=previous;}
 });
 
-test('preview water runs the tilt-only solver; switching modes resets the liquid',()=>{
-  // Call the real renderer with a no-op canvas; compare numerical state, not drawing internals.
+test('the preview starts on slosh water in the depth gradient; switching modes resets the liquid',()=>{
   const previous=globalThis.requestAnimationFrame;globalThis.requestAnimationFrame=()=>{};
   try{
     const ctx=new Proxy({},{get:()=>()=>{}}),canvas={width:240,height:240,getContext:()=>ctx,addEventListener:()=>{}};
-    const p=new ToyPreview(canvas);p.setTilt(30,20);p.jolt(12,-12);
-    const expected=new FlipFluid(p.layout.nx,p.layout.ny,false,50),r=Math.PI/180;
-    for(let i=0;i<20;i++){p.draw(i*.025,.025);expected.advance(.025,4*Math.sin(30*r)*Math.cos(20*r),4*Math.cos(30*r)*Math.cos(20*r));}
-    assert.deepEqual(p.fluid.x,expected.x);assert.deepEqual(p.fluid.vy,expected.vy);
+    const p=new ToyPreview(canvas);
+    assert.equal(p.mode,'water-slosh');assert.equal(p.waterColor,'gradient');
+    p.setTilt(30,20);p.jolt(12,-12);for(let i=0;i<20;i++)p.draw(i*.025,.025);
+    assert.ok(p.fluid.vx.some(v=>v!==0),'the water moves');
     p.setMode('pixel-flow');assert.deepEqual(p.kick,{x:0,y:0});p.draw(0,.025);p.jolt(12,0);p.draw(.025,.025);
     assert.ok(p.motion.linear.x>8,'pixel-flow feels the jolt');
-    p.setMode('pet');p.draw(.05,.025);
-    p.setMode('water');assert.deepEqual(p.kick,{x:0,y:0});assert.ok(p.fluid.vx.every(v=>v===0),'water restarts at rest');
+    p.setMode('robot');p.draw(.05,.025);
+    p.setMode('water-slosh');assert.deepEqual(p.kick,{x:0,y:0});assert.ok(p.fluid.vx.every(v=>v===0),'water restarts at rest');
   }finally{globalThis.requestAnimationFrame=previous;}
 });
 

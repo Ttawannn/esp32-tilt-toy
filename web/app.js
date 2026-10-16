@@ -15,9 +15,9 @@ let choice=displayChoices.some(d=>d.id===saved.choice)?saved.choice:'tft-240x240
 let orientation=saved.orientation==='landscape'?'landscape':'portrait';
 let sensorId=findSensor(saved.sensor).id;
 let board=findBoard(saved.board);
-let currentMode=modes.some(m=>m.id===saved.mode)?saved.mode:'water';
+let currentMode=modes.some(m=>m.id===saved.mode)?saved.mode:'water-slosh';
 let mood=MOODS.includes(saved.mood)?saved.mood:'auto';
-let waterColor=saved.waterColor==='gradient'?'gradient':'classic';
+let waterColor=saved.waterColor==='classic'?'classic':'gradient';
 let theme=findTheme(saved.theme).id;
 let fill=Number.isFinite(saved.fill)?Math.min(90,Math.max(10,Math.round(saved.fill))):50;
 let profile=findProfile(choice,orientation), generation=0, installerReady=false, releaseReady=false;
@@ -119,7 +119,7 @@ document.querySelector('.arduino-view').addEventListener('toggle',async event=>{
   try{$('arduino-code').textContent=t('arduino.loading');const text=await loadSketch();if(text!==null)$('arduino-code').textContent=text;}
   catch(error){$('arduino-code').textContent=error.message;}
 });
-function chooseMode(id){currentMode=id;remember();preview.setMode(id);document.querySelectorAll('[data-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.mode===id)));const m=modes.find(m=>m.id===id);$('mode-readout').textContent=m.name.toUpperCase();$('mode-description').textContent=`${m.detail} · ${t('preview.web')}`;$('fluid-controls').hidden=!isLiquidMode(id);$('jolt-controls').hidden=!['water-slosh','pixel-flow'].includes(id);$('fluid-grid').closest('label').hidden=id==='pixel-flow';$('shake').hidden=id==='pet';$('mood-controls').hidden=id!=='robot';$('lay-flat').hidden=!isFlipMode(id);$('water-color-controls').hidden=!isFlipMode(id);$('theme-controls').hidden=id==='pet';}
+function chooseMode(id){currentMode=id;remember();preview.setMode(id);document.querySelectorAll('[data-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.mode===id)));const m=modes.find(m=>m.id===id);$('mode-readout').textContent=m.name.toUpperCase();$('mode-description').textContent=`${m.detail} · ${t('preview.web')}`;$('fluid-controls').hidden=!isLiquidMode(id);$('jolt-controls').hidden=!['water-slosh','pixel-flow'].includes(id);$('fluid-grid').closest('label').hidden=id==='pixel-flow';$('mood-controls').hidden=id!=='robot';$('lay-flat').hidden=!isFlipMode(id);$('water-color-controls').hidden=!isFlipMode(id);}
 for(const d of displayChoices){const b=document.createElement('button');b.className='display-card';b.dataset.display=d.id;b.setAttribute('aria-pressed','false');b.innerHTML=`<span class="mini-screen ${d.shape}" aria-hidden="true"></span><span><strong>${d.title}</strong><small>${d.subtitle}</small></span>`;b.addEventListener('click',()=>{choice=d.id;chooseDisplay();});$('displays').append(b);}
 for(const m of modes){const b=document.createElement('button');b.className='mode-button';b.dataset.mode=m.id;b.setAttribute('aria-pressed','false');b.innerHTML=`<span class="glyph" aria-hidden="true">${modeIcons[m.id]}</span><span class="mode-name">${m.name}</span><small>${m.english}</small>`;b.addEventListener('click',()=>chooseMode(m.id));$('modes').append(b);}
 $('orientation').addEventListener('change',()=>{orientation=$('orientation').value;chooseDisplay();});

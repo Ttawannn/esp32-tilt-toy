@@ -134,7 +134,7 @@ input[type=range]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 6px #4
 .swatch-eye { position: absolute; right: -3px; bottom: -3px; width: 12px; height: 12px; border: 2px solid var(--panel); border-radius: 50%; }
 
 /* Mode tiles */
-.mode-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; padding: 16px 18px 6px; }
+.mode-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 16px 18px 6px; }
 .mode-button { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 4px 9px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel-2); font-size: 11px; line-height: 1.35; text-align: center; transition: transform .15s var(--ease), border-color .15s, background .15s; }
 .mode-button .glyph svg { display: block; width: 44px; height: 44px; }
 .mode-button small { font-size: 9px; color: var(--faint); letter-spacing: .3px; }
