@@ -109,6 +109,8 @@ input[type=range]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 6px #4
 .control-bottom input { width: 110px; margin: 0; }
 .shake-button { padding: 6px 14px; border: 1px solid var(--line-2); border-radius: 8px; background: var(--panel-2); font-size: 12px; white-space: nowrap; transition: border-color .15s, background .15s; }
 .shake-button:hover { border-color: var(--accent); background: var(--panel-3); }
+.shake-button[aria-pressed=true] { border-color: var(--accent); background: var(--accent-soft); color: var(--text); }
+.control-buttons { display: flex; gap: 6px; }
 .motion-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin: 10px 0; font-size: 12px; color: var(--muted); }
 .motion-actions .shake-button { min-width: 38px; }
 .fluid-bottom { display: flex; align-items: center; justify-content: space-between; gap: 16px; font-size: 11px; color: var(--faint); }

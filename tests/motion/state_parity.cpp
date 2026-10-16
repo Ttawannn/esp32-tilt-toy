@@ -4,6 +4,7 @@
 #include "../../firmware/tilt_toy/motion_state.h"
 #include "../../firmware/tilt_toy/flip_fluid.h"
 #include "../../firmware/tilt_toy/toy_modes.h"
+#include "../../firmware/tilt_toy/puddle.h"
 
 int main() {
   assert(Water==0 && PixelFlow==1 && Pet==2 && Robot==3 && WaterSlosh==4 && ModeCount==5);
@@ -95,6 +96,20 @@ int main() {
       std::cout << fluid.count;
       for (int p=0;p<fluid.count;p++) std::cout << ' ' << fluid.posX(p) << ' ' << fluid.posY(p) << ' ' << fluid.velX(p) << ' ' << fluid.velY(p);
       std::cout << '\n';
+    } else if (kind == 'P') {
+      // Puddle: a still side-view raster (lower half water), then gravity steps; one line of cells per step.
+      int cols, rows, circular, steps; float fill; std::cin >> cols >> rows >> circular >> fill >> steps;
+      static uint8_t side[Puddle::MaxSide*Puddle::MaxSide]; static Puddle puddle; puddle.reset();
+      for (int j=0;j<rows;j++) for (int i=0;i<cols;i++) {
+        const int x=2*i+1-cols, y=2*j+1-rows;
+        side[j*cols+i] = circular && x*x+y*y > cols*cols ? 3 : j > rows/2 ? 1 : j == rows/2 ? 2 : 0;
+      }
+      for (int s=0;s<steps;s++) {
+        float dt, gx, gy, gz; std::cin >> dt >> gx >> gy >> gz;
+        std::cout << (int)puddle.update(dt,gx,gy,gz,side,cols,rows,fill);
+        for (int c=0;c<cols*rows;c++) std::cout << ' ' << (int)puddle.look[c];
+        std::cout << '\n';
+      }
     } else if (kind == 'L') {
       // Long run on the raw Q16 state: the fixed-point solver must match web/fluid.js exactly.
       int width, height, circular, steps; float fill; std::cin >> width >> height >> circular >> fill >> steps;

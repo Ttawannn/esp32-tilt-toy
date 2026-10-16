@@ -13,6 +13,7 @@ export const messages = {
   'preview.mood': ['Mood', 'อารมณ์'],
   'preview.waterColor': ['Water colour', 'สีน้ำ'],
   'preview.theme': ['Colour theme', 'ธีมสี'],
+  'preview.flat': ['Lay flat', 'วางราบ'],
   'theme.ocean': ['Ocean', 'มหาสมุทร'],
   'theme.lava': ['Lava', 'ลาวา'],
   'theme.slime': ['Slime', 'สไลม์'],

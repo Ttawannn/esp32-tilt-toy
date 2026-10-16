@@ -47,6 +47,7 @@ Every firmware includes five modes. Tap the **onboard BOOT button** to cycle thr
 | --- | --- |
 | **Liquid (`water`)** | Water follows tilt; shake to make waves. Square pixels and a pale surface. |
 | **Slosh water (`water-slosh`)** | Same look as Liquid, but it sloshes like real water when you move or rock the toy side to side: measured translation and rotation, no wall drag. Shake still makes waves. |
+| **Lying flat** | Liquid and Slosh water switch to a view from above: after 0.4 s within about 9° of flat, the water spreads from where it was over the whole floor, darker in the middle like a shallow dish. A small tilt drains the high side to bare floor with a light shoreline; standing the toy up past about 17° draws it back into the side view. The tilt is smoothed and shades change only past a margin, so sensor noise does not flicker it. The web preview has a *Lay flat* button. |
 | **Pixel Flow (`pixel-flow`)** | LED-style water drops. Tilt to flow, jolt to surge, and shake to splash. |
 | **Pocket eyes (`pet`)** | Cartoon eyes follow your tilt. |
 | **Robot eyes (`robot`)** | Robot eyes that blink, glance around, and follow your tilt. Pick a mood on the phone: normal, happy, angry, sad, sleepy, surprised, suspicious, or in love; *Play all moods* (`auto`) shows each one for 3.5 s in turn. A shake makes them dizzy: spinning spirals for about 2 s (longer if you keep shaking), then back to the mood. |

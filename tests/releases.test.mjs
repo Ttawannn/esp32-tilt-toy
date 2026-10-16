@@ -71,7 +71,8 @@ for(const board of releaseBoards) for(const profile of profiles)test(`release ${
   const pixel = (await readFile(new URL('../firmware/tilt_toy/pixel_flow.h',import.meta.url),'utf8')).replace(/\r\n/g,'\n');
   const robot = (await readFile(new URL('../firmware/tilt_toy/robot_eyes.h',import.meta.url),'utf8')).replace(/\r\n/g,'\n');
   const themes = (await readFile(new URL('../firmware/tilt_toy/themes.h',import.meta.url),'utf8')).replace(/\r\n/g,'\n');
-  assert.equal(createHash('sha256').update(source+'\n'+config+'\n'+fluid+'\n'+motion+'\n'+state+'\n'+modes+'\n'+pixel+'\n'+robot+'\n'+themes).digest('hex'),release.build.sourceSha256);
+  const puddle = (await readFile(new URL('../firmware/tilt_toy/puddle.h',import.meta.url),'utf8')).replace(/\r\n/g,'\n');
+  assert.equal(createHash('sha256').update(source+'\n'+config+'\n'+fluid+'\n'+motion+'\n'+state+'\n'+modes+'\n'+pixel+'\n'+robot+'\n'+themes+'\n'+puddle).digest('hex'),release.build.sourceSha256);
   for(const sensor of ['BMI160','MPU6050'])assert.ok(binary.includes(Buffer.from(sensor)),`image must support ${sensor}`);
   assert.equal(config.match(/TOY_VERSION\s+"([^"]+)"/)[1],release.version);
   const otherBoard=boards.find(b=>b.id!==board.id);

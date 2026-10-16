@@ -4,6 +4,7 @@
 #include "flip_fluid.h"
 #include "toy_modes.h"
 #include "themes.h"
+#include "puddle.h"
 using std::min;
 using std::max;
 constexpr float PI = 3.14159265358979323846f;
@@ -28,8 +29,9 @@ FlipFluid fluid;
 MotionState motion;
 bool gradientWater = false, imuReady = true, apActive = false, screenOverlay = false, waterScreenValid = false, pixelScreenValid = true;
 int activeMode = Water, theme = ThemeOcean;
-float sensitivity = 1, roll = 0, simulationMs = 0;
-uint8_t shownWater[FlipFluid::MaxPixelSide*FlipFluid::MaxPixelSide]{};
+Puddle puddle;
+float sensitivity = 1, roll = 0, simulationMs = 0, fillPercent = 50;
+uint8_t shownWater[FlipFluid::MaxPixels]{};
 uint16_t ink(uint16_t color) { return DISPLAY_PROFILE == 4 ? !!color : color; }
 uint16_t rgb(uint8_t r, uint8_t g, uint8_t b) { return ink(((r&248)<<8)|((g&252)<<3)|(b>>3)); }
 // Any distinct colour per shade: the test only needs the gradient raster to reach the panel.
@@ -90,6 +92,21 @@ int main() {
     assert(drawWaterDirect(0)); checkRaster();
   }
   assert(erased);
+  // Lying flat: the puddle covers the floor and the panel still matches a complete raster.
+  for (int look = 0; look < 2; look++) {
+    gradientWater = look; waterScreenValid = false; roll = 0;
+    motion.gravity = {0,1,0}; puddle.reset();
+    for (int frame=0;frame<60;frame++) {
+      if (frame == 10) motion.gravity = {0,0,1};
+      assert(drawWaterDirect(.025f)); checkRaster();
+    }
+    assert(puddle.amount == 1);
+    const WaterView view = prepareWaterPixels(0,1);
+    for (int c=0;c<view.cols*view.rows;c++) if (fluid.pixels[c] != 3) assert(puddle.look[c] >= 3 && puddle.look[c] <= 6);
+    motion.gravity = {0,1,0};
+    for (int frame=0;frame<20;frame++) { assert(drawWaterDirect(.025f)); checkRaster(); }
+    assert(puddle.amount == 0);
+  }
   imuReady = false; assert(!drawWaterDirect(.025f));
   imuReady = true; activeMode = PixelFlow; assert(!drawWaterDirect(.025f));
   assert(!panel.transaction);

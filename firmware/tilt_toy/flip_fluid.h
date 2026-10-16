@@ -39,11 +39,12 @@ class FlipFluid {
   int16_t head[MaxCells]{}, next[MaxParticles]{};
   // Square-pixel view for drawing, mirrored by pixelWater() in web/fluid.js.
   // 0 empty, 1 water, 2 surface (open toward -gravity), 3 outside the vessel.
-  static constexpr int MaxPixelSide = 64;
-  uint8_t pixels[MaxPixelSide * MaxPixelSide]{};
+  // At most 64 pixels a side and 1600 in all: the largest grid is 25 × 52 and the classic ESP32 is short of static RAM.
+  static constexpr int MaxPixelSide = 64, MaxPixels = 1600;
+  uint8_t pixels[MaxPixels]{};
   // Gradient look, mirrored by shade() in web/fluid.js: the Pixel Flow palette indices
   // 0 none, 1 surface, 3-6 body from just below the surface to deep.
-  uint8_t look[MaxPixelSide * MaxPixelSide]{};
+  uint8_t look[MaxPixels]{};
 
   float posX(int p) const { return qx[p] * (h / One); }
   float posY(int p) const { return qy[p] * (h / One); }
@@ -301,7 +302,7 @@ class FlipFluid {
   // Pixel (i, j) covers simulation x = originX + i*cellX, y = originY + j*cellY (domain units).
   // Returns false if the grid is too large.
   bool rasterize(int cols, int rows, float originX, float originY, float cellX, float cellY, float gx, float gy) {
-    if (cols < 1 || rows < 1 || cols > MaxPixelSide || rows > MaxPixelSide) return false;
+    if (cols < 1 || rows < 1 || cols > MaxPixelSide || rows > MaxPixelSide || cols * rows > MaxPixels) return false;
     // Pixel geometry in cells; the per-pixel work below is integer only.
     const int32_t left = toQ(originX * span), top = toQ(originY * span), stepX = toQ(cellX * span), stepY = toQ(cellY * span);
     if (stepX < 1 || stepY < 1) return false;
@@ -341,7 +342,7 @@ class FlipFluid {
   // A body pixel keeps its shade until its depth moves a whole pixel past that shade's band,
   // so a surface rippling by one pixel leaves the colours below it still.
   const uint8_t *shade(int cols, int rows, float gx, float gy) {
-    if (cols < 1 || rows < 1 || cols > MaxPixelSide || rows > MaxPixelSide) return look;
+    if (cols < 1 || rows < 1 || cols > MaxPixelSide || rows > MaxPixelSide || cols * rows > MaxPixels) return look;
     if (cols != lookCols || rows != lookRows) { memset(look, 0, sizeof(look)); lookCols = cols; lookRows = rows; }
     const float length = sqrtf(gx*gx+gy*gy), ux = length > 1e-3f ? -gx/length : 0, uy = length > 1e-3f ? -gy/length : -1;
     static const int8_t around[8][2] = {{-1,-1},{0,-1},{1,-1},{-1,0},{1,0},{-1,1},{0,1},{1,1}};

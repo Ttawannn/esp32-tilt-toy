@@ -46,9 +46,10 @@ export class FlipFluid {
     for(const name of ['u','v','oldU','oldV','weightU','weightV','density'])this[name]=new Int32Array(cells);
     this.kind=new Uint8Array(cells);this.head=new Int16Array(cells);this.next=new Int16Array(900);
     for(const name of ['qx','qy','qvx','qvy'])this[name]=new Int32Array(900);
-    this.pixels=new Uint8Array(64*64);
+    // At most 64 pixels a side and 1600 in all, as in the firmware.
+    this.pixels=new Uint8Array(1600);
     // Gradient look: Pixel Flow palette indices 0 none, 1 surface, 3-6 body from just below the surface to deep.
-    this.look=new Uint8Array(64*64);this.lookCols=this.lookRows=0;
+    this.look=new Uint8Array(1600);this.lookCols=this.lookRows=0;
     for(let i=0;i<nx;i++)for(let j=0;j<ny;j++) {
       const dx=(2*i+1)*HALF-this.centerX,dy=(2*j+1)*HALF-this.centerY;
       this.kind[i*ny+j]=(i===0||j===0||i===nx-1||j===ny-1||round&&dx*dx+dy*dy>this.vessel*this.vessel)?SOLID:AIR;
@@ -243,7 +244,7 @@ export class FlipFluid {
   }
   // Pixel (i, j) covers simulation x = originX + i*cellX, y = originY + j*cellY (domain units).
   rasterize(cols,rows,originX,originY,cellX,cellY,gx,gy,cells=this.pixels) {
-    if(cols<1||rows<1||cols>64||rows>64)return false;
+    if(cols<1||rows<1||cols>64||rows>64||cols*rows>1600)return false;
     const left=toQ(f(f(originX)*this.span)),top=toQ(f(f(originY)*this.span)),stepX=toQ(f(f(cellX)*this.span)),stepY=toQ(f(f(cellY)*this.span));
     if(stepX<1||stepY<1)return false;
     const threshold=mul(this.restDensity,26214),outside=this.vessel*this.vessel;
@@ -274,7 +275,7 @@ export class FlipFluid {
   // A body pixel keeps its shade until its depth moves a whole pixel past that shade's band,
   // so a surface rippling by one pixel leaves the colours below it still. Same as the C++ shade().
   shade(cols,rows,gx,gy,cells=this.pixels,look=this.look) {
-    if(cols<1||rows<1||cols>64||rows>64)return look;
+    if(cols<1||rows<1||cols>64||rows>64||cols*rows>1600)return look;
     if(cols!==this.lookCols||rows!==this.lookRows){look.fill(0);this.lookCols=cols;this.lookRows=rows;}
     gx=f(gx);gy=f(gy);
     const length=f(Math.sqrt(f(f(gx*gx)+f(gy*gy)))),ux=length>f(1e-3)?f(-gx/length):0,uy=length>f(1e-3)?f(-gy/length):-1;

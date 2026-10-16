@@ -5,6 +5,7 @@ import { isFlipMode, isLiquidMode, waterForces } from './water-modes.js';
 import { PixelFlow, pixelLayout, forceToQ8, STEP as PIXEL_STEP } from './pixel-flow.js';
 import { RobotEyes } from './robot-eyes.js';
 import { findTheme } from './themes.js';
+import { Puddle, DRY } from './puddle.js';
 
 // Slosh water only: the tilt sliders turn a simulated toy at a real rate, with a matching 100 Hz gyro.
 // A hand speeds up and slows down smoothly: a critically damped spring with limited angular acceleration
@@ -46,8 +47,8 @@ export class TiltInput {
 }
 
 export class ToyPreview {
-  constructor(canvas){this.canvas=canvas;this.ctx=canvas.getContext('2d');this.roll=0;this.pitch=0;this.fill=50;this.showGrid=false;this.mode='water';this.mono=false;this.theme=findTheme('ocean');this.motion=new MotionState();this.robot=new RobotEyes();this.reset();this.last=performance.now();this.running=true;this.bindStir();requestAnimationFrame(t=>this.frame(t));}
-  reset(){this.motion.reset();this.motionTime=0;this.kick={x:0,y:0};this.tilt=this.mode==='water-slosh'?new TiltInput(this.roll,this.pitch):null;if(this.tilt){this.motion.update(this.tilt.sample(0));this.motion.consumeFrame();}this.robot.reset(performance.now());this.layout=fluidLayout(this.canvas.width,this.canvas.height,!!this.round);this.fluid=new FlipFluid(this.layout.nx,this.layout.ny,!!this.round,this.fill);
+  constructor(canvas){this.canvas=canvas;this.ctx=canvas.getContext('2d');this.roll=0;this.pitch=0;this.fill=50;this.showGrid=false;this.mode='water';this.mono=false;this.theme=findTheme('ocean');this.motion=new MotionState();this.robot=new RobotEyes();this.puddle=new Puddle();this.reset();this.last=performance.now();this.running=true;this.bindStir();requestAnimationFrame(t=>this.frame(t));}
+  reset(){this.puddle.reset();this.motion.reset();this.motionTime=0;this.kick={x:0,y:0};this.tilt=this.mode==='water-slosh'?new TiltInput(this.roll,this.pitch):null;if(this.tilt){this.motion.update(this.tilt.sample(0));this.motion.consumeFrame();}this.robot.reset(performance.now());this.layout=fluidLayout(this.canvas.width,this.canvas.height,!!this.round);this.fluid=new FlipFluid(this.layout.nx,this.layout.ny,!!this.round,this.fill);
     const v=this.pixelView=pixelLayout(this.canvas.width,this.canvas.height,!!this.round,this.mono);this.pixelForce=[0,64];this.pixelClock=0;this.pixelFrame=0;this.drops=new PixelFlow(v.cols,v.rows,v.shape,this.fill,1+Math.floor(Math.random()*0x7ffffffe));
   }
   setTilt(roll,pitch){this.roll=roll;this.pitch=pitch;if(this.tilt)this.tilt.setTilt(roll,pitch);else this.motion.reset();}
@@ -102,13 +103,20 @@ export class ToyPreview {
       const forces=slosh?waterForces('water-slosh',g,input.linear,this.motion.omega.z,input.omegaDot):waterForces('water',g);
       f.advance(dt,forces.ax,forces.ay,forces.omega,forces.omegaDot);
       const sx=l.width/((f.nx-2)*f.h),sy=l.height/((f.ny-2)*f.h),left=l.x-cx,top=l.y-cy;
-      const cell=Math.max(3,Math.round(Math.min(l.width,l.height)/34)),cols=Math.min(64,Math.floor(l.width/cell)),rows=Math.min(64,Math.floor(l.height/cell)),ox=(l.width-cols*cell)/2,oy=(l.height-rows*cell)/2;
+      const cell=Math.max(3,Math.round(Math.min(l.width,l.height)/34)),cols=Math.min(64,Math.floor(l.width/cell)),rows=Math.min(64,Math.floor(l.height/cell),Math.floor(1600/Math.max(cols,1))),ox=(l.width-cols*cell)/2,oy=(l.height-rows*cell)/2;
       c.save();c.beginPath();if(this.round)c.arc(0,0,l.width/2,0,Math.PI*2);else c.rect(left,top,l.width,l.height);c.clip();
       if(this.showGrid){c.strokeStyle=this.mono?'#365343':'#184051';c.lineWidth=1;for(let i=0;i<=f.nx-2;i++){const x=left+i*f.h*sx;c.beginPath();c.moveTo(x,top);c.lineTo(x,top+l.height);c.stroke();}for(let j=0;j<=f.ny-2;j++){const y=top+j*f.h*sy;c.beginPath();c.moveTo(left,y);c.lineTo(left+l.width,y);c.stroke();}}
       if(this.pixels?.length!==cols*rows)this.pixels=new Uint8Array(cols*rows);
       pixelWater(f,cols,rows,f.h+ox/sx,f.h+oy/sy,cell/sx,cell/sy,g.x,g.y,this.pixels);
       const shades=this.waterColor==='gradient'?f.shade(cols,rows,g.x,g.y,this.pixels):null;
-      for(let j=0;j<rows;j++)for(let i=0;i<cols;i++){const k=j*cols+i,v=this.pixels[k];if(v===1||v===2){c.fillStyle=this.mono?white:shades?this.theme.shades[shades[k]]:v===2?this.theme.top:this.theme.body;c.fillRect(left+ox+i*cell,top+oy+j*cell,cell-1,cell-1);}}
+      // Lying flat shows the water from above, as on the toy; an OLED draws the puddle as dots with a solid shore.
+      const puddle=this.puddle.update(dt,g.x,g.y,g.z,this.pixels,cols,rows,this.fill)?this.puddle.look:null;
+      for(let j=0;j<rows;j++)for(let i=0;i<cols;i++){
+        const k=j*cols+i,p=puddle&&k<puddle.length?puddle[k]:0,v=this.pixels[k];let color=null;
+        if(p){if(p!==DRY&&!(this.mono&&p>1&&(i+j)&1))color=this.mono?white:shades?this.theme.shades[p]:p===1?this.theme.top:this.theme.body;}
+        else if(v===1||v===2)color=this.mono?white:shades?this.theme.shades[shades[k]]:v===2?this.theme.top:this.theme.body;
+        if(color){c.fillStyle=color;c.fillRect(left+ox+i*cell,top+oy+j*cell,cell-1,cell-1);}
+      }
       c.restore();
     } else if(this.mode==='robot'){
       const clamp=v=>Math.max(-1,Math.min(1,v));

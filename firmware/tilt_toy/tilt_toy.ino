@@ -17,6 +17,7 @@
 #include "toy_modes.h"
 #include "robot_eyes.h"
 #include "themes.h"
+#include "puddle.h"
 
 // One shared renderer; each release selects a concrete panel initializer.
 #if DISPLAY_PROFILE == 0 || DISPLAY_PROFILE == 5
@@ -61,11 +62,13 @@ float gyroXBias = 0, gyroYBias = 0, gyroZBias = 0;
 FlipFluid fluid;
 PixelDrops drops;
 RobotEyes robot;
+// Top view of the water while the toy lies flat.
+Puddle puddle;
 PixelDrops::Layout pixelView{};
 // Cells as last sent to the panel, so each frame only rewrites drops that changed.
 uint8_t shownLook[PixelDrops::MaxCells];
 bool pixelScreenValid = false;
-uint8_t shownWater[FlipFluid::MaxPixelSide * FlipFluid::MaxPixelSide];
+uint8_t shownWater[FlipFluid::MaxPixels];
 bool waterScreenValid = false;
 uint32_t pixelClock = 0, pixelFrame = 0;
 int pixelAx = 0, pixelAy = 64;
@@ -91,6 +94,7 @@ float limit(float value, float low, float high) { return fmaxf(low, fminf(high, 
 
 void resetMode() {
   pixelScreenValid = waterScreenValid = false;
+  puddle.reset();
   if (scene) {
     const float w = scene->width()-4, h = scene->height()-4;
     const float shortest = fminf(w,h);
@@ -180,7 +184,7 @@ WaterView prepareWaterPixels(float gx, float gy) {
   const float viewW = scene->width()-left*2, viewH = scene->height()-top*2;
   const float scaleX = viewW/((fluid.nx-2)*fluid.h), scaleY = viewH/((fluid.ny-2)*fluid.h);
   const int cell = max(3,(int)lroundf(fminf(viewW,viewH)/34));
-  const int cols = min((int)FlipFluid::MaxPixelSide,(int)(viewW/cell)), rows = min((int)FlipFluid::MaxPixelSide,(int)(viewH/cell));
+  const int cols = min((int)FlipFluid::MaxPixelSide,(int)(viewW/cell)), rows = min(min((int)FlipFluid::MaxPixelSide,(int)(viewH/cell)),FlipFluid::MaxPixels/max(cols,1));
   const float ox = left+(viewW-cols*cell)*.5f, oy = top+(viewH-rows*cell)*.5f;
   fluid.rasterize(cols,rows,fluid.h+(ox-left)/scaleX,fluid.h+(oy-top)/scaleY,cell/scaleX,cell/scaleY,gx,gy);
   if (gradientWater) fluid.shade(cols,rows,gx,gy);
@@ -189,13 +193,24 @@ WaterView prepareWaterPixels(float gx, float gy) {
 uint16_t pixelColor(uint8_t shade);
 // Palette index of water pixel c: two-tone 1 body and 2 surface, or the gradient's Pixel Flow shades.
 uint8_t waterLook(int c) {
+  if (c < Puddle::MaxCells && puddle.look[c]) return puddle.look[c] == Puddle::Dry ? 0 : 16 + puddle.look[c];
   const uint8_t value = fluid.pixels[c];
   return value == 1 || value == 2 ? (gradientWater ? fluid.look[c] : value) : 0;
 }
 uint16_t waterColor(uint8_t value) {
-  if (gradientWater) return pixelColor(value);
   const ThemeColors &colors = themes[theme];
+  if (value >= 16) {
+    // Puddle: shore in the surface colour; depth shades in the gradient, one body colour in two-tone.
+    if (gradientWater) return pixelColor(value - 16);
+    return value == 17 ? rgb(colors.top[0],colors.top[1],colors.top[2]) : rgb(colors.body[0],colors.body[1],colors.body[2]);
+  }
+  if (gradientWater) return pixelColor(value);
   return value == 2 ? rgb(colors.top[0],colors.top[1],colors.top[2]) : value == 1 ? rgb(colors.body[0],colors.body[1],colors.body[2]) : 0;
+}
+// Lying flat shows the water from above; the side view keeps running underneath. Call after prepareWaterPixels().
+void updatePuddle(float dt, int cols, int rows) {
+  if (imuReady && motion.ready) puddle.update(dt,motion.gravity.x,motion.gravity.y,motion.gravity.z,fluid.pixels,cols,rows,fillPercent);
+  else puddle.reset();
 }
 // Water follows tilt only; slosh water also takes the frame's translation and turning.
 void advanceWater(float dt, MotionVector linearFrame, float angularAcceleration) {
@@ -218,6 +233,7 @@ bool drawWaterDirect(float dt) {
   advanceWater(dt,linearFrame,angularAcceleration);
   const float theta = roll*PI/180;
   const WaterView view = prepareWaterPixels(sinf(theta)*sensitivity,cosf(theta)*sensitivity);
+  updatePuddle(dt,view.cols,view.rows);
   const int cells = view.cols*view.rows;
   panel.startWrite();
   if (!waterScreenValid) {
@@ -387,8 +403,11 @@ void renderGame(float dt) {
   } else if (isFlipMode(activeMode)) {
     advanceWater(dt,linearFrame,angularAcceleration);
     const WaterView view = prepareWaterPixels(gx,gy);
+    updatePuddle(dt,view.cols,view.rows);
     for (int j=0;j<view.rows;j++) for (int i=0;i<view.cols;i++) {
       const uint8_t value = waterLook(j*view.cols+i);
+      // OLED: a lying puddle is a dot pattern with a solid shore, not a white screen.
+      if (DISPLAY_PROFILE == 4 && value > 17 && ((i+j)&1)) continue;
       if (value) scene->fillRect(view.x+i*view.cell,view.y+j*view.cell,view.cell-1,view.cell-1,waterColor(value));
     }
   } else if (activeMode == Pet) {
