@@ -14,7 +14,7 @@ For the Thai documentation, open [README.th.md](README.th.md). The device settin
 
 ## Since v0.1.4
 
-- **Three modes**: Slosh water, Pixel Flow, and Robot eyes. Liquid and Pocket eyes were removed, as were Inertia, Swirl, and Full-motion water, Tilt maze, Snow globe, Orbit pong, and Shake & roll. A toy saved on Liquid starts on Slosh water, and one saved on Pocket eyes starts on Robot eyes.
+- **Five modes**: Slosh water, Pixel Flow, Robot eyes, Heart, and Message. Liquid and Pocket eyes were removed, as were Inertia, Swirl, and Full-motion water, Tilt maze, Snow globe, Orbit pong, and Shake & roll. A toy saved on Liquid starts on Slosh water, and one saved on Pocket eyes starts on Robot eyes.
 - **Robot eyes** with eight moods, chosen on the phone, or *Play all moods* to cycle through them. See [Device modes](#device-modes).
 - **Rest when still, wake when picked up**: after lying still (gravity within about 4°, nothing shaking or turning it) for 2 minutes, the toy rests: the screen goes off and the CPU light-sleeps, checking the sensor every 0.2 s. Tilting it more than about 12°, turning it, shaking it, or pressing BOOT wakes it; that BOOT press does nothing else. Robot eyes turn sleepy for the last 4 seconds. The phone page sets 1, 2, 5 or 10 minutes or never (`rest`, NVS `restMin`); Wi-Fi and axis setup keep it awake. The TFT backlight is wired to the supply, so it stays lit while resting: switching it needs a transistor on BLK, and a sensor interrupt wire would allow deep sleep later.
 - **Axis setup on the toy**: hold BOOT for 5 seconds (or tap *Auto axis setup* on the phone page). Lay the toy flat with the screen up until the bar fills, then stand it on its bottom edge. It works out which sensor axis points where and saves it, so the module can be mounted in any square orientation. The bar fills while the measured gravity stays within about 3° of its recent direction, so an uncalibrated gyro or a slightly off accelerometer scale does not stop it; Serial Monitor prints the held time, direction change, spin and acceleration every second.
@@ -42,7 +42,7 @@ This implements the motion foundation and the water modes of the 6DOF plan.
 
 ## Device modes
 
-Every firmware includes three modes. Tap the **onboard BOOT button** to cycle through them. The full display is a play area, without mode labels, numbers, or frames; those values appear on the phone page. On-device text is limited to the Wi-Fi name and IP address during setup, and `IMU NOT FOUND` when the sensor is missing.
+Every firmware includes five modes. Tap the **onboard BOOT button** to cycle through them. The full display is a play area, without mode labels, numbers, or frames; those values appear on the phone page. On-device text is limited to the Wi-Fi name and IP address during setup, and `IMU NOT FOUND` when the sensor is missing.
 
 | Mode | How to play |
 | --- | --- |
@@ -50,6 +50,8 @@ Every firmware includes three modes. Tap the **onboard BOOT button** to cycle th
 | **Lying flat** | Slosh water switches to a view from above: after 0.4 s within about 9° of flat, the water spreads from where it was over the whole floor, darker in the middle like a shallow dish. A small tilt drains the high side to bare floor with a light shoreline; standing the toy up past about 17° draws it back into the side view. The tilt is smoothed and shades change only past a margin, so sensor noise does not flicker it. A shake while it lies flat (or *Shake* on the phone page) sends a ring out from the middle: a light crest with a deeper band behind it, up to three at once, gone past the rim in under a second. The web preview has a *Lay flat* button; tapping its screen while flat drops a ring where you tap. |
 | **Pixel Flow (`pixel-flow`)** | LED-style water drops. Tilt to flow, jolt to surge, and shake to splash. |
 | **Robot eyes (`robot`)** | Robot eyes that blink, glance around, and follow your tilt. Pick a mood on the phone: normal, happy, angry, sad, sleepy, surprised, suspicious, or in love; *Play all moods* (`auto`) shows each one for 3.5 s in turn. A shake makes them dizzy: spinning spirals for about 2 s (longer if you keep shaking), then back to the mood. |
+| **Heart (`heart`)** | A heart on a 60 × 60 LED-dot board beats lub-dub every 1.1 s, shaded from the upper left. It leans and slides with the tilt; a shake bursts out little hearts that float up against gravity and fade, and now and then one rises on its own. |
+| **Message (`message`)** | Your message on an LED board, scrolling right to left (slow, normal or fast) or still and centred, wrapped to fit (inside the circle on a round display). Lit dots use the theme's eye colour; unlit dots stay faintly visible. Type it on the phone page and tap *Send*: the phone draws the text with its own fonts, so Thai and emoji work, and sends the dots; the toy keeps them in NVS. Before anything is sent it shows HELLO. A shake bounces the text. The web preview has the same text box and styles. |
 
 ### FLIP/PIC water
 
@@ -58,7 +60,7 @@ The fluid simulation uses a FLIP/PIC solver on a MAC grid, adapted from Matthias
 - `firmware/tilt_toy/flip_fluid.h`: C++ with fixed storage for up to 400 cells and 900 particles, about 32 KB including the pixel grid. No runtime allocation.
 - `web/fluid.js`: JavaScript for the web preview, mirroring each integer operation. A test runs 300 mixed-force steps in both and requires every value to match.
 
-Slosh water and Pixel Flow support 10–90% fill. BOOT order: Slosh water → Pixel Flow → Robot eyes. NVS key `mode3` stores 0 Slosh water, 1 Pixel Flow, 2 Robot eyes; `robotMood` stores the chosen mood, `waterShade` the water colour (depth gradient unless two-tone was chosen) and `theme` the colour theme. Earlier firmware saved five modes under `toyMode` or ten under `mode`; the first boot converts either, starting Liquid on Slosh water and Pocket eyes on Robot eyes.
+Slosh water and Pixel Flow support 10–90% fill. BOOT order: Slosh water → Pixel Flow → Robot eyes → Heart → Message. NVS key `mode3` stores 0 Slosh water, 1 Pixel Flow, 2 Robot eyes, 3 Heart, 4 Message; `robotMood` stores the chosen mood, `waterShade` the water colour (depth gradient unless two-tone was chosen) and `theme` the colour theme. Earlier firmware saved five modes under `toyMode` or ten under `mode`; the first boot converts either, starting Liquid on Slosh water and Pocket eyes on Robot eyes.
 
 Both implementations use a fixed 25 ms step (at most two per frame, so a late frame cannot snowball), a circular vessel for GC9A01, linked-cell neighbor lookup, and gravity from the detected sensor's motion filter. Slosh water takes tilt, the frame's translation and the Euler, Coriolis, and centrifugal forces of turning about the screen axis. Grid dimensions depend on the display; the round display uses 20×20.
 
@@ -153,7 +155,7 @@ The device page shows the board name and detected sensor name/address. Keep the 
 | `POST /api/shake` · `/api/calibrate` · `/api/close` | Shake, calibrate gyro, close Wi-Fi |
 | `GET /license` | FLIP solver MIT license |
 
-Accepted mode IDs: `water-slosh`, `pixel-flow`, `robot`. Accepted `mood` IDs: `auto`, `normal`, `happy`, `angry`, `sad`, `tired`, `surprised`, `suspicious`, `love`. Accepted `waterColor`: `gradient` (the default: Slosh water shaded by depth in the Pixel Flow palette, without its shimmer; a pixel changes shade only when its depth moves past its band by a whole pixel, so ripples do not flicker the water below) or `classic` (two-tone). Accepted `rest`: minutes lying still before the toy rests, 0 to 60 (0 never; the page offers 0, 1, 2, 5, 10). Accepted `theme`: `ocean` (the original blue), `lava`, `slime`, `grape`, `candy`, `aurora`; it colours Slosh water, Pixel Flow and Robot eyes, and the web preview offers the same swatches.
+Accepted mode IDs: `water-slosh`, `pixel-flow`, `robot`, `heart`, `message`. `GET /api/message` returns the text, style, speed, dot grid and whether the display is round; `POST /api/message` takes `text`, `style` (`scroll` or `still`), `speed` (dots per second), a 24-row banner (`sw` columns, base64 `sbits`) and a still picture for the grid (`cols`, `rows`, base64 `cbits`), both 1-bit, packed column by column (bit x × height + y), and switches to Message. Accepted `mood` IDs: `auto`, `normal`, `happy`, `angry`, `sad`, `tired`, `surprised`, `suspicious`, `love`. Accepted `waterColor`: `gradient` (the default: Slosh water shaded by depth in the Pixel Flow palette, without its shimmer; a pixel changes shade only when its depth moves past its band by a whole pixel, so ripples do not flicker the water below) or `classic` (two-tone). Accepted `rest`: minutes lying still before the toy rests, 0 to 60 (0 never; the page offers 0, 1, 2, 5, 10). Accepted `theme`: `ocean` (the original blue), `lava`, `slime`, `grape`, `candy`, `aurora`; it colours Slosh water, Pixel Flow and Robot eyes, and the web preview offers the same swatches.
 
 ## Local development
 
@@ -200,7 +202,7 @@ The sensor driver uses `Wire` directly; no additional sensor library is needed. 
 
 ## Repository layout
 
-- `firmware/tilt_toy/`: sketch, IMU, 3 modes, FLIP and Pixel Flow solvers, robot eyes, Wi-Fi UI, NVS.
+- `firmware/tilt_toy/`: sketch, IMU, 5 modes, FLIP and Pixel Flow solvers, robot eyes, Wi-Fi UI, NVS.
 - `web/`: installer, preview, English/Thai UI copy in `i18n.js`, profile contract, firmware artifacts, and licenses.
 - `scripts/`: web build, firmware build/merge, and local server.
 - `tests/`: profiles, wiring, binary chip/header, partitions, checksums, source hashes, and motion/simulation parity.

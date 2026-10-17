@@ -30,7 +30,9 @@ const robotSource = (await readFile(join(root, 'firmware', 'tilt_toy', 'robot_ey
 const themeSource = (await readFile(join(root, 'firmware', 'tilt_toy', 'themes.h'), 'utf8')).replace(/\r\n/g, '\n');
 const puddleSource = (await readFile(join(root, 'firmware', 'tilt_toy', 'puddle.h'), 'utf8')).replace(/\r\n/g, '\n');
 const restSource = (await readFile(join(root, 'firmware', 'tilt_toy', 'rest.h'), 'utf8')).replace(/\r\n/g, '\n');
-const sourceSha256 = createHash('sha256').update(sketchSource+'\n'+configSource+'\n'+fluidSource+'\n'+motionSource+'\n'+stateSource+'\n'+modesSource+'\n'+pixelSource+'\n'+robotSource+'\n'+themeSource+'\n'+puddleSource+'\n'+restSource).digest('hex');
+const heartSource = (await readFile(join(root, 'firmware', 'tilt_toy', 'heart.h'), 'utf8')).replace(/\r\n/g, '\n');
+const messageSource = (await readFile(join(root, 'firmware', 'tilt_toy', 'message.h'), 'utf8')).replace(/\r\n/g, '\n');
+const sourceSha256 = createHash('sha256').update(sketchSource+'\n'+configSource+'\n'+fluidSource+'\n'+motionSource+'\n'+stateSource+'\n'+modesSource+'\n'+pixelSource+'\n'+robotSource+'\n'+themeSource+'\n'+puddleSource+'\n'+restSource+'\n'+heartSource+'\n'+messageSource).digest('hex');
 
 function run(command, args, logPath) {
   return new Promise((yes,no) => {
@@ -80,6 +82,8 @@ await parallelBuilds(selectedBoards, parallelBoards, async board => {
     await writeIfChanged(join(staging, 'themes.h'), themeSource);
     await writeIfChanged(join(staging, 'puddle.h'), puddleSource);
     await writeIfChanged(join(staging, 'rest.h'), restSource);
+    await writeIfChanged(join(staging, 'heart.h'), heartSource);
+    await writeIfChanged(join(staging, 'message.h'), messageSource);
     for(const p of selectedProfiles) {
       console.log(`Compiling ${p.id} for ${board.name} / 4MB…`);
       const output=join(boardWork,p.id); await mkdir(output,{recursive:true});

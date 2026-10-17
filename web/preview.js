@@ -6,6 +6,8 @@ import { PixelFlow, pixelLayout, forceToQ8, STEP as PIXEL_STEP } from './pixel-f
 import { RobotEyes } from './robot-eyes.js';
 import { findTheme } from './themes.js';
 import { Puddle, DRY } from './puddle.js';
+import { HeartBeat, HEART_SHADES, heartBeat, heartShade, sparkDot } from './heart.js';
+import { BannerScroll, dotAt, dotGrid, renderBanner, renderStill } from './message.js';
 
 // Slosh water only: the tilt sliders turn a simulated toy at a real rate, with a matching 100 Hz gyro.
 // A hand speeds up and slows down smoothly: a critically damped spring with limited angular acceleration
@@ -47,8 +49,8 @@ export class TiltInput {
 }
 
 export class ToyPreview {
-  constructor(canvas){this.canvas=canvas;this.ctx=canvas.getContext('2d');this.roll=0;this.pitch=0;this.fill=50;this.showGrid=false;this.mode='water-slosh';this.mono=false;this.waterColor='gradient';this.theme=findTheme('ocean');this.motion=new MotionState();this.robot=new RobotEyes();this.puddle=new Puddle();this.reset();this.last=performance.now();this.running=true;this.bindStir();requestAnimationFrame(t=>this.frame(t));}
-  reset(){this.puddle.reset();this.motion.reset();this.motionTime=0;this.kick={x:0,y:0};this.tilt=this.mode==='water-slosh'?new TiltInput(this.roll,this.pitch):null;if(this.tilt){this.motion.update(this.tilt.sample(0));this.motion.consumeFrame();}this.robot.reset(performance.now());this.layout=fluidLayout(this.canvas.width,this.canvas.height,!!this.round);this.fluid=new FlipFluid(this.layout.nx,this.layout.ny,!!this.round,this.fill);
+  constructor(canvas){this.canvas=canvas;this.ctx=canvas.getContext('2d');this.roll=0;this.pitch=0;this.fill=50;this.showGrid=false;this.mode='water-slosh';this.mono=false;this.waterColor='gradient';this.theme=findTheme('ocean');this.motion=new MotionState();this.robot=new RobotEyes();this.puddle=new Puddle();this.heart=new HeartBeat();this.scroll=new BannerScroll();this.message={text:'Hello ♥',still:false,speed:30};this.messageBounce=-1e9;this.reset();this.last=performance.now();this.running=true;this.bindStir();requestAnimationFrame(t=>this.frame(t));}
+  reset(){this.puddle.reset();this.heart.reset(performance.now(),1+Math.floor(Math.random()*0x7ffffffe));this.scroll.restart();this.pictures=null;this.motion.reset();this.motionTime=0;this.kick={x:0,y:0};this.tilt=this.mode==='water-slosh'?new TiltInput(this.roll,this.pitch):null;if(this.tilt){this.motion.update(this.tilt.sample(0));this.motion.consumeFrame();}this.robot.reset(performance.now());this.layout=fluidLayout(this.canvas.width,this.canvas.height,!!this.round);this.fluid=new FlipFluid(this.layout.nx,this.layout.ny,!!this.round,this.fill);
     const v=this.pixelView=pixelLayout(this.canvas.width,this.canvas.height,!!this.round,this.mono);this.pixelForce=[0,64];this.pixelClock=0;this.pixelFrame=0;this.drops=new PixelFlow(v.cols,v.rows,v.shape,this.fill,1+Math.floor(Math.random()*0x7ffffffe));
   }
   setTilt(roll,pitch){this.roll=roll;this.pitch=pitch;if(this.tilt)this.tilt.setTilt(roll,pitch);else this.motion.reset();}
@@ -76,7 +78,14 @@ export class ToyPreview {
   setTheme(id){this.theme=findTheme(id);}
   // Water and slosh water: 'classic' two-tone or 'gradient' depth shades in the Pixel Flow palette.
   setWaterColor(look){this.waterColor=look==='gradient'?'gradient':'classic';}
-  shake(){this.robot.react(performance.now());this.puddle.ripple(0,0);this.fluid.impulse(Math.sin(this.roll*Math.PI/180),Math.cos(this.roll*Math.PI/180));this.drops.shake(...this.pixelForce);}
+  // The message as the phone page would send it: drawn by the browser into dot pictures for this display's grid.
+  setMessage(text,still,speed){this.message={text:text||'♥',still:!!still,speed};this.pictures=null;this.scroll.restart();}
+  messagePictures(grid){
+    if(this.pictures?.cols===grid.cols&&this.pictures?.rows===grid.rows)return this.pictures;
+    const text=this.message.text,ready=typeof document!=='undefined';
+    return this.pictures={cols:grid.cols,rows:grid.rows,banner:ready?renderBanner(text):null,still:ready?renderStill(text,grid.cols,grid.rows,!!this.round):null};
+  }
+  shake(){this.robot.react(performance.now());this.puddle.ripple(0,0);this.messageBounce=performance.now();if(this.mode==='heart'){const g=dotGrid(this.canvas.width,this.canvas.height);this.heart.burst(g.cols/2,g.rows/2);}this.fluid.impulse(Math.sin(this.roll*Math.PI/180),Math.cos(this.roll*Math.PI/180));this.drops.shake(...this.pixelForce);}
   bindStir(){const canvas=this.canvas;let previous=null;
     const point=e=>{const box=canvas.getBoundingClientRect(),l=this.layout,f=this.fluid,px=(e.clientX-box.left)*canvas.width/box.width,py=(e.clientY-box.top)*canvas.height/box.height;return {px,py,x:f.h+(px-l.x)/l.width*(f.nx-2)*f.h,y:f.h+(py-l.y)/l.height*(f.ny-2)*f.h,time:e.timeStamp};};
     canvas.addEventListener('pointerdown',e=>{
@@ -120,6 +129,26 @@ export class ToyPreview {
         if(color){c.fillStyle=color;c.fillRect(left+ox+i*cell,top+oy+j*cell,cell-1,cell-1);}
       }
       c.restore();
+    } else if(this.mode==='heart'){
+      // Beating heart on the dot grid; little hearts rise against gravity.
+      const grid=dotGrid(w,h),now=t*1000,tilt=Math.max(-1,Math.min(1,gx)),hx=(grid.cols-1)/2+tilt*grid.cols*.06,hy=(grid.rows-1)/2;
+      const size=Math.min(grid.cols,grid.rows)*.3*(1+.1*heartBeat(now)),length=Math.hypot(gx,gy),dot=grid.pitch>2?grid.pitch-1:grid.pitch;
+      this.heart.step(dt,length>.05?-gx/length:0,length>.05?-gy/length:-1,now,hx,hy,size);
+      const fill=(i,j,shade)=>{c.fillStyle=this.mono?white:HEART_SHADES[shade];c.fillRect(grid.x+i*grid.pitch-cx,grid.y+j*grid.pitch-cy,dot,dot);};
+      for(let j=0;j<grid.rows;j++)for(let i=0;i<grid.cols;i++){const s=heartShade(i,j,hx,hy,size,tilt*.45);if(s)fill(i,j,s);}
+      for(const s of this.heart.sparks){if(s.life<=0)continue;const shade=s.life>1?3:s.life>.5?2:1,x0=Math.round(s.x)-2,y0=Math.round(s.y)-2;
+        for(let dy=0;dy<4;dy++)for(let dx=0;dx<5;dx++){const i=x0+dx,j=y0+dy;if(sparkDot(dx,dy)&&i>=0&&i<grid.cols&&j>=0&&j<grid.rows)fill(i,j,shade);}}
+    } else if(this.mode==='message'){
+      // LED board: unlit dots stay faintly visible; a shake bounces the text.
+      const grid=dotGrid(w,h),pictures=this.messagePictures(grid),still=this.message.still,picture=still?pictures.still:pictures.banner,dot=grid.pitch>2?grid.pitch-1:grid.pitch;
+      if(!still&&picture)this.scroll.advance(dt,this.message.speed,picture.width,grid.cols);
+      const since=performance.now()-this.messageBounce,bounce=since<600?Math.round(-Math.sin(since/600*3*Math.PI)*3*(1-since/600)):0;
+      const top=picture?Math.trunc((grid.rows-picture.height)/2)+bounce:0,left=picture?Math.trunc((grid.cols-picture.width)/2):0;
+      for(let j=0;j<grid.rows;j++)for(let i=0;i<grid.cols;i++){
+        const on=dotAt(picture,still?i-left:this.scroll.bannerColumn(i,grid.cols),j-top);
+        if(!on&&this.mono)continue;
+        c.fillStyle=on?(this.mono?white:this.theme.eye):'#10141e';c.fillRect(grid.x+i*grid.pitch-cx,grid.y+j*grid.pitch-cy,dot,dot);
+      }
     } else {
       const clamp=v=>Math.max(-1,Math.min(1,v));
       this.robot.draw(c,w,h,t*1000,dt,clamp(gx),clamp(-Math.sin(this.pitch*Math.PI/180)),this.mono?white:this.theme.eye,this.mono?white:'#ff468c',this.mono?'#060b08':'#041419');

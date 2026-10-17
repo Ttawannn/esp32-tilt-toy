@@ -6,8 +6,8 @@ import { ToyPreview } from '../web/preview.js';
 import { RobotEyes, MOODS, eyeShape } from '../web/robot-eyes.js';
 
 const gravity={x:.3,y:.4,z:.5},linear={x:12,y:-8,z:3},zero={x:0,y:0,z:0};
-test('three modes: slosh water and pixel-flow are liquids, robot eyes are not',()=>{
-  assert.deepEqual(modes.map(m=>m.id),['water-slosh','pixel-flow','robot']);
+test('five modes: slosh water and pixel-flow are liquids; robot eyes, heart and message are not',()=>{
+  assert.deepEqual(modes.map(m=>m.id),['water-slosh','pixel-flow','robot','heart','message']);
   assert.deepEqual(modes.filter(m=>isFlipMode(m.id)).map(m=>m.id),['water-slosh']);
   assert.deepEqual(modes.filter(m=>isLiquidMode(m.id)).map(m=>m.id),['water-slosh','pixel-flow']);
 });

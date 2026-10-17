@@ -2,8 +2,8 @@
 #include "motion_state.h"
 
 // NVS "mode3" holds these indices, which are also the BOOT order.
-enum ToyMode { WaterSlosh = 0, PixelFlow, Robot, ModeCount };
-static const char *const modeIds[ModeCount] = {"water-slosh", "pixel-flow", "robot"};
+enum ToyMode { WaterSlosh = 0, PixelFlow, Robot, Heart, Message, ModeCount };
+static const char *const modeIds[ModeCount] = {"water-slosh", "pixel-flow", "robot", "heart", "message"};
 // Five-mode firmware stored "toyMode": 0 water, 1 pixel-flow, 2 pocket eyes, 3 robot, 4 water-slosh.
 // Plain water becomes slosh water and the pocket eyes become robot eyes.
 inline int modeFromToyMode(int old) { return old == 1 ? PixelFlow : old == 2 || old == 3 ? Robot : WaterSlosh; }

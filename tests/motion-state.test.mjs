@@ -5,6 +5,7 @@ import { mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { MotionState, validAxes, GRAVITY } from '../web/motion.js';
 import { Puddle } from '../web/puddle.js';
+import { dotGrid, packBits, dotAt } from '../web/message.js';
 import { FlipFluid, pixelWater } from '../web/fluid.js';
 import { waterForces } from '../web/water-modes.js';
 
@@ -76,7 +77,7 @@ test('C++/JS fusion, forces and fixed-point water agree; C++ survives 1000 mixed
   const args=msvc?['/nologo','/std:c++17','/EHsc','/W4',`/I${includes}`,src,`/Fe:${exe}`,`/Fo:${resolve(dir,'parity.obj')}`]:['-std=c++17','-Wall','-Wextra','-Werror',`-I${includes}`,src,'-o',exe];
   const build=spawnSync(compiler,args,{cwd:dir,windowsHide:true,encoding:'utf8'});assert.equal(build.status,0,build.stdout+build.stderr);
   const input=[],expected=[],motion=new MotionState(),fluid=new FlipFluid(8,8,true,50);
-  for(const [id,mode]of [[0,'water-slosh'],[1,'pixel-flow'],[2,'robot']]){
+  for(const [id,mode]of [[0,'water-slosh'],[1,'pixel-flow'],[2,'robot'],[3,'heart'],[4,'message']]){
     input.push(`W ${id} .3 .4 .5 12 -8 3 2 10`);
     expected.push(Object.values(waterForces(mode,{x:.3,y:.4,z:.5},{x:12,y:-8,z:3},2,10)));
   }
@@ -119,6 +120,15 @@ test('C++/JS fusion, forces and fixed-point water agree; C++ survives 1000 mixed
     expected.push([run.count,run.restDensity,...Array.from({length:run.count},(_,p)=>[run.qx[p],run.qy[p],run.qvx[p],run.qvy[p]]).flat(),...cells,...run.shade(cols,rows,view[4],view[5],cells).subarray(0,cols*rows)]);
   };
   exact(20,20,true,60,33,33);exact(18,18,false,40,33,33);exact(10,18,false,75,19,39);exact(19,10,false,50,40,20);
+  // Dot grids for every panel size, and a picture packed in JS read back by the firmware dot by dot.
+  for(const [w,h] of [[240,240],[80,160],[160,80],[128,64]]){input.push(`G ${w} ${h}`);const g=dotGrid(w,h);expected.push([g.pitch,g.cols,g.rows,g.x,g.y]);}
+  {
+    const w=13,h=24,rgba=new Uint8Array(w*h*4);for(let k=0;k<w*h;k++)rgba[k*4]=(k*7%11)<4?255:0;
+    const bits=packBits(rgba,w,h),picture={bits,width:w,height:h};
+    input.push(`D ${w} ${h} ${[...bits].join(' ')}`);
+    const dots=[];for(let y=0;y<h;y++)for(let x=0;x<w;x++)dots.push(dotAt(picture,x,y)?1:0);expected.push(dots);
+    assert.deepEqual(dots,Array.from({length:w*h},(_,k)=>{const x=k%w,y=Math.floor(k/w);return ((y*w+x)*7%11)<4?1:0;}),'JS reads back what it packed');
+  }
   // Puddle: standing, lying flat with sensor noise and ripples (four, so the oldest makes way), a small tilt,
   // then standing up again, step for step. A ripple while standing is refused.
   const rings={5:[0,0],52:[0,0],55:[8,-6],57:[-10,4],58:[3,3]};

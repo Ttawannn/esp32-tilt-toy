@@ -5,10 +5,12 @@
 #include "../../firmware/tilt_toy/flip_fluid.h"
 #include "../../firmware/tilt_toy/toy_modes.h"
 #include "../../firmware/tilt_toy/puddle.h"
+#include "../../firmware/tilt_toy/message.h"
 
 int main() {
-  assert(WaterSlosh==0 && PixelFlow==1 && Robot==2 && ModeCount==3);
-  assert(nextToyMode(WaterSlosh)==PixelFlow && nextToyMode(PixelFlow)==Robot && nextToyMode(Robot)==WaterSlosh && nextToyMode(-1)==WaterSlosh);
+  assert(WaterSlosh==0 && PixelFlow==1 && Robot==2 && Heart==3 && Message==4 && ModeCount==5);
+  assert(nextToyMode(WaterSlosh)==PixelFlow && nextToyMode(PixelFlow)==Robot && nextToyMode(Robot)==Heart && nextToyMode(Heart)==Message && nextToyMode(Message)==WaterSlosh && nextToyMode(-1)==WaterSlosh);
+  assert(!isLiquidMode(Heart) && !isLiquidMode(Message) && !isFlipMode(Heart));
   assert(isFlipMode(WaterSlosh) && !isFlipMode(PixelFlow) && !isFlipMode(Robot));
   assert(isLiquidMode(WaterSlosh) && isLiquidMode(PixelFlow) && !isLiquidMode(Robot));
   // Five-mode "toyMode": water and slosh become slosh water, the pocket eyes become robot eyes.
@@ -98,6 +100,21 @@ int main() {
       std::cout << fluid.count;
       for (int p=0;p<fluid.count;p++) std::cout << ' ' << fluid.posX(p) << ' ' << fluid.posY(p) << ' ' << fluid.velX(p) << ' ' << fluid.velY(p);
       std::cout << '\n';
+    } else if (kind == 'G') {
+      // Dot grid for a panel size.
+      int width, height; std::cin >> width >> height;
+      const DotGrid grid = dotGrid(width, height);
+      std::cout << grid.pitch << ' ' << grid.cols << ' ' << grid.rows << ' ' << grid.x << ' ' << grid.y << '\n';
+    } else if (kind == 'D') {
+      // A picture packed by web/message.js, read back dot by dot.
+      int width, height; std::cin >> width >> height;
+      const size_t bytes = DotBitmap::bytesFor(width, height);
+      DotBitmap picture; uint8_t *bits = (uint8_t *)malloc(bytes);
+      for (size_t k = 0; k < bytes; k++) { int value; std::cin >> value; bits[k] = (uint8_t)value; }
+      picture.assign(bits, width, height);
+      for (int y = 0; y < height; y++) for (int x = 0; x < width; x++) std::cout << (x || y ? " " : "") << (int)picture.dot(x, y);
+      std::cout << '\n';
+      picture.assign(nullptr, 0, 0);
     } else if (kind == 'P') {
       // Puddle: a still side-view raster (lower half water), then gravity steps; one line of cells per step.
       int cols, rows, circular, steps; float fill; std::cin >> cols >> rows >> circular >> fill >> steps;

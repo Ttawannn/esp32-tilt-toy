@@ -46,7 +46,7 @@ for(const board of releaseBoards) for(const profile of profiles)test(`release ${
   assert.throws(()=>validateFirmwareImage(binary.subarray(0,32),board));
   assert.ok(binary.includes(Buffer.from(board.id+'\0')), 'image must contain its runtime board ID');
   assert.ok(binary.includes(Buffer.from(profile.id+'\0')), 'image must contain its complete runtime profile ID');
-  for (const mode of ['water-slosh','pixel-flow','robot']) assert.ok(binary.includes(Buffer.from(mode+'\0')), `image must contain the ${mode} mode`);
+  for (const mode of ['water-slosh','pixel-flow','robot','heart','message']) assert.ok(binary.includes(Buffer.from(mode+'\0')), `image must contain the ${mode} mode`);
   for (const removed of ['water-inertia','water-swirl','water-full','maze','dice']) assert.ok(!binary.includes(Buffer.from(removed+'\0')), `image must not contain the removed ${removed} mode`);
   assert.equal(binary.length,release.size);
   assert.equal(createHash('sha256').update(binary).digest('hex'),release.sha256);
@@ -73,7 +73,9 @@ for(const board of releaseBoards) for(const profile of profiles)test(`release ${
   const themes = (await readFile(new URL('../firmware/tilt_toy/themes.h',import.meta.url),'utf8')).replace(/\r\n/g,'\n');
   const puddle = (await readFile(new URL('../firmware/tilt_toy/puddle.h',import.meta.url),'utf8')).replace(/\r\n/g,'\n');
   const restHeader = (await readFile(new URL('../firmware/tilt_toy/rest.h',import.meta.url),'utf8')).replace(/\r\n/g,'\n');
-  assert.equal(createHash('sha256').update(source+'\n'+config+'\n'+fluid+'\n'+motion+'\n'+state+'\n'+modes+'\n'+pixel+'\n'+robot+'\n'+themes+'\n'+puddle+'\n'+restHeader).digest('hex'),release.build.sourceSha256);
+  const heartHeader = (await readFile(new URL('../firmware/tilt_toy/heart.h',import.meta.url),'utf8')).replace(/\r\n/g,'\n');
+  const messageHeader = (await readFile(new URL('../firmware/tilt_toy/message.h',import.meta.url),'utf8')).replace(/\r\n/g,'\n');
+  assert.equal(createHash('sha256').update(source+'\n'+config+'\n'+fluid+'\n'+motion+'\n'+state+'\n'+modes+'\n'+pixel+'\n'+robot+'\n'+themes+'\n'+puddle+'\n'+restHeader+'\n'+heartHeader+'\n'+messageHeader).digest('hex'),release.build.sourceSha256);
   for(const sensor of ['BMI160','MPU6050'])assert.ok(binary.includes(Buffer.from(sensor)),`image must support ${sensor}`);
   assert.equal(config.match(/TOY_VERSION\s+"([^"]+)"/)[1],release.version);
   const otherBoard=boards.find(b=>b.id!==board.id);

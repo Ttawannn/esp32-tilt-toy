@@ -19,7 +19,9 @@ export const displayChoices = [
 export const modes = [
   { id: 'water-slosh', get name() { return t('mode.water-slosh'); }, english: 'Slosh water', get detail() { return t('detail.water-slosh'); }, glyph: '∿' },
   { id: 'pixel-flow', get name() { return t('mode.pixel-flow'); }, english: 'Pixel Flow', get detail() { return t('detail.pixel-flow'); }, glyph: '▦' },
-  { id: 'robot', get name() { return t('mode.robot'); }, english: 'Robot eyes', get detail() { return t('detail.robot'); }, glyph: '▬▬' }
+  { id: 'robot', get name() { return t('mode.robot'); }, english: 'Robot eyes', get detail() { return t('detail.robot'); }, glyph: '▬▬' },
+  { id: 'heart', get name() { return t('mode.heart'); }, english: 'Heart', get detail() { return t('detail.heart'); }, glyph: '♥' },
+  { id: 'message', get name() { return t('mode.message'); }, english: 'Message', get detail() { return t('detail.message'); }, glyph: 'Aa' }
 ];
 export function findProfile(choice, orientation = 'portrait') {
   const id = choice === 'tft-240x240' ? 'tft-240x240-gc9a01' : choice === 'tft-80x160' && orientation === 'landscape' ? 'tft-80x160-landscape' : choice;

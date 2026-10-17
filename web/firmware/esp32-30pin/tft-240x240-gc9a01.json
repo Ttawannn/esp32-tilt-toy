@@ -6,8 +6,8 @@
   "chipFamily": "ESP32",
   "flashSize": "4MB",
   "controller": "GC9A01",
-  "size": 1174528,
-  "sha256": "2dc627be11fddf16371e5f99d0950e07f688e81db61f2c95627eab7d39ba10ad",
+  "size": 1186944,
+  "sha256": "ac253526d30a43d4dee94896252d7be7d8acfeac83760f0219e09c1c40e12d0e",
   "hardwareTested": false,
   "build": {
     "core": "esp32:esp32@3.3.11",
@@ -16,7 +16,7 @@
     "bootloaderOffset": 4096,
     "displayProfile": 3,
     "initialRotation": 0,
-    "sourceSha256": "40fe11e69388bd1655c1565a6b9a03dce690e77b1bc35d1816f528480120bd89"
+    "sourceSha256": "719fc95c82cf7a4164a54628b163b5d0820a16253a5f1443942ed13cb75fc82e"
   },
   "new_install_prompt_erase": true,
   "new_install_improv_wait_time": 0,

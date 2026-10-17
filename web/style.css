@@ -119,6 +119,7 @@ input[type=range]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 6px #4
 .field-label { display: block; margin-top: 4px; font-size: 12px; color: var(--muted); }
 .mood-select, .driver-select select { width: 100%; padding: 8px 10px; border: 1px solid var(--line-2); border-radius: 8px; background: var(--panel-2); font-size: 12px; color: var(--text); }
 .mood-select { margin: 8px 0 4px; }
+.message-text { resize: vertical; min-height: 44px; font-family: inherit; }
 .mood-select:hover, .driver-select select:hover { border-color: var(--accent); }
 .segmented { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 3px; margin: 8px 0 12px; padding: 3px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg-2); }
 .segmented button { padding: 6px 8px; border: 0; border-radius: 7px; background: transparent; font-size: 12px; color: var(--muted); transition: background .15s, color .15s; }
@@ -134,7 +135,7 @@ input[type=range]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 6px #4
 .swatch-eye { position: absolute; right: -3px; bottom: -3px; width: 12px; height: 12px; border: 2px solid var(--panel); border-radius: 50%; }
 
 /* Mode tiles */
-.mode-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 16px 18px 6px; }
+.mode-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; padding: 16px 18px 6px; }
 .mode-button { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 4px 9px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel-2); font-size: 11px; line-height: 1.35; text-align: center; transition: transform .15s var(--ease), border-color .15s, background .15s; }
 .mode-button .glyph svg { display: block; width: 44px; height: 44px; }
 .mode-button small { font-size: 9px; color: var(--faint); letter-spacing: .3px; }

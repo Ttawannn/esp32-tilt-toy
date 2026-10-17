@@ -11,6 +11,7 @@
 #include <Adafruit_SSD1306.h>
 #include <esp_sleep.h>
 #include <driver/gpio.h>
+#include <mbedtls/base64.h>
 #include "config.h"
 #include "motion_sensor.h"
 #include "motion_state.h"
@@ -21,6 +22,8 @@
 #include "themes.h"
 #include "puddle.h"
 #include "rest.h"
+#include "heart.h"
+#include "message.h"
 
 // One shared renderer; each release selects a concrete panel initializer.
 #if DISPLAY_PROFILE == 0 || DISPLAY_PROFILE == 5
@@ -67,6 +70,14 @@ PixelDrops drops;
 RobotEyes robot;
 // Top view of the water while the toy lies flat.
 Puddle puddle;
+// Heart and message modes, drawn as dots on an LED-board grid. The message pictures come from the phone page.
+HeartBeat heart;
+DotBitmap banner, stillPicture;
+BannerScroll bannerScroll;
+String messageText = "HELLO";
+bool messageStill = false;
+int messageSpeed = 30;
+uint32_t messageBounce = 0;
 PixelDrops::Layout pixelView{};
 // Cells as last sent to the panel, so each frame only rewrites drops that changed.
 uint8_t shownLook[PixelDrops::MaxCells];
@@ -119,6 +130,8 @@ void resetMode() {
     }
   }
   if (activeMode == Robot) robot.reset(millis(), esp_random());
+  if (activeMode == Heart) heart.reset(millis(), esp_random());
+  if (activeMode == Message) bannerScroll.restart();
 }
 void saveSettings() {
   preferences.putInt("mode3", activeMode);
@@ -313,6 +326,8 @@ void shake() {
   if (isFlipMode(activeMode)) { puddle.ripple(0,0); fluid.impulse(sinf(roll*PI/180),cosf(roll*PI/180)); }
   if (activeMode == PixelFlow) drops.shake(pixelAx, pixelAy);
   if (activeMode == Robot) robot.react(millis());
+  if (activeMode == Heart && scene) { const DotGrid grid = dotGrid(scene->width(), scene->height()); heart.burst(grid.cols * .5f, grid.rows * .5f); }
+  if (activeMode == Message) messageBounce = millis();
 }
 // Screen off and its controller asleep, or back on. The TFT backlight is wired to the supply and stays lit.
 void panelSleep(bool sleep) {
@@ -439,6 +454,81 @@ void drawAxisSetup() {
   scene->drawRect(barX, barY, barW, 6, ink(0xFFFF));
   if (held > 0) scene->fillRect(barX + 1, barY + 1, (int)((barW - 2) * held), 4, rgb(60, 220, 255));
 }
+// Dots lit by the built-in 5 × 7 font at `scale`, centred in `height` rows: the message before the phone sends one.
+uint8_t *fontPicture(const char *text, int scale, int &width, int height) {
+  const int length = strlen(text), w = length * 6 * scale, top = (height - 8 * scale) / 2;
+  GFXcanvas1 letters(length * 6, 8);
+  letters.fillScreen(0); letters.setTextWrap(false); letters.setTextColor(1); letters.setCursor(0, 0); letters.print(text);
+  uint8_t *bits = (uint8_t *)calloc(DotBitmap::bytesFor(w, height), 1);
+  if (!bits) return nullptr;
+  for (int x = 0; x < w; x++) for (int y = top; y < top + 8 * scale; y++) {
+    if (y < 0 || y >= height || !letters.getPixel(x / scale, (y - top) / scale)) continue;
+    const int32_t n = (int32_t)x * height + y; bits[n >> 3] |= 1 << (n & 7);
+  }
+  width = w;
+  return bits;
+}
+// A picture saved by the phone page, or null when there is none of that size.
+uint8_t *loadPicture(const char *key, int w, int h) {
+  if (w < 1 || h < 1) return nullptr;
+  const size_t bytes = DotBitmap::bytesFor(w, h);
+  if (preferences.getBytesLength(key) != bytes) return nullptr;
+  uint8_t *bits = (uint8_t *)malloc(bytes);
+  if (bits && preferences.getBytes(key, bits, bytes) != bytes) { free(bits); bits = nullptr; }
+  return bits;
+}
+void loadMessage() {
+  messageText = preferences.getString("msgText", "HELLO");
+  messageStill = preferences.getInt("msgStyle", 0) == 1;
+  messageSpeed = constrain(preferences.getInt("msgSpeed", 30), 5, 120);
+  const int bannerWidth = preferences.getInt("msgScrollW", 0), stillWidth = preferences.getInt("msgStillW", 0), stillHeight = preferences.getInt("msgStillH", 0);
+  banner.assign(loadPicture("msgScroll", bannerWidth, DotBitmap::BannerRows), bannerWidth, DotBitmap::BannerRows);
+  stillPicture.assign(loadPicture("msgStill", stillWidth, stillHeight), stillWidth, stillHeight);
+  if (!banner.bits) { int w = 0; uint8_t *bits = fontPicture("HELLO", 3, w, DotBitmap::BannerRows); banner.assign(bits, w, DotBitmap::BannerRows); }
+}
+// The message on an LED board: unlit dots stay faintly visible on a TFT. A shake bounces the text.
+void drawMessage(float dt) {
+  const DotGrid grid = dotGrid(scene->width(), scene->height());
+  if (messageStill && !stillPicture.bits) {
+    int w = 0; const int scale = max(1, min(grid.cols / 30, grid.rows / 8));
+    uint8_t *bits = fontPicture("HELLO", scale, w, grid.rows); stillPicture.assign(bits, w, grid.rows);
+  }
+  const ThemeColors &colors = themes[theme];
+  const uint16_t lit = rgb(colors.eye[0], colors.eye[1], colors.eye[2]), unlit = DISPLAY_PROFILE == 4 ? 0 : rgb(16, 20, 30);
+  const int size = grid.pitch > 2 ? grid.pitch - 1 : grid.pitch;
+  const uint32_t since = millis() - messageBounce;
+  const int bounce = since < 600 ? (int)lroundf(-sinf(since / 600.f * 3 * PI) * 3 * (1 - since / 600.f)) : 0;
+  const DotBitmap &picture = messageStill ? stillPicture : banner;
+  if (!messageStill) bannerScroll.advance(dt, messageSpeed, banner.width, grid.cols);
+  const int top = (grid.rows - picture.height) / 2 + bounce, left = (grid.cols - picture.width) / 2;
+  for (int j = 0; j < grid.rows; j++) for (int i = 0; i < grid.cols; i++) {
+    const bool on = picture.dot(messageStill ? i - left : bannerScroll.bannerColumn(i, grid.cols), j - top);
+    if (on || unlit) scene->fillRect(grid.x + i * grid.pitch, grid.y + j * grid.pitch, size, size, on ? lit : unlit);
+  }
+}
+// The beating heart leans and slides with the tilt; little hearts rise against gravity.
+void drawHeart(float dt, float gx, float gy) {
+  const DotGrid grid = dotGrid(scene->width(), scene->height());
+  const uint32_t now = millis();
+  const float tilt = limit(gx, -1, 1), cx = (grid.cols - 1) * .5f + tilt * grid.cols * .06f, cy = (grid.rows - 1) * .5f;
+  const float size = fminf(grid.cols, grid.rows) * .3f * (1 + .1f * HeartBeat::beat(now)), length = sqrtf(gx*gx + gy*gy);
+  heart.step(dt, length > .05f ? -gx / length : 0, length > .05f ? -gy / length : -1, now, cx, cy, size);
+  static const uint8_t shades[5][3] = {{0,0,0},{150,14,52},{214,34,86},{255,79,139},{255,179,207}};
+  const int dotSize = grid.pitch > 2 ? grid.pitch - 1 : grid.pitch;
+  for (int j = 0; j < grid.rows; j++) for (int i = 0; i < grid.cols; i++) {
+    const int s = HeartBeat::shade(i, j, cx, cy, size, tilt * .45f);
+    if (s) scene->fillRect(grid.x + i * grid.pitch, grid.y + j * grid.pitch, dotSize, dotSize, rgb(shades[s][0], shades[s][1], shades[s][2]));
+  }
+  for (const HeartBeat::Spark &spark : heart.sparks) {
+    if (spark.life <= 0) continue;
+    const int s = spark.life > 1 ? 3 : spark.life > .5f ? 2 : 1, x0 = (int)lroundf(spark.x) - 2, y0 = (int)lroundf(spark.y) - 2;
+    for (int dy = 0; dy < 4; dy++) for (int dx = 0; dx < 5; dx++) {
+      const int i = x0 + dx, j = y0 + dy;
+      if (HeartBeat::sparkDot(dx, dy) && i >= 0 && i < grid.cols && j >= 0 && j < grid.rows)
+        scene->fillRect(grid.x + i * grid.pitch, grid.y + j * grid.pitch, dotSize, dotSize, rgb(shades[s][0], shades[s][1], shades[s][2]));
+    }
+  }
+}
 void renderGame(float dt) {
   if (axisSetup.step) { drawAxisSetup(); return; }
   const int w = scene->width(), h = scene->height();
@@ -464,6 +554,10 @@ void renderGame(float dt) {
       if (DISPLAY_PROFILE == 4 && value > 18 && ((i+j)&1)) continue;
       if (value) scene->fillRect(view.x+i*view.cell,view.y+j*view.cell,view.cell-1,view.cell-1,waterColor(value));
     }
+  } else if (activeMode == Heart) {
+    drawHeart(dt, gx, gy);
+  } else if (activeMode == Message) {
+    drawMessage(dt);
   } else {
     robot.draw(*scene, millis(), dt, limit(gx,-1,1), limit(-sinf(pitch*PI/180),-1,1), rgb(themes[theme].eye[0],themes[theme].eye[1],themes[theme].eye[2]), rgb(255,70,140));
   }
@@ -480,8 +574,17 @@ void renderGame(float dt) {
 }
 
 // Device-local controls are served by the ESP32's AP, independent of the hosted installer.
-const char devicePage[] PROGMEM = R"HTML(<!doctype html><html lang="th"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0b0d12"><title>Tilt Toy</title><style>:root{color-scheme:dark}*{box-sizing:border-box}body{margin:0;font:15px/1.5 system-ui,-apple-system,'Segoe UI','Leelawadee UI','Noto Sans Thai',sans-serif;background:#0b0d12;color:#e9ecf3}main{max-width:560px;margin:auto;padding:18px 16px 32px}header{display:flex;align-items:center;gap:12px;margin:4px 0 14px}.mark{display:grid;place-items:center;flex-shrink:0;width:38px;height:38px;border-radius:11px;background:linear-gradient(135deg,#4f8cff,#7a5cff);color:#fff;font-size:24px;box-shadow:0 6px 18px #4f6eff52}h1{font-size:18px;margin:0;line-height:1.2}.card{background:#141822;border:1px solid #252c3b;border-radius:14px;padding:16px;margin:12px 0}h2{font-size:14px;margin:0 0 12px;font-weight:600;display:flex;justify-content:space-between;align-items:center}label{display:block;margin:0 0 14px;font-size:13px;color:#8b94a8}.row{display:flex;justify-content:space-between}output{color:#e9ecf3;font-variant-numeric:tabular-nums}select,button{font:inherit;width:100%;padding:12px;border:1px solid #323b4f;border-radius:10px;background:#1a1f2b;color:#e9ecf3}select{margin-top:6px}input[type=range]{width:100%;margin:10px 0 0;accent-color:#4f8cff}button{cursor:pointer;font-weight:500}button:active{background:#222838}.primary{margin-top:16px;border:0;background:linear-gradient(135deg,#4f8cff,#7a5cff);color:#fff;font-weight:600;box-shadow:0 6px 18px #4f6eff52}.actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}.full{grid-column:1/-1}.danger{color:#f2626f}[hidden]{display:none!important}small{color:#8b94a8}p{margin:12px 0 0}#status{min-height:24px;color:#34d399}.live{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.stat{background:#1a1f2b;border:1px solid #252c3b;border-radius:10px;padding:10px 12px;min-width:0}.stat span{display:block;font-size:12px;color:#8b94a8}.stat b{display:block;font-size:20px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.wide{grid-column:1/-1}#motionLive b{font-size:16px}#link{font-size:12px;font-weight:400;color:#8b94a8}#link:before{content:'';display:inline-block;width:8px;height:8px;border-radius:50%;background:#5d6679;margin-right:6px}#link[data-on]:before{background:#34d399;box-shadow:0 0 8px #34d399}@media(max-width:360px){.live{grid-template-columns:repeat(2,1fr)}}</style><main><header><span class="mark">≈</span><div><h1>esp32-tilt-toy</h1><small id="hardware"></small></div></header><section class="card"><h2>ค่าบนเครื่อง <span id="link">กำลังเชื่อมต่อ…</span></h2><div class="live" aria-live="off"><div class="stat wide"><span>โหมด</span><b id="vMode">–</b></div><div class="stat"><span>Roll</span><b id="vRoll">–</b></div><div class="stat"><span>Pitch</span><b id="vPitch">–</b></div><div class="stat"><span>FPS</span><b id="vFps">–</b></div><div class="stat" id="sSim"><span>Solver</span><b id="vSim">–</b></div><div class="stat" id="sParticles"><span>อนุภาค</span><b id="vParticles">–</b></div><div class="stat"><span>Heap ว่าง</span><b id="vHeap">–</b></div></div></section><section class="card"><h2>ทดสอบแกน</h2><div class="live" id="motionLive"><div class="stat wide"><span>แรงโน้มถ่วง X / Y / Z</span><b id="vGravity">–</b></div><div class="stat wide"><span>ความเร็วหมุน X / Y / Z (rad/s)</span><b id="vOmega">–</b></div><div class="stat wide"><span>แรงขยับ X / Y / Z (m/s²)</span><b id="vLinear">–</b></div></div><p><small>วางราบแล้วหมุนตามเข็มนาฬิกา: Z ของความเร็วหมุนเป็นบวก · กระตุกไปทางขวา: X ของแรงขยับเป็นบวก · ถ้าไม่ตรง ให้สลับแกนด้านล่าง</small></p></section><section class="card"><h2>ตั้งค่า</h2><label>โหมด<select id="mode"><option value="water-slosh">น้ำกระฉอก</option><option value="pixel-flow">น้ำพิกเซล</option><option value="robot">ตาหุ่นยนต์</option></select></label><label id="moodWrap" hidden>อารมณ์ตาหุ่นยนต์<select id="mood"><option value="auto">เล่นวนทุกอารมณ์</option><option value="normal">ปกติ</option><option value="happy">ดีใจ</option><option value="angry">โกรธ</option><option value="sad">เศร้า</option><option value="tired">ง่วง</option><option value="surprised">ตกใจ</option><option value="suspicious">สงสัย</option><option value="love">หลงรัก</option></select></label><label id="waterColorWrap" hidden>สีน้ำ<select id="waterColor"><option value="gradient">ไล่เฉดตามความลึก</option><option value="classic">สองสี</option></select></label><label>พักเครื่องเมื่อวางนิ่ง<select id="rest"><option value="0">ไม่พัก</option><option value="1">1 นาที</option><option value="2">2 นาที</option><option value="5">5 นาที</option><option value="10">10 นาที</option></select></label><label id="themeWrap">ธีมสี<select id="theme"><option value="ocean">มหาสมุทร</option><option value="lava">ลาวา</option><option value="slime">สไลม์</option><option value="grape">องุ่น</option><option value="candy">ลูกกวาด</option><option value="aurora">ออโรรา</option></select></label><label><span class="row">ระดับน้ำ <output id="fillOut"></output></span><input id="fill" type="range" min="10" max="90"></label><label><span class="row">ความไว <output id="sensOut"></output></span><input id="sensitivity" type="range" min="0.4" max="2" step="0.1"></label><label>แนวจอ / หมุนภาพ<select id="rotation"><option value="0">0°</option><option value="1">90°</option><option value="2">180°</option><option value="3">270°</option></select></label><label id="invertWrap">สีจอ TFT<select id="invert"><option value="1">เปิด inversion</option><option value="0">ปิด inversion</option></select></label><label id="spiWrap">SPI ของ ST7789<select id="spiMode"><option value="3">Mode 3</option><option value="0">Mode 0</option></select></label><label>แกน X ของจอ<select id="axisX"><option value="1">+X</option><option value="2">+Y</option><option value="3">+Z</option><option value="-1">−X</option><option value="-2">−Y</option><option value="-3">−Z</option></select></label><label>แกน Y ของจอ<select id="axisY"><option value="1">+X</option><option value="2">+Y</option><option value="3">+Z</option><option value="-1">−X</option><option value="-2">−Y</option><option value="-3">−Z</option></select></label><label>แกน Z ของจอ<select id="axisZ"><option value="1">+X</option><option value="2">+Y</option><option value="3">+Z</option><option value="-1">−X</option><option value="-2">−Y</option><option value="-3">−Z</option></select></label><small>แกนจอ: X ไปขวา · Y ลงล่าง · Z เข้าไปในจอ เลือกแกนไม่ซ้ำกัน ถ้ากลับเครื่องหมายให้กลับสองแกนพร้อมกัน</small><button id="save" class="primary">บันทึกและใช้โหมดนี้</button></section><section class="card actions"><button id="shake">เขย่า</button><button id="calibrate">คาลิเบรต gyro (วางเครื่องนิ่ง)</button><button id="axisSetup" class="full">ตั้งแกนอัตโนมัติ (ทำตามจอเครื่อง)</button><button id="close" class="full danger">ปิด Wi-Fi แล้วเล่นต่อ</button></section><p id="status" role="status"></p><small>กดปุ่ม BOOT บนบอร์ดสั้น ๆ เพื่อเปลี่ยนโหมด กดค้าง 2 วินาทีเพื่อเปิด/ปิด Wi-Fi</small></main><script>
-const $=id=>document.getElementById(id),ids=['mode','mood','waterColor','theme','rest','fill','sensitivity','rotation','invert','spiMode','axisX','axisY','axisZ'],status=$('status');const names={'water-slosh':'น้ำกระฉอก','pixel-flow':'น้ำพิกเซล',robot:'ตาหุ่นยนต์'},moods={auto:'เล่นวนทุกอารมณ์',normal:'ปกติ',happy:'ดีใจ',angry:'โกรธ',sad:'เศร้า',tired:'ง่วง',surprised:'ตกใจ',suspicious:'สงสัย',love:'หลงรัก'};let stopped=false,busy=false;const deg=v=>(v>0?'+':'')+v.toFixed(0)+'°';function showValues(){$('fillOut').value=$('fill').value+'%';$('sensOut').value=Number($('sensitivity').value).toFixed(1)+'×';}$('fill').oninput=$('sensitivity').oninput=showValues;async function post(path,data={}){const response=await fetch(path,{method:'POST',body:new URLSearchParams(data)});if(!response.ok)throw Error(await response.text());return response;}async function read(){const r=await fetch('/api/status',{cache:'no-store',signal:AbortSignal.timeout?AbortSignal.timeout(2500):undefined});if(!r.ok)throw Error('อ่านข้อมูลเครื่องไม่ได้');return r.json();}function live(s){$('hardware').textContent=s.boardName+' · '+s.profile+' · v'+s.version+(s.imu?' · '+s.sensor+' · 0x'+s.sensorAddress.toString(16).toUpperCase():' · ไม่พบเซนเซอร์');$('calibrate').hidden=!s.imu||!s.gyro;$('motionLive').hidden=!s.imu;for(const [id,values]of[['vGravity',s.gravity],['vOmega',s.omega],['vLinear',s.linear]])$(id).textContent=s.imu?values.map(v=>v.toFixed(2)).join(' / '):'–';$('vMode').textContent=(names[s.mode]||s.mode)+(s.mode==='robot'?' · '+(moods[s.mood]||s.mood):'');$('vRoll').textContent=s.imu?deg(s.roll):'–';$('vPitch').textContent=s.imu?deg(s.pitch):'–';$('vFps').textContent=s.fps.toFixed(1);$('vSim').textContent=s.simMs.toFixed(1)+' ms';$('vParticles').textContent=s.particles;$('vHeap').textContent=Math.round(s.freeHeap/1024)+' KB';$('sSim').hidden=$('sParticles').hidden=s.mode==='robot';$('moodWrap').hidden=s.mode!=='robot';$('waterColorWrap').hidden=s.mode!=='water-slosh';$('link').dataset.on='';$('link').textContent='อัปเดตสด';}function offline(text){delete $('link').dataset.on;$('link').textContent=text;}async function load(){const s=await read();ids.forEach(id=>$(id).value=String(id==='invert'?Number(s[id]):s[id]));$('mode').onchange=()=>{const m=$('mode').value;$('moodWrap').hidden=m!=='robot';$('waterColorWrap').hidden=m!=='water-slosh';};$('invertWrap').hidden=s.profile==='oled-128x64';$('spiWrap').hidden=!s.profile.includes('gmt130');showValues();live(s);if(s.profile.startsWith('tft-80x160')){const labels=['แนวตั้ง 80×160 (0°)','แนวนอน 160×80 (90°)','แนวตั้งกลับด้าน (180°)','แนวนอนกลับด้าน (270°)'];Array.from($('rotation').options).forEach((option,i)=>option.textContent=labels[i]);}}setInterval(async()=>{if(stopped||busy||document.hidden)return;busy=true;try{live(await read());}catch{offline('ขาดการเชื่อมต่อ');}busy=false;},1000);$('save').onclick=async()=>{try{const data={};ids.forEach(id=>data[id]=$(id).value);await post('/api/config',data);status.textContent='บันทึกแล้ว';}catch(e){status.textContent=e.message;}};for(const [id,path,message]of[['shake','/api/shake','ทำแอ็กชันแล้ว'],['calibrate','/api/calibrate','คาลิเบรตแล้ว'],['axisSetup','/api/axis-setup','ทำตามจอเครื่อง: วางราบหน้าจอขึ้น แล้วตั้งให้ขอบล่างลง'],['close','/api/close','ปิด Wi-Fi แล้ว กลับไปเล่นบนเครื่องได้เลย']])$(id).onclick=async()=>{try{await post(path);status.textContent=message;if(id==='close'){stopped=true;offline('ปิด Wi-Fi แล้ว');}}catch(e){status.textContent=e.message;}};load().catch(e=>{status.textContent=e.message;offline('ขาดการเชื่อมต่อ');});
+const char devicePage[] PROGMEM = R"HTML(<!doctype html><html lang="th"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0b0d12"><title>Tilt Toy</title><style>:root{color-scheme:dark}*{box-sizing:border-box}body{margin:0;font:15px/1.5 system-ui,-apple-system,'Segoe UI','Leelawadee UI','Noto Sans Thai',sans-serif;background:#0b0d12;color:#e9ecf3}main{max-width:560px;margin:auto;padding:18px 16px 32px}header{display:flex;align-items:center;gap:12px;margin:4px 0 14px}.mark{display:grid;place-items:center;flex-shrink:0;width:38px;height:38px;border-radius:11px;background:linear-gradient(135deg,#4f8cff,#7a5cff);color:#fff;font-size:24px;box-shadow:0 6px 18px #4f6eff52}h1{font-size:18px;margin:0;line-height:1.2}.card{background:#141822;border:1px solid #252c3b;border-radius:14px;padding:16px;margin:12px 0}h2{font-size:14px;margin:0 0 12px;font-weight:600;display:flex;justify-content:space-between;align-items:center}label{display:block;margin:0 0 14px;font-size:13px;color:#8b94a8}.row{display:flex;justify-content:space-between}output{color:#e9ecf3;font-variant-numeric:tabular-nums}select,button,textarea{font:inherit;width:100%;padding:12px;border:1px solid #323b4f;border-radius:10px;background:#1a1f2b;color:#e9ecf3}select{margin-top:6px}input[type=range]{width:100%;margin:10px 0 0;accent-color:#4f8cff}button{cursor:pointer;font-weight:500}button:active{background:#222838}.primary{margin-top:16px;border:0;background:linear-gradient(135deg,#4f8cff,#7a5cff);color:#fff;font-weight:600;box-shadow:0 6px 18px #4f6eff52}.actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}.full{grid-column:1/-1}.danger{color:#f2626f}[hidden]{display:none!important}small{color:#8b94a8}p{margin:12px 0 0}#status{min-height:24px;color:#34d399}.live{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.stat{background:#1a1f2b;border:1px solid #252c3b;border-radius:10px;padding:10px 12px;min-width:0}.stat span{display:block;font-size:12px;color:#8b94a8}.stat b{display:block;font-size:20px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.wide{grid-column:1/-1}#motionLive b{font-size:16px}#link{font-size:12px;font-weight:400;color:#8b94a8}#link:before{content:'';display:inline-block;width:8px;height:8px;border-radius:50%;background:#5d6679;margin-right:6px}#link[data-on]:before{background:#34d399;box-shadow:0 0 8px #34d399}@media(max-width:360px){.live{grid-template-columns:repeat(2,1fr)}}</style><main><header><span class="mark">≈</span><div><h1>esp32-tilt-toy</h1><small id="hardware"></small></div></header><section class="card"><h2>ค่าบนเครื่อง <span id="link">กำลังเชื่อมต่อ…</span></h2><div class="live" aria-live="off"><div class="stat wide"><span>โหมด</span><b id="vMode">–</b></div><div class="stat"><span>Roll</span><b id="vRoll">–</b></div><div class="stat"><span>Pitch</span><b id="vPitch">–</b></div><div class="stat"><span>FPS</span><b id="vFps">–</b></div><div class="stat" id="sSim"><span>Solver</span><b id="vSim">–</b></div><div class="stat" id="sParticles"><span>อนุภาค</span><b id="vParticles">–</b></div><div class="stat"><span>Heap ว่าง</span><b id="vHeap">–</b></div></div></section><section class="card"><h2>ทดสอบแกน</h2><div class="live" id="motionLive"><div class="stat wide"><span>แรงโน้มถ่วง X / Y / Z</span><b id="vGravity">–</b></div><div class="stat wide"><span>ความเร็วหมุน X / Y / Z (rad/s)</span><b id="vOmega">–</b></div><div class="stat wide"><span>แรงขยับ X / Y / Z (m/s²)</span><b id="vLinear">–</b></div></div><p><small>วางราบแล้วหมุนตามเข็มนาฬิกา: Z ของความเร็วหมุนเป็นบวก · กระตุกไปทางขวา: X ของแรงขยับเป็นบวก · ถ้าไม่ตรง ให้สลับแกนด้านล่าง</small></p></section><section class="card"><h2>ตั้งค่า</h2><label>โหมด<select id="mode"><option value="water-slosh">น้ำกระฉอก</option><option value="pixel-flow">น้ำพิกเซล</option><option value="robot">ตาหุ่นยนต์</option><option value="heart">หัวใจ</option><option value="message">ข้อความ</option></select></label><label id="moodWrap" hidden>อารมณ์ตาหุ่นยนต์<select id="mood"><option value="auto">เล่นวนทุกอารมณ์</option><option value="normal">ปกติ</option><option value="happy">ดีใจ</option><option value="angry">โกรธ</option><option value="sad">เศร้า</option><option value="tired">ง่วง</option><option value="surprised">ตกใจ</option><option value="suspicious">สงสัย</option><option value="love">หลงรัก</option></select></label><label id="waterColorWrap" hidden>สีน้ำ<select id="waterColor"><option value="gradient">ไล่เฉดตามความลึก</option><option value="classic">สองสี</option></select></label><label>พักเครื่องเมื่อวางนิ่ง<select id="rest"><option value="0">ไม่พัก</option><option value="1">1 นาที</option><option value="2">2 นาที</option><option value="5">5 นาที</option><option value="10">10 นาที</option></select></label><label id="themeWrap">ธีมสี<select id="theme"><option value="ocean">มหาสมุทร</option><option value="lava">ลาวา</option><option value="slime">สไลม์</option><option value="grape">องุ่น</option><option value="candy">ลูกกวาด</option><option value="aurora">ออโรรา</option></select></label><label><span class="row">ระดับน้ำ <output id="fillOut"></output></span><input id="fill" type="range" min="10" max="90"></label><label><span class="row">ความไว <output id="sensOut"></output></span><input id="sensitivity" type="range" min="0.4" max="2" step="0.1"></label><label>แนวจอ / หมุนภาพ<select id="rotation"><option value="0">0°</option><option value="1">90°</option><option value="2">180°</option><option value="3">270°</option></select></label><label id="invertWrap">สีจอ TFT<select id="invert"><option value="1">เปิด inversion</option><option value="0">ปิด inversion</option></select></label><label id="spiWrap">SPI ของ ST7789<select id="spiMode"><option value="3">Mode 3</option><option value="0">Mode 0</option></select></label><label>แกน X ของจอ<select id="axisX"><option value="1">+X</option><option value="2">+Y</option><option value="3">+Z</option><option value="-1">−X</option><option value="-2">−Y</option><option value="-3">−Z</option></select></label><label>แกน Y ของจอ<select id="axisY"><option value="1">+X</option><option value="2">+Y</option><option value="3">+Z</option><option value="-1">−X</option><option value="-2">−Y</option><option value="-3">−Z</option></select></label><label>แกน Z ของจอ<select id="axisZ"><option value="1">+X</option><option value="2">+Y</option><option value="3">+Z</option><option value="-1">−X</option><option value="-2">−Y</option><option value="-3">−Z</option></select></label><small>แกนจอ: X ไปขวา · Y ลงล่าง · Z เข้าไปในจอ เลือกแกนไม่ซ้ำกัน ถ้ากลับเครื่องหมายให้กลับสองแกนพร้อมกัน</small><button id="save" class="primary">บันทึกและใช้โหมดนี้</button></section><section class="card" id="msgCard" hidden><h2>ข้อความบนจอ</h2><label>ข้อความ (ภาษาไทย อีโมจิ ได้)<textarea id="msgText" rows="2" maxlength="80"></textarea></label><label>รูปแบบ<select id="msgStyle"><option value="scroll">วิ่ง</option><option value="still">นิ่ง</option></select></label><label>ความเร็วตัววิ่ง<select id="msgSpeed"><option value="15">ช้า</option><option value="30">ปกติ</option><option value="55">เร็ว</option></select></label><button id="msgSend" class="primary">ส่งข้อความไปที่จอ</button></section><section class="card actions"><button id="shake">เขย่า</button><button id="calibrate">คาลิเบรต gyro (วางเครื่องนิ่ง)</button><button id="axisSetup" class="full">ตั้งแกนอัตโนมัติ (ทำตามจอเครื่อง)</button><button id="close" class="full danger">ปิด Wi-Fi แล้วเล่นต่อ</button></section><p id="status" role="status"></p><small>กดปุ่ม BOOT บนบอร์ดสั้น ๆ เพื่อเปลี่ยนโหมด กดค้าง 2 วินาทีเพื่อเปิด/ปิด Wi-Fi</small></main><script>
+const $=id=>document.getElementById(id),ids=['mode','mood','waterColor','theme','rest','fill','sensitivity','rotation','invert','spiMode','axisX','axisY','axisZ'],status=$('status');const names={'water-slosh':'น้ำกระฉอก','pixel-flow':'น้ำพิกเซล',robot:'ตาหุ่นยนต์',heart:'หัวใจ',message:'ข้อความ'},moods={auto:'เล่นวนทุกอารมณ์',normal:'ปกติ',happy:'ดีใจ',angry:'โกรธ',sad:'เศร้า',tired:'ง่วง',surprised:'ตกใจ',suspicious:'สงสัย',love:'หลงรัก'};let stopped=false,busy=false;const deg=v=>(v>0?'+':'')+v.toFixed(0)+'°';function showValues(){$('fillOut').value=$('fill').value+'%';$('sensOut').value=Number($('sensitivity').value).toFixed(1)+'×';}$('fill').oninput=$('sensitivity').oninput=showValues;async function post(path,data={}){const response=await fetch(path,{method:'POST',body:new URLSearchParams(data)});if(!response.ok)throw Error(await response.text());return response;}async function read(){const r=await fetch('/api/status',{cache:'no-store',signal:AbortSignal.timeout?AbortSignal.timeout(2500):undefined});if(!r.ok)throw Error('อ่านข้อมูลเครื่องไม่ได้');return r.json();}function live(s){$('hardware').textContent=s.boardName+' · '+s.profile+' · v'+s.version+(s.imu?' · '+s.sensor+' · 0x'+s.sensorAddress.toString(16).toUpperCase():' · ไม่พบเซนเซอร์');$('calibrate').hidden=!s.imu||!s.gyro;$('motionLive').hidden=!s.imu;for(const [id,values]of[['vGravity',s.gravity],['vOmega',s.omega],['vLinear',s.linear]])$(id).textContent=s.imu?values.map(v=>v.toFixed(2)).join(' / '):'–';$('vMode').textContent=(names[s.mode]||s.mode)+(s.mode==='robot'?' · '+(moods[s.mood]||s.mood):'');$('vRoll').textContent=s.imu?deg(s.roll):'–';$('vPitch').textContent=s.imu?deg(s.pitch):'–';$('vFps').textContent=s.fps.toFixed(1);$('vSim').textContent=s.simMs.toFixed(1)+' ms';$('vParticles').textContent=s.particles;$('vHeap').textContent=Math.round(s.freeHeap/1024)+' KB';$('sSim').hidden=$('sParticles').hidden=!['water-slosh','pixel-flow'].includes(s.mode);$('msgCard').hidden=s.mode!=='message';$('moodWrap').hidden=s.mode!=='robot';$('waterColorWrap').hidden=s.mode!=='water-slosh';$('link').dataset.on='';$('link').textContent='อัปเดตสด';}function offline(text){delete $('link').dataset.on;$('link').textContent=text;}async function load(){const s=await read();ids.forEach(id=>$(id).value=String(id==='invert'?Number(s[id]):s[id]));$('mode').onchange=()=>{const m=$('mode').value;$('moodWrap').hidden=m!=='robot';$('waterColorWrap').hidden=m!=='water-slosh';$('msgCard').hidden=m!=='message';};$('invertWrap').hidden=s.profile==='oled-128x64';$('spiWrap').hidden=!s.profile.includes('gmt130');showValues();live(s);if(s.profile.startsWith('tft-80x160')){const labels=['แนวตั้ง 80×160 (0°)','แนวนอน 160×80 (90°)','แนวตั้งกลับด้าน (180°)','แนวนอนกลับด้าน (270°)'];Array.from($('rotation').options).forEach((option,i)=>option.textContent=labels[i]);}}setInterval(async()=>{if(stopped||busy||document.hidden)return;busy=true;try{live(await read());}catch{offline('ขาดการเชื่อมต่อ');}busy=false;},1000);$('save').onclick=async()=>{try{const data={};ids.forEach(id=>data[id]=$(id).value);await post('/api/config',data);status.textContent='บันทึกแล้ว';}catch(e){status.textContent=e.message;}};for(const [id,path,message]of[['shake','/api/shake','ทำแอ็กชันแล้ว'],['calibrate','/api/calibrate','คาลิเบรตแล้ว'],['axisSetup','/api/axis-setup','ทำตามจอเครื่อง: วางราบหน้าจอขึ้น แล้วตั้งให้ขอบล่างลง'],['close','/api/close','ปิด Wi-Fi แล้ว กลับไปเล่นบนเครื่องได้เลย']])$(id).onclick=async()=>{try{await post(path);status.textContent=message;if(id==='close'){stopped=true;offline('ปิด Wi-Fi แล้ว');}}catch(e){status.textContent=e.message;}};let grid=null;const chars=t=>typeof Intl!=='undefined'&&Intl.Segmenter?[...new Intl.Segmenter('th',{granularity:'grapheme'}).segment(t)].map(x=>x.segment):[...t];const font=n=>'bold '+n+'px system-ui,sans-serif';
+async function loadMessage(){grid=await(await fetch('/api/message',{cache:'no-store'})).json();$('msgText').value=grid.text||'';$('msgStyle').value=grid.style||'scroll';$('msgSpeed').value=String(grid.speed||30);}
+function pack(w,h,draw){const c=document.createElement('canvas');c.width=w;c.height=h;const g=c.getContext('2d');g.fillStyle='#000';g.fillRect(0,0,w,h);g.fillStyle='#fff';g.textAlign='center';g.textBaseline='middle';draw(g);const d=g.getImageData(0,0,w,h).data,b=new Uint8Array(Math.ceil(w*h/8));for(let x=0;x<w;x++)for(let y=0;y<h;y++)if(d[(y*w+x)*4]>110){const n=x*h+y;b[n>>3]|=1<<(n&7);}return b;}
+function wrap(m,t,W){const out=[];for(const part of t.split('\n')){let line='';for(const ch of chars(part)){if(line&&m.measureText(line+ch).width>W){const cut=line.lastIndexOf(' ');if(cut>0&&ch!==' '){out.push(line.slice(0,cut));line=line.slice(cut+1)+ch;}else{out.push(line);line=ch===' '?'':ch;}}else line+=ch;}out.push(line);}return out;}
+function banner(t){const m=document.createElement('canvas').getContext('2d');m.font=font(19);const w=Math.max(1,Math.min(1360,Math.ceil(m.measureText(t).width)+4));return[w,pack(w,24,g=>{g.font=font(19);g.fillText(t,w/2,13);})];}
+function still(t,cols,rows,round){const a=round?.72:.94,m=document.createElement('canvas').getContext('2d');let size=Math.floor(rows*.6),lines=[t];for(;size>6;size--){m.font=font(size);lines=wrap(m,t,cols*a);if(lines.length*size*1.2<=rows*a&&lines.every(l=>m.measureText(l).width<=cols*a))break;}return pack(cols,rows,g=>{g.font=font(size);lines.forEach((l,k)=>g.fillText(l,cols/2,rows/2+1+(k-(lines.length-1)/2)*size*1.2));});}
+const b64=b=>btoa(Array.from(b,c=>String.fromCharCode(c)).join(''));
+$('msgSend').onclick=async()=>{try{if(!grid)await loadMessage();const t=$('msgText').value.trim()||'♥',[w,sb]=banner(t),cb=still(t,grid.grid[0],grid.grid[1],grid.round);await post('/api/message',{text:t,style:$('msgStyle').value,speed:$('msgSpeed').value,sw:String(w),sbits:b64(sb),cols:String(grid.grid[0]),rows:String(grid.grid[1]),cbits:b64(cb)});$('mode').value='message';status.textContent='ส่งข้อความแล้ว';}catch(e){status.textContent=e.message;}};
+loadMessage().catch(()=>{});
+load().catch(e=>{status.textContent=e.message;offline('ขาดการเชื่อมต่อ');});
 </script></html>)HTML";
 
 void setupRoutes() {
@@ -526,6 +629,38 @@ void setupRoutes() {
 #endif
     resetMode();saveSettings();server.send(200,"application/json","{\"ok\":true}");
   });
+  server.on("/api/message", HTTP_GET, [](){
+    String text = "{\"text\":\"";
+    for (unsigned k = 0; k < messageText.length(); k++) {
+      const char c = messageText[k];
+      if (c == '"' || c == '\\') { text += '\\'; text += c; }
+      else if ((uint8_t)c < 0x20) { char code[8]; snprintf(code, sizeof(code), "\\u%04x", c); text += code; }
+      else text += c;
+    }
+    const DotGrid grid = dotGrid(scene ? scene->width() : 0, scene ? scene->height() : 0);
+    char tail[96]; snprintf(tail, sizeof(tail), "\",\"style\":\"%s\",\"speed\":%d,\"grid\":[%d,%d],\"round\":%s}", messageStill ? "still" : "scroll", messageSpeed, grid.cols, grid.rows, DISPLAY_PROFILE == 3 ? "true" : "false");
+    server.send(200, "application/json", text + tail);
+  });
+  // The phone draws the text (any language) into dot pictures: a 24-row banner and a still picture for this grid.
+  server.on("/api/message", HTTP_POST, [](){
+    const int bannerWidth = server.arg("sw").toInt(), cols = server.arg("cols").toInt(), rows = server.arg("rows").toInt();
+    if (server.arg("text").length() > 320 || bannerWidth < 1 || bannerWidth > DotBitmap::MaxBannerWidth || cols < 1 || cols > DotBitmap::MaxSide || rows < 1 || rows > DotBitmap::MaxSide) { server.send(400, "text/plain", "Invalid message"); return; }
+    auto decode = [](const String &text, size_t bytes) -> uint8_t * {
+      uint8_t *bits = (uint8_t *)malloc(bytes); size_t written = 0;
+      if (!bits || mbedtls_base64_decode(bits, bytes, &written, (const unsigned char *)text.c_str(), text.length()) != 0 || written != bytes) { free(bits); return nullptr; }
+      return bits;
+    };
+    uint8_t *bannerBits = decode(server.arg("sbits"), DotBitmap::bytesFor(bannerWidth, DotBitmap::BannerRows)), *stillBits = decode(server.arg("cbits"), DotBitmap::bytesFor(cols, rows));
+    if (!bannerBits || !stillBits) { free(bannerBits); free(stillBits); server.send(400, "text/plain", "Invalid picture"); return; }
+    banner.assign(bannerBits, bannerWidth, DotBitmap::BannerRows); stillPicture.assign(stillBits, cols, rows);
+    messageText = server.arg("text"); messageStill = server.arg("style") == "still"; messageSpeed = constrain(server.arg("speed").toInt(), 5, 120);
+    preferences.putString("msgText", messageText); preferences.putInt("msgStyle", messageStill ? 1 : 0); preferences.putInt("msgSpeed", messageSpeed);
+    preferences.putInt("msgScrollW", bannerWidth); preferences.putBytes("msgScroll", bannerBits, DotBitmap::bytesFor(bannerWidth, DotBitmap::BannerRows));
+    preferences.putInt("msgStillW", cols); preferences.putInt("msgStillH", rows); preferences.putBytes("msgStill", stillBits, DotBitmap::bytesFor(cols, rows));
+    rest.touch(millis(), motion.gravity);
+    activeMode = Message; resetMode(); saveSettings();
+    server.send(200, "application/json", "{\"ok\":true}");
+  });
   server.on("/api/shake",HTTP_POST,[](){rest.touch(millis(),motion.gravity);shake();server.send(200,"application/json","{\"ok\":true}");});
   server.on("/api/calibrate",HTTP_POST,[](){
     if(!imuReady){server.send(409,"text/plain; charset=utf-8","ไม่พบเซนเซอร์");return;}
@@ -569,6 +704,7 @@ void setup(){
   pinMode(TOY_BUTTON,INPUT_PULLUP);
   Wire.begin(TOY_SDA,TOY_SCL);Wire.setClock(400000);Wire.setTimeOut(40);
   preferences.begin("tilt-toy",false);
+  loadMessage();
   Serial.printf("Reset reason: %s\n",resetReason());
   // Ten-mode firmware saved "mode"; its removed modes start as water.
   // Older firmware stored five modes under "toyMode" or ten under "mode"; removed modes map to the nearest one left.
@@ -629,7 +765,7 @@ void loop(){
   }
   // TFT liquid modes draw at their solver step rate and send only changed blocks.
   // The OLED keeps 50 ms: it shares I²C with the sensor and a full transfer takes about 25 ms.
-  const uint32_t frameMs=DISPLAY_PROFILE==4?50:activeMode==PixelFlow?PixelDrops::StepMs:isFlipMode(activeMode)?25:50;
+  const uint32_t frameMs=DISPLAY_PROFILE==4?50:activeMode==PixelFlow?PixelDrops::StepMs:isFlipMode(activeMode)?25:activeMode==Heart||activeMode==Message?33:50;
   if(now-lastFrame>=frameMs){float dt=limit((now-lastFrame)*0.001f,0.01f,0.1f);lastFrame=now;if(!drawPixelFlowDirect(dt)&&!drawWaterDirect(dt)){renderGame(dt);present();}frameCount++;}
   if(now-fpsAt>=1000){
     fps=frameCount*1000.0f/(now-fpsAt);frameCount=0;fpsAt=now;

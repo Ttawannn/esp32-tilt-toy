@@ -41,15 +41,16 @@ test('phone controls display each detected sensor and offer calibration only whi
       assert.equal(requests.at(-1)[0], '/api/calibrate');
       assert.equal(requests.at(-1)[1].method, 'POST');
     }
-    for (const [mode,name] of [['water-slosh','น้ำกระฉอก'],['pixel-flow','น้ำพิกเซล'],['robot','ตาหุ่นยนต์ · ดีใจ']]) {
+    for (const [mode,name] of [['water-slosh','น้ำกระฉอก'],['pixel-flow','น้ำพิกเซล'],['robot','ตาหุ่นยนต์ · ดีใจ'],['heart','หัวใจ'],['message','ข้อความ']]) {
       state={...state,mode,mood:'happy'};await poll();
       assert.equal(get('vMode').textContent,name);
-      const liquid=mode!=='robot';
+      const liquid=['water-slosh','pixel-flow'].includes(mode);
       assert.equal(get('sSim').hidden,!liquid);assert.equal(get('sParticles').hidden,!liquid);
       assert.equal(get('shake').hidden,false,'every mode reacts to a shake');
       assert.equal(get('moodWrap').hidden,mode!=='robot');
       assert.equal(get('waterColorWrap').hidden,mode!=='water-slosh');
       assert.equal(get('themeWrap').hidden,false);
+      assert.equal(get('msgCard').hidden,mode!=='message','the message card shows in message mode');
       get('mode').value=mode;await get('save').onclick();
       assert.equal(requests.at(-1)[1].body.get('mode'),mode);
     }

@@ -19,12 +19,13 @@ let currentMode=modes.some(m=>m.id===saved.mode)?saved.mode:'water-slosh';
 let mood=MOODS.includes(saved.mood)?saved.mood:'auto';
 let waterColor=saved.waterColor==='classic'?'classic':'gradient';
 let theme=findTheme(saved.theme).id;
+let messageStyle=saved.messageStyle==='still'?'still':'scroll',messageText=typeof saved.messageText==='string'?saved.messageText:'Hello ♥';
 let fill=Number.isFinite(saved.fill)?Math.min(90,Math.max(10,Math.round(saved.fill))):50;
 let profile=findProfile(choice,orientation), generation=0, installerReady=false, releaseReady=false;
 const supported=window.isSecureContext && 'serial' in navigator;
 const preview=new ToyPreview($('toy-canvas'));preview.fill=fill;
 const wiring=new WiringGraph($('wiring'));
-function remember(){try{localStorage.setItem('tilt-toy-selection',JSON.stringify({board:board.id,choice,orientation,sensor:sensorId,mode:currentMode,mood,waterColor,theme,fill}));}catch{}}
+function remember(){try{localStorage.setItem('tilt-toy-selection',JSON.stringify({board:board.id,choice,orientation,sensor:sensorId,mode:currentMode,mood,waterColor,theme,messageText,messageStyle,fill}));}catch{}}
 // The preview shows the selected module at a size that fits the stage, with the canvas on its screen.
 let module=null;
 function showModule(){
@@ -119,7 +120,7 @@ document.querySelector('.arduino-view').addEventListener('toggle',async event=>{
   try{$('arduino-code').textContent=t('arduino.loading');const text=await loadSketch();if(text!==null)$('arduino-code').textContent=text;}
   catch(error){$('arduino-code').textContent=error.message;}
 });
-function chooseMode(id){currentMode=id;remember();preview.setMode(id);document.querySelectorAll('[data-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.mode===id)));const m=modes.find(m=>m.id===id);$('mode-readout').textContent=m.name.toUpperCase();$('mode-description').textContent=`${m.detail} · ${t('preview.web')}`;$('fluid-controls').hidden=!isLiquidMode(id);$('jolt-controls').hidden=!['water-slosh','pixel-flow'].includes(id);$('fluid-grid').closest('label').hidden=id==='pixel-flow';$('mood-controls').hidden=id!=='robot';$('lay-flat').hidden=!isFlipMode(id);$('water-color-controls').hidden=!isFlipMode(id);}
+function chooseMode(id){currentMode=id;remember();preview.setMode(id);document.querySelectorAll('[data-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.mode===id)));const m=modes.find(m=>m.id===id);$('mode-readout').textContent=m.name.toUpperCase();$('mode-description').textContent=`${m.detail} · ${t('preview.web')}`;$('fluid-controls').hidden=!isLiquidMode(id);$('jolt-controls').hidden=!['water-slosh','pixel-flow'].includes(id);$('fluid-grid').closest('label').hidden=id==='pixel-flow';$('mood-controls').hidden=id!=='robot';$('message-controls').hidden=id!=='message';$('lay-flat').hidden=!isFlipMode(id);$('water-color-controls').hidden=!isFlipMode(id);}
 for(const d of displayChoices){const b=document.createElement('button');b.className='display-card';b.dataset.display=d.id;b.setAttribute('aria-pressed','false');b.innerHTML=`<span class="mini-screen ${d.shape}" aria-hidden="true"></span><span><strong>${d.title}</strong><small>${d.subtitle}</small></span>`;b.addEventListener('click',()=>{choice=d.id;chooseDisplay();});$('displays').append(b);}
 for(const m of modes){const b=document.createElement('button');b.className='mode-button';b.dataset.mode=m.id;b.setAttribute('aria-pressed','false');b.innerHTML=`<span class="glyph" aria-hidden="true">${modeIcons[m.id]}</span><span class="mode-name">${m.name}</span><small>${m.english}</small>`;b.addEventListener('click',()=>chooseMode(m.id));$('modes').append(b);}
 $('orientation').addEventListener('change',()=>{orientation=$('orientation').value;chooseDisplay();});
@@ -143,6 +144,12 @@ $('fluid-grid').addEventListener('change',()=>{preview.showGrid=$('fluid-grid').
 // Theme swatches: each shows the theme's water from surface to deep.
 function chooseTheme(id){theme=id;preview.setTheme(id);document.querySelectorAll('[data-theme-id]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.themeId===id)));}
 for(const th of THEMES){const b=document.createElement('button');b.type='button';b.className='theme-swatch';b.dataset.themeId=th.id;b.style.background=`linear-gradient(180deg,${th.shades[1]} 0 22%,${th.shades[3]} 22%,${th.shades[5]} 70%,${th.shades[6]})`;b.innerHTML=`<span class="swatch-eye" style="background:${th.eye}"></span>`;b.addEventListener('click',()=>{chooseTheme(th.id);remember();});$('themes').append(b);}
+// Message preview: the same text and style the phone page sends to the toy.
+function showMessage(){messageText=$('message-text').value;preview.setMessage(messageText.trim(),messageStyle==='still',Number($('message-speed').value));document.querySelectorAll('[data-message-style]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.messageStyle===messageStyle)));remember();}
+$('message-text').value=messageText;
+$('message-text').addEventListener('input',showMessage);$('message-speed').addEventListener('change',showMessage);
+document.querySelectorAll('[data-message-style]').forEach(b=>b.addEventListener('click',()=>{messageStyle=b.dataset.messageStyle;showMessage();}));
+showMessage();
 for(const id of MOODS){const option=document.createElement('option');option.value=id;$('mood').append(option);}
 $('mood').value=mood;preview.setMood(mood);chooseWaterColor(waterColor);chooseTheme(theme);
 chooseMode(currentMode);chooseDisplay();
