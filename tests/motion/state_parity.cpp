@@ -107,7 +107,8 @@ int main() {
         side[j*cols+i] = circular && x*x+y*y > cols*cols ? 3 : j > rows/2 ? 1 : j == rows/2 ? 2 : 0;
       }
       for (int s=0;s<steps;s++) {
-        float dt, gx, gy, gz; std::cin >> dt >> gx >> gy >> gz;
+        float dt, gx, gy, gz; int ripple, rx, ry; std::cin >> dt >> gx >> gy >> gz >> ripple >> rx >> ry;
+        if (ripple) std::cout << (int)puddle.ripple(rx,ry) << ' ';
         std::cout << (int)puddle.update(dt,gx,gy,gz,side,cols,rows,fill);
         for (int c=0;c<cols*rows;c++) std::cout << ' ' << (int)puddle.look[c];
         std::cout << '\n';

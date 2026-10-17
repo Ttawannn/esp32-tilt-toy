@@ -18,6 +18,7 @@ class RobotEyes {
  public:
   static constexpr uint32_t AutoMs = 3500, DizzyMs = 2200, BlinkMs = 180;
   int mood = MoodAuto;  // chosen on the phone; MoodAuto plays every mood in turn
+  bool sleepy = false;  // just before the toy rests: tired eyes whatever the mood
 
   void reset(uint32_t now, uint32_t seed) {
     state = seed ? seed : 1;
@@ -33,6 +34,7 @@ class RobotEyes {
   }
   int shown(uint32_t now) const {
     if ((int32_t)(dizzyUntil - now) > 0) return FaceDizzy;
+    if (sleepy) return MoodTired;
     return mood == MoodAuto ? autoMood : mood;
   }
   // lookX/lookY in -1..1 move the gaze toward the tilt.

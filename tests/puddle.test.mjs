@@ -56,3 +56,25 @@ test('a small tilt drains the high side to bare floor with a shore, and standing
   assert.equal(puddle.amount, 0);
   assert.ok(puddle.look.every(v => v === 0), 'back to the side view');
 });
+
+test('a shake while flat sends a ring out from the middle; standing up or a partial puddle refuses it', () => {
+  const puddle = new Puddle();
+  run(puddle, .5, flat);
+  assert.equal(puddle.ripple(0, 0), false, 'no ripple until the puddle covers the floor');
+  run(puddle, 1, flat);
+  assert.equal(puddle.ripple(0, 0), true);
+  const crestDistance = () => {
+    const at = inside.filter(c => puddle.look[c] === 2).map(c => Math.hypot(2 * (c % cols) + 1 - cols, 2 * Math.floor(c / cols) + 1 - rows));
+    return at.length ? at.reduce((a, b) => a + b) / at.length : null;
+  };
+  run(puddle, .2, flat);
+  const near = crestDistance();
+  run(puddle, .3, flat);
+  const far = crestDistance();
+  assert.ok(near !== null && far !== null && far > near + 5, `the crest runs outward: ${near} then ${far}`);
+  assert.ok(inside.some(c => puddle.look[c] >= 4), 'the band behind the crest is darker');
+  run(puddle, 1.5, flat);
+  assert.equal(crestDistance(), null, 'the ring has gone past the rim');
+  run(puddle, .6, () => [.6, .8, 0]);
+  assert.equal(puddle.ripple(0, 0), false, 'standing up: no ripples');
+});

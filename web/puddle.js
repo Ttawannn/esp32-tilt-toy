@@ -7,13 +7,25 @@ const f = Math.fround;
 export const DRY = 7;
 const ENTER = f(.16), EXIT = f(.30), DWELL = f(.4), SPREAD = f(.6), DRAIN = f(.35), SMOOTH = f(.25);
 const nearest = v => Math.floor(f(v + .5));
+// Ripples: rings in half cells that run out at RIPPLE_SPEED/256 half cells per ms, RIPPLE_WIDTH half cells thick.
+export const MAX_RIPPLES = 3;
+const RIPPLE_SPEED = 11, RIPPLE_WIDTH = 3;
 
 // Same cell limit as the firmware: the largest water grid is 25 × 52.
 export const MAX_CELLS = 1600;
 
 export class Puddle {
   constructor() { this.look = new Uint8Array(MAX_CELLS); this.dist = new Uint8Array(MAX_CELLS); this.reset(); }
-  reset() { this.amount = 0; this.flatFor = 0; this.flat = false; this.cols = this.rows = 0; this.look.fill(0); this.tx = 0; this.ty = 1; this.tz = 0; this.maxDist = 0; }
+  reset() { this.amount = 0; this.flatFor = 0; this.flat = false; this.cols = this.rows = 0; this.look.fill(0); this.tx = 0; this.ty = 1; this.tz = 0; this.maxDist = 0; this.rippleX = [0, 0, 0]; this.rippleY = [0, 0, 0]; this.rippleAge = [-1, -1, -1]; }
+  // A ring running out from (x, y), in half cells from the middle of the grid. Only a puddle that covers
+  // the floor ripples; the oldest ring makes way when MAX_RIPPLES are running.
+  ripple(x, y) {
+    if (!this.flat || this.amount < 1) return false;
+    let slot = 0;
+    for (let k = 0; k < MAX_RIPPLES; k++) { if (this.rippleAge[k] < 0) { slot = k; break; } if (this.rippleAge[k] > this.rippleAge[slot]) slot = k; }
+    this.rippleX[slot] = Math.trunc(x); this.rippleY[slot] = Math.trunc(y); this.rippleAge[slot] = 0;
+    return true;
+  }
   // gx, gy, gz: gravity on the screen axes, unit length. side: the side-view raster (0 empty, 1-2 water,
   // 3 outside the vessel). fill: water level in percent. Returns true while any cell shows the puddle.
   update(dt, gx, gy, gz, side, width, height, fill) {
@@ -25,6 +37,7 @@ export class Puddle {
     if (!this.flat && this.flatFor >= DWELL) { this.flat = true; this.spreadFrom(side); if (this.amount <= 0) { this.tx = gx; this.ty = gy; this.tz = gz; } }
     else if (this.flat && planar > EXIT) { this.flat = false; this.spreadFrom(side); }
     this.amount = this.flat ? Math.min(1, f(this.amount + f(dt / SPREAD))) : Math.max(0, f(this.amount - f(dt / DRAIN)));
+    if (!this.flat || this.amount < 1) this.rippleAge.fill(-1);
     if (this.amount <= 0) { look.fill(0); return false; }
     const follow = Math.min(1, f(dt / SMOOTH));
     this.tx = f(this.tx + f(f(gx - this.tx) * follow)); this.ty = f(this.ty + f(f(gy - this.ty) * follow)); this.tz = f(this.tz + f(f(gz - this.tz) * follow));
@@ -53,6 +66,22 @@ export class Puddle {
       const c = j * cols + i;
       if (look[c] < 3 || look[c] > 6) continue;
       if ((i > 0 && look[c - 1] === DRY) || (i + 1 < cols && look[c + 1] === DRY) || (j > 0 && look[c - cols] === DRY) || (j + 1 < rows && look[c + cols] === DRY)) look[c] = 1;
+    }
+    // Ripples: the crest in the lightest shade (2), the band behind it a shade deeper; dry floor stays dry.
+    const step = nearest(f(dt * 1000)), limit = cols + rows + RIPPLE_WIDTH;
+    for (let k = 0; k < MAX_RIPPLES; k++) {
+      if (this.rippleAge[k] < 0) continue;
+      this.rippleAge[k] += step;
+      const r = Math.trunc(this.rippleAge[k] * RIPPLE_SPEED / 256);
+      if (r > limit) { this.rippleAge[k] = -1; continue; }
+      const front = r * r, crest = r > RIPPLE_WIDTH ? (r - RIPPLE_WIDTH) ** 2 : 0, back = r > 2 * RIPPLE_WIDTH ? (r - 2 * RIPPLE_WIDTH) ** 2 : 0;
+      for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) {
+        const c = j * cols + i, v = look[c];
+        if (v !== 1 && (v < 3 || v > 6)) continue;
+        const x = 2 * i + 1 - cols - this.rippleX[k], y = 2 * j + 1 - rows - this.rippleY[k], d2 = x * x + y * y;
+        if (d2 >= crest && d2 < front) look[c] = 2;
+        else if (d2 >= back && d2 < crest && v >= 3 && v < 6) look[c] = v + 1;
+      }
     }
     return true;
   }

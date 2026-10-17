@@ -16,7 +16,7 @@ export function eyeShape(mood,side){
 }
 
 export class RobotEyes {
-  constructor(){this.mood='auto';this.reset(0);}
+  constructor(){this.mood='auto';this.sleepy=false;this.reset(0);}
   reset(now){
     this.current=[eyeShape('normal',0),eyeShape('normal',1)];
     this.gazeX=this.gazeY=this.glanceX=this.glanceY=0;
@@ -25,7 +25,8 @@ export class RobotEyes {
   }
   // Shake reaction: spinning dizzy eyes, then back to the mood. Shaking again keeps them dizzy.
   react(now){if(now>=this.dizzyUntil)this.dizzyStart=now;this.dizzyUntil=now+DIZZY_MS;}
-  shown(now){return now<this.dizzyUntil?'dizzy':this.mood==='auto'?MOODS[this.autoMood]:this.mood;}
+  // sleepy: just before the toy rests, tired eyes whatever the mood.
+  shown(now){return now<this.dizzyUntil?'dizzy':this.sleepy?'tired':this.mood==='auto'?MOODS[this.autoMood]:this.mood;}
   // now in ms; lookX/lookY in -1..1 move the gaze toward the tilt. Draws centred on (0, 0).
   draw(c,width,height,now,dt,lookX,lookY,eyeColor,heartColor,background='#000'){
     if(this.mood==='auto'&&now>=this.nextAuto){this.autoMood=this.autoMood%(MOODS.length-1)+1;this.nextAuto=now+AUTO_MS;}

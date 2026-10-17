@@ -15,11 +15,23 @@ class Puddle {
   static constexpr uint8_t Dry = 7;
   // In-plane gravity below Enter (about 9°) for DwellS lays the puddle; above Exit (about 17°) it drains.
   static constexpr float Enter = .16f, Exit = .30f, DwellS = .4f, SpreadS = .6f, DrainS = .35f, SmoothS = .25f;
+  // Ripples: rings in half cells that run out at RippleSpeed/256 half cells per ms, RippleWidth half cells thick.
+  static constexpr int MaxRipples = 3;
+  static constexpr int32_t RippleSpeed = 11, RippleWidth = 3;
   uint8_t look[MaxCells]{};
   float amount = 0;  // 0 side view .. 1 the whole floor
   bool flat = false;
 
-  void reset() { amount = flatFor = 0; flat = false; cols = rows = 0; tx = 0; ty = 1; tz = 0; memset(look, 0, sizeof(look)); }
+  void reset() { amount = flatFor = 0; flat = false; cols = rows = 0; tx = 0; ty = 1; tz = 0; memset(look, 0, sizeof(look)); clearRipples(); }
+  // A ring running out from (x, y), in half cells from the middle of the grid. Only a puddle that covers
+  // the floor ripples; the oldest ring makes way when MaxRipples are running.
+  bool ripple(int32_t x, int32_t y) {
+    if (!flat || amount < 1) return false;
+    int slot = 0;
+    for (int k = 0; k < MaxRipples; k++) { if (rippleAge[k] < 0) { slot = k; break; } if (rippleAge[k] > rippleAge[slot]) slot = k; }
+    rippleX[slot] = x; rippleY[slot] = y; rippleAge[slot] = 0;
+    return true;
+  }
   // gx, gy, gz: gravity on the screen axes, unit length. side: the side-view raster (0 empty, 1-2 water,
   // 3 outside the vessel). fill: water level in percent. Returns true while any cell shows the puddle.
   bool update(float dt, float gx, float gy, float gz, const uint8_t *side, int width, int height, float fill) {
@@ -30,6 +42,7 @@ class Puddle {
     if (!flat && flatFor >= DwellS) { flat = true; spreadFrom(side); if (amount <= 0) { tx = gx; ty = gy; tz = gz; } }
     else if (flat && planar > Exit) { flat = false; spreadFrom(side); }
     amount = flat ? fminf(1, amount + dt / SpreadS) : fmaxf(0, amount - dt / DrainS);
+    if (!flat || amount < 1) clearRipples();
     if (amount <= 0) { memset(look, 0, sizeof(look)); return false; }
     const float follow = fminf(1, dt / SmoothS);
     tx = tx + (gx - tx) * follow; ty = ty + (gy - ty) * follow; tz = tz + (gz - tz) * follow;
@@ -60,6 +73,23 @@ class Puddle {
       if (look[c] < 3 || look[c] > 6) continue;
       if ((i > 0 && look[c-1] == Dry) || (i+1 < cols && look[c+1] == Dry) || (j > 0 && look[c-cols] == Dry) || (j+1 < rows && look[c+cols] == Dry)) look[c] = 1;
     }
+    // Ripples: the crest in the lightest shade (2), the band behind it a shade deeper; dry floor stays dry.
+    const int32_t step = nearest(dt * 1000), limit = cols + rows + RippleWidth;
+    for (int k = 0; k < MaxRipples; k++) {
+      if (rippleAge[k] < 0) continue;
+      rippleAge[k] += step;
+      const int32_t r = rippleAge[k] * RippleSpeed / 256;
+      if (r > limit) { rippleAge[k] = -1; continue; }
+      const int32_t front = r * r, crest = r > RippleWidth ? (r - RippleWidth) * (r - RippleWidth) : 0;
+      const int32_t back = r > 2 * RippleWidth ? (r - 2 * RippleWidth) * (r - 2 * RippleWidth) : 0;
+      for (int j = 0; j < rows; j++) for (int i = 0; i < cols; i++) {
+        const int c = j*cols + i, v = look[c];
+        if (v != 1 && (v < 3 || v > 6)) continue;
+        const int32_t x = 2*i + 1 - cols - rippleX[k], y = 2*j + 1 - rows - rippleY[k], d2 = x*x + y*y;
+        if (d2 >= crest && d2 < front) look[c] = 2;
+        else if (d2 >= back && d2 < crest && v >= 3 && v < 6) look[c] = (uint8_t)(v + 1);
+      }
+    }
     return true;
   }
 
@@ -67,6 +97,8 @@ class Puddle {
   uint8_t dist[MaxCells]{};
   int16_t queue[MaxCells]{};
   int cols = 0, rows = 0, radius = 1, rim = 1, maxDist = 0;
+  int32_t rippleX[MaxRipples]{}, rippleY[MaxRipples]{}, rippleAge[MaxRipples] = {-1, -1, -1};
+  void clearRipples() { for (int k = 0; k < MaxRipples; k++) rippleAge[k] = -1; }
   float flatFor = 0, tx = 0, ty = 1, tz = 0;
 
   static int32_t nearest(float v) { return (int32_t)floorf(v + .5f); }

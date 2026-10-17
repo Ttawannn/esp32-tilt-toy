@@ -119,7 +119,9 @@ test('C++/JS fusion, forces and fixed-point water agree; C++ survives 1000 mixed
     expected.push([run.count,run.restDensity,...Array.from({length:run.count},(_,p)=>[run.qx[p],run.qy[p],run.qvx[p],run.qvy[p]]).flat(),...cells,...run.shade(cols,rows,view[4],view[5],cells).subarray(0,cols*rows)]);
   };
   exact(20,20,true,60,33,33);exact(18,18,false,40,33,33);exact(10,18,false,75,19,39);exact(19,10,false,50,40,20);
-  // Puddle: standing, lying flat with sensor noise, a small tilt, then standing up again, step for step.
+  // Puddle: standing, lying flat with sensor noise and ripples (four, so the oldest makes way), a small tilt,
+  // then standing up again, step for step. A ripple while standing is refused.
+  const rings={5:[0,0],52:[0,0],55:[8,-6],57:[-10,4],58:[3,3]};
   for(const [cols,rows,round,fill] of [[33,33,true,50],[25,52,false,20],[52,25,false,90]]){
     const side=new Uint8Array(cols*rows),puddle=new Puddle(),f32=Math.fround;
     for(let j=0;j<rows;j++)for(let i=0;i<cols;i++){const x=2*i+1-cols,y=2*j+1-rows;side[j*cols+i]=round&&x*x+y*y>cols*cols?3:j>Math.floor(rows/2)?1:j===Math.floor(rows/2)?2:0;}
@@ -127,7 +129,9 @@ test('C++/JS fusion, forces and fixed-point water agree; C++ survives 1000 mixed
     for(let s=0;s<120;s++){
       const tilt=s<10?1:s<60?.02*Math.sin(s*1.7):s<90?.13:.6;
       const g=[.025,Math.sin(s*.9)*tilt,Math.cos(s*.9)*tilt,Math.sqrt(1-tilt*tilt)].map(f32);
-      input.push(g.join(' '));expected.push([puddle.update(...g,side,cols,rows,fill)?1:0,...puddle.look.subarray(0,cols*rows)]);
+      const ring=rings[s];input.push([...g,ring?1:0,...(ring||[0,0])].join(' '));
+      const accepted=ring?[puddle.ripple(...ring)?1:0]:[];
+      expected.push([...accepted,puddle.update(...g,side,cols,rows,fill)?1:0,...puddle.look.subarray(0,cols*rows)]);
     }
   }
   input.push('B');expected.push([1]);

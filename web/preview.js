@@ -76,10 +76,13 @@ export class ToyPreview {
   setTheme(id){this.theme=findTheme(id);}
   // Water and slosh water: 'classic' two-tone or 'gradient' depth shades in the Pixel Flow palette.
   setWaterColor(look){this.waterColor=look==='gradient'?'gradient':'classic';}
-  shake(){this.robot.react(performance.now());this.fluid.impulse(Math.sin(this.roll*Math.PI/180),Math.cos(this.roll*Math.PI/180));this.drops.shake(...this.pixelForce);}
+  shake(){this.robot.react(performance.now());this.puddle.ripple(0,0);this.fluid.impulse(Math.sin(this.roll*Math.PI/180),Math.cos(this.roll*Math.PI/180));this.drops.shake(...this.pixelForce);}
   bindStir(){const canvas=this.canvas;let previous=null;
     const point=e=>{const box=canvas.getBoundingClientRect(),l=this.layout,f=this.fluid,px=(e.clientX-box.left)*canvas.width/box.width,py=(e.clientY-box.top)*canvas.height/box.height;return {px,py,x:f.h+(px-l.x)/l.width*(f.nx-2)*f.h,y:f.h+(py-l.y)/l.height*(f.ny-2)*f.h,time:e.timeStamp};};
-    canvas.addEventListener('pointerdown',e=>{if(isLiquidMode(this.mode)){previous=point(e);canvas.setPointerCapture(e.pointerId);}});
+    canvas.addEventListener('pointerdown',e=>{
+      // Lying flat, a tap drops a ring where it lands; otherwise drag to stir.
+      const g=this.puddleGrid;if(g&&this.puddle.flat&&this.puddle.amount>=1){const p=point(e);this.puddle.ripple(Math.round(2*(p.px-g.x)/g.cell-g.cols),Math.round(2*(p.py-g.y)/g.cell-g.rows));return;}
+      if(isLiquidMode(this.mode)){previous=point(e);canvas.setPointerCapture(e.pointerId);}});
     canvas.addEventListener('pointermove',e=>{if(!previous||!isLiquidMode(this.mode))return;const p=point(e),dt=Math.max(.01,(p.time-previous.time)/1000);
       if(this.mode==='pixel-flow'){const v=this.pixelView,toQ8=256*PIXEL_STEP/v.pitch;this.drops.push(Math.floor((p.px-v.x)/v.pitch),Math.floor((p.py-v.y)/v.pitch),Math.trunc((p.px-previous.px)/dt*toQ8),Math.trunc((p.py-previous.py)/dt*toQ8),3);}
       else this.fluid.stir(p.x,p.y,(p.x-previous.x)/dt,(p.y-previous.y)/dt);
@@ -109,10 +112,10 @@ export class ToyPreview {
       pixelWater(f,cols,rows,f.h+ox/sx,f.h+oy/sy,cell/sx,cell/sy,g.x,g.y,this.pixels);
       const shades=this.waterColor==='gradient'?f.shade(cols,rows,g.x,g.y,this.pixels):null;
       // Lying flat shows the water from above, as on the toy; an OLED draws the puddle as dots with a solid shore.
-      const puddle=this.puddle.update(dt,g.x,g.y,g.z,this.pixels,cols,rows,this.fill)?this.puddle.look:null;
+      const puddle=this.puddle.update(dt,g.x,g.y,g.z,this.pixels,cols,rows,this.fill)?this.puddle.look:null;this.puddleGrid={x:l.x+ox,y:l.y+oy,cell,cols,rows};
       for(let j=0;j<rows;j++)for(let i=0;i<cols;i++){
         const k=j*cols+i,p=puddle&&k<puddle.length?puddle[k]:0,v=this.pixels[k];let color=null;
-        if(p){if(p!==DRY&&!(this.mono&&p>1&&(i+j)&1))color=this.mono?white:shades?this.theme.shades[p]:p===1?this.theme.top:this.theme.body;}
+        if(p){if(p!==DRY&&!(this.mono&&p>2&&(i+j)&1))color=this.mono?white:shades?this.theme.shades[p]:p<=2?this.theme.top:this.theme.body;}
         else if(v===1||v===2)color=this.mono?white:shades?this.theme.shades[shades[k]]:v===2?this.theme.top:this.theme.body;
         if(color){c.fillStyle=color;c.fillRect(left+ox+i*cell,top+oy+j*cell,cell-1,cell-1);}
       }
