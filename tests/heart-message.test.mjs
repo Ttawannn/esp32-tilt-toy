@@ -43,3 +43,16 @@ test('message pictures pack column by column, scroll in from the right and loop,
   assert.deepEqual(wrapLines(measure, 'abcdefghijklm', 50), ['abcde', 'fghij', 'klm'], 'no spaces: breaks between characters');
   assert.deepEqual(wrapLines(measure, 'one\ntwo', 100), ['one', 'two']);
 });
+
+test('the phone page offers eight stickers, each at most 16 × 16 dots with a colour and lit dots', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const sketch = await readFile(new URL('../firmware/tilt_toy/tilt_toy.ino', import.meta.url), 'utf8');
+  const literal = sketch.match(/const STICKERS=(\[[\s\S]*?\]\]\]);/)[1];
+  const stickers = Function(`return ${literal}`)();
+  assert.equal(stickers.length, 8);
+  for (const [name, colour, rows] of stickers) {
+    assert.match(colour, /^[0-9a-f]{6}$/, `${name} colour`);
+    assert.ok(rows.length <= 16 && rows.every(row => row.length <= 16 && /^[.#]*$/.test(row)), `${name} fits 16 × 16`);
+    assert.ok(rows.join('').split('#').length - 1 >= 20, `${name} has lit dots`);
+  }
+});

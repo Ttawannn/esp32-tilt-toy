@@ -6,8 +6,8 @@
   "chipFamily": "ESP32-C3",
   "flashSize": "4MB",
   "controller": "SSD1306",
-  "size": 1279760,
-  "sha256": "e4db69ca17302c5b23a463948a3ae4dbc8585b212cfcc6e10b58e0195f361e64",
+  "size": 1288720,
+  "sha256": "61ce25dda621a5a8abb298a533a3adeb3775d3e09c4381132446fe96127b3d09",
   "hardwareTested": false,
   "build": {
     "core": "esp32:esp32@3.3.11",
@@ -16,7 +16,7 @@
     "bootloaderOffset": 0,
     "displayProfile": 4,
     "initialRotation": 0,
-    "sourceSha256": "719fc95c82cf7a4164a54628b163b5d0820a16253a5f1443942ed13cb75fc82e"
+    "sourceSha256": "dd59ef4673e1c600ddade2bec8a3959c0dc2d52e1069081367e1a4f83cf6a28f"
   },
   "new_install_prompt_erase": true,
   "new_install_improv_wait_time": 0,
