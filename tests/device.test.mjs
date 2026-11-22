@@ -41,7 +41,7 @@ test('phone controls display each detected sensor and offer calibration only whi
       assert.equal(requests.at(-1)[0], '/api/calibrate');
       assert.equal(requests.at(-1)[1].method, 'POST');
     }
-    for (const [mode,name] of [['water-slosh','น้ำกระฉอก'],['pixel-flow','น้ำพิกเซล'],['robot','ตาหุ่นยนต์ · ดีใจ'],['heart','หัวใจ'],['message','ข้อความ']]) {
+    for (const [mode,name] of [['water-slosh','Slosh water'],['pixel-flow','Pixel Flow'],['robot','Robot eyes · Happy'],['heart','Heart'],['message','Message']]) {
       state={...state,mode,mood:'happy'};await poll();
       assert.equal(get('vMode').textContent,name);
       const liquid=['water-slosh','pixel-flow'].includes(mode);
@@ -58,7 +58,18 @@ test('phone controls display each detected sensor and offer calibration only whi
     assert.equal(requests.at(-1)[1].body.get('mood'),'love');
     state = { ...state, imu: false };
     await poll();
+    assert.ok(get('hardware').textContent.includes('no sensor'), 'English by default');
+    // EN ⇄ ไทย: the page, the live values and the toy's English replies switch to Thai.
+    assert.equal(get('lang').textContent, 'ไทย');
+    get('lang').onclick();
+    assert.equal(get('lang').textContent, 'English');
     assert.ok(get('hardware').textContent.includes('ไม่พบเซนเซอร์'));
+    state = { ...state, imu: true, mode: 'robot', mood: 'happy' };
+    await poll();
+    assert.equal(get('vMode').textContent, 'ตาหุ่นยนต์ · ดีใจ');
+    state = { ...state, imu: false };
+    await poll();
+    get('lang').onclick();
     assert.equal(get('calibrate').hidden, true);
     assert.equal(get('vRoll').textContent, '–');
   }

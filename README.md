@@ -141,7 +141,7 @@ The preview works without a board. Sliders simulate tilt and pitch; controls let
 ## Configure from your phone
 
 1. After startup, hold the onboard BOOT button for 2 seconds, then let go, to enable Wi-Fi.
-2. Join `TiltToy-xxxx` with password `tilttoy32`, then open `http://192.168.4.1`.
+2. Join `TiltToy-xxxx` with password `tilttoy32`, then open `http://192.168.4.1`. The page is in English or Thai: it follows the phone's language, and the EN ⇄ ไทย button switches and remembers it. Replies from the toy are English and the page shows them in the chosen language.
 3. Live values update every second: mode, roll/pitch, FPS, water solver time and particles, and free heap.
 4. Set mode, fill, sensitivity, and display rotation, then save. TFT profiles support inversion; ST7789 supports SPI mode selection. Settings persist in NVS.
 5. Turn off Wi-Fi to keep playing, or let it close after 3 minutes.
